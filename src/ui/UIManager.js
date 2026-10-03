@@ -384,6 +384,7 @@ export default class UIManager {
             const menus = [ 
                 { id: 'hsvMenu', excludes: ['#hsvMenu', '#customColorProxy'] }, 
                 { id: 'layerMenu', excludes: ['#layerMenu', '.layer-square'] }, 
+                { id: 'layerLongPressMenu', excludes: ['#layerLongPressMenu', '.layer-square'] }, 
                 { id: 'layerAdjustMenu', excludes: ['#layerAdjustMenu', '[data-action="openLayerAdjustMenu"]'], extraCallback: () => this.events.emit('ui:applyLayerAdjust') },
                 { id: 'palettePanel', excludes: ['#palettePanel', '#btn-palette-toggle', '#hsvMenu'] }, 
                 { id: 'frameMenu', excludes: ['#frameMenu', '.frame-square'] }, 
@@ -750,9 +751,33 @@ export default class UIManager {
                 this.events.emit('ui:frameChanged'); 
                 if (this.core.renderer) this.core.renderer.render(); 
                 this.core.saveState();
+            } else if (longPressed && !hasScrolled) {
+                const lpMenu = document.getElementById('layerLongPressMenu');
+                const wasOpen = lpMenu.style.display === 'flex' && this.core.doc.activeLayerIndex === currentIndex;
+                
+                this.events.emit('core:selectLayer', currentIndex);
+                
+                if (wasOpen) {
+                    lpMenu.style.display = 'none';
+                } else {
+                    this.closeAllMenus(); 
+                    lpMenu.style.display = 'flex';
+                    
+                    const rect = square.getBoundingClientRect();
+                    const menuRect = lpMenu.getBoundingClientRect();
+                    
+                    let leftPos = rect.right + 10; 
+                    if (leftPos + menuRect.width > window.innerWidth - 10) {
+                        leftPos = rect.left - menuRect.width - 10;
+                    }
+                    
+                    lpMenu.style.left = leftPos + 'px'; 
+                    lpMenu.style.top = rect.top + 'px';
+                }
             } else if (!longPressed && !hasScrolled) {
                 const menu = document.getElementById('layerMenu');
                 const wasOpen = menu.style.display === 'flex' && this.core.doc.activeLayerIndex === currentIndex;
+
                 
                 this.events.emit('core:selectLayer', currentIndex);
                 
