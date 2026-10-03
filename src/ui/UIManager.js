@@ -81,10 +81,18 @@ export default class UIManager {
                 if (el) el.classList.remove('active');
             });
             const mainMenuBtn = document.getElementById('btn-mirror-menu');
+            const mainIcon = document.getElementById('mirror-main-icon');
             if (mode !== CONSTANTS.MIRROR.NONE) {
                 const activeBtn = document.getElementById(`btn-mirror-${mode.toLowerCase()}`);
-                if (activeBtn) activeBtn.classList.add('active');
+                if (activeBtn) {
+                    activeBtn.classList.add('active');
+                    if (mainIcon) {
+                        const activeSvg = activeBtn.querySelector('svg');
+                        if (activeSvg) mainIcon.innerHTML = activeSvg.innerHTML;
+                    }
+                }
                 if (mainMenuBtn) mainMenuBtn.classList.add('active');
+                if (window.appCore) window.appCore.lastMirrorMode = mode; // remember
             } else {
                 if (mainMenuBtn) mainMenuBtn.classList.remove('active');
             }
@@ -238,11 +246,15 @@ export default class UIManager {
                     this.closeAllMenus(); 
                     if (fm.style.display !== 'flex') fm.style.display = 'flex'; 
                     break;
-                case 'toggleMirrorMenu': 
+                case 'toggleMirrorMain': 
                     e.stopPropagation(); 
-                    const mm = document.getElementById('mirror-menu'); 
-                    this.closeAllMenus(); 
-                    if (mm.style.display !== 'flex') mm.style.display = 'flex'; 
+                    const currentMode = this.core.state.mirrorMode;
+                    const lastMode = this.core.lastMirrorMode || CONSTANTS.MIRROR.H;
+                    if (currentMode !== CONSTANTS.MIRROR.NONE) {
+                        this.events.emit('core:toggleMirror', currentMode);
+                    } else {
+                        this.events.emit('core:toggleMirror', lastMode);
+                    }
                     break;
                 case 'undo': 
                     this.events.emit('core:undo'); 
@@ -424,7 +436,7 @@ export default class UIManager {
     }
 
     bindExtraUI() {
-        const bindLongPress = (btn, menuId) => {
+        const bindLongPress = (btn, menuId, position = 'bottom') => {
             let timer = null, isLongPress = false;
             let startX = 0, startY = 0;
             btn.addEventListener('pointerdown', (e) => {
@@ -441,13 +453,18 @@ export default class UIManager {
                     const rect = btn.getBoundingClientRect();
                     let leftPos = rect.left;
                     
-                    // Adjust left position so menu doesn't go off-screen
                     if (leftPos + menu.offsetWidth > window.innerWidth - 10) {
                         leftPos = window.innerWidth - menu.offsetWidth - 10;
                     }
                     menu.style.left = Math.max(10, leftPos) + 'px';
-                    menu.style.bottom = (window.innerHeight - rect.top + 10) + 'px';
-                    menu.style.top = 'auto';
+                    
+                    if (position === 'bottom') {
+                        menu.style.bottom = (window.innerHeight - rect.top + 10) + 'px';
+                        menu.style.top = 'auto';
+                    } else {
+                        menu.style.top = (rect.bottom + 10) + 'px';
+                        menu.style.bottom = 'auto';
+                    }
                     
                 }, 500);
             });
@@ -477,6 +494,9 @@ export default class UIManager {
         
         const playBtn = document.getElementById('btn-play');
         if (playBtn) bindLongPress(playBtn, 'playbackMenu');
+        
+        const mirrorBtn = document.getElementById('btn-mirror-menu');
+        if (mirrorBtn) bindLongPress(mirrorBtn, 'mirror-menu', 'top');
 
         // Onion Skin sliders
         const setupSlider = (valId, prop, isFps = false) => {

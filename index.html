@@ -35,14 +35,14 @@
                         
                         document.getElementById('btnUpdateReload').onclick = () => {
                             refreshing = true;
-                            window.location.reload();
+                            window.location.replace(window.location.pathname);
                         };
                         
                         saveReloadBtn.onclick = () => {
                             refreshing = true;
                             const saveBtn = document.querySelector('[data-action="saveProjectFile"]');
                             if (saveBtn) saveBtn.click();
-                            setTimeout(() => { window.location.reload(); }, 1500);
+                            setTimeout(() => { window.location.replace(window.location.pathname); }, 1500);
                         };
                     }
                 });
@@ -274,8 +274,8 @@
             <button id="btn-undo" class="icon-btn" data-action="undo" title="Undo" style="margin-right: 12px; font-size: 18px;">↩️</button>
             
             <div style="position: relative; display: inline-block;">
-                <button id="btn-mirror-menu" class="icon-btn" data-action="toggleMirrorMenu" title="Mirror Options">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="white" stroke="none"><rect x="11.25" y="2" width="1.5" height="20" fill="white"/><polygon points="4,5 10,12 4,19"/><polygon points="20,5 14,12 20,19"/></svg>
+                <button id="btn-mirror-menu" class="icon-btn" data-action="toggleMirrorMain" title="Mirror Options">
+                    <svg id="mirror-main-icon" width="22" height="22" viewBox="0 0 24 24" fill="white" stroke="none"><rect x="11.25" y="2" width="1.5" height="20" fill="white"/><polygon points="4,5 10,12 4,19"/><polygon points="20,5 14,12 20,19"/></svg>
                 </button>
                 <div id="mirror-menu" class="dropdown-menu" style="left: 50%; transform: translateX(-50%);">
                     <button id="btn-mirror-h" data-action="toggleMirror" data-mirror="H" title="Horizontal Mirror">
@@ -423,8 +423,8 @@
             <button class="loop-btn" data-loop="pingpong">Ping Pong</button>
         </div>
     </div>
-    <div id="updateToast" style="display: none; position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background-color: var(--ui-bg); border: 2px solid var(--accent); padding: 16px 32px 16px 24px; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,0.8); text-align: center; backdrop-filter: blur(8px);">
-        <button id="btnDismissUpdate" style="position: absolute; top: 4px; right: 4px; background: none; border: none; color: #aaa; font-size: 14px; cursor: pointer; padding: 4px;" title="Dismiss">✕</button>
+    <div id="updateToast" style="display: none; position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background-color: var(--ui-bg); border: 2px solid var(--accent); padding: 16px 48px; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,0.8); text-align: center; backdrop-filter: blur(8px); width: max-content;">
+        <button id="btnDismissUpdate" style="position: absolute; top: 8px; right: 8px; background: none; border: none; color: #aaa; font-size: 14px; cursor: pointer; padding: 4px;" title="Dismiss">✕</button>
         <div style="font-weight: bold; margin-bottom: 12px; font-size: 16px; color: white;">Update Available!</div>
         <div style="display: flex; gap: 10px; justify-content: center;">
             <button id="btnUpdateSaveReload" style="background-color: var(--accent); padding: 8px 16px; font-size: 14px; font-weight: bold; border-radius: 4px; color: white; display: flex; justify-content: center; align-items: center;">Save / Reload</button>
