@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pxl3ight-v7';
+const CACHE_NAME = 'pxl3ight-v8';
 const ASSETS = [
     './',
     './index.html',
@@ -13,7 +13,8 @@ self.addEventListener('install', event => {
     self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => {
-            return cache.addAll(ASSETS);
+            const requests = ASSETS.map(url => new Request(url, { cache: 'no-cache' }));
+            return cache.addAll(requests);
         })
     );
 });
