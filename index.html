@@ -291,6 +291,7 @@
             <button class="icon-btn" data-action="reframeViewport" title="Reframe Canvas">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4M4 4l5 5M20 4l-5 5M4 20l5-5M20 20l-5-5"/></svg>
             </button>
+            <button class="icon-btn" id="btn-hide-ui" data-action="toggleAllUI" title="Toggle UI" style="font-size: 20px;">👁️</button>
         </div>
     </header>
 
@@ -380,7 +381,7 @@
         <div id="hidden-frame-canvas" style="position: absolute; top: max(0px, env(safe-area-inset-top)); left: 120px; right: 120px; height: 60px; pointer-events: auto;"></div>
     </div>
 
-    <button class="corner-btn" id="btn-hide-ui" data-action="toggleAllUI" title="Toggle UI" style="right: max(12px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); z-index: 900;">👁️</button>
+
 
     <div id="mirror-menu" class="context-menu" style="display: none; padding: 4px; z-index: 500; min-width: 150px; flex-direction: column; gap: 4px;">
         <button id="btn-mirror-h" data-action="toggleMirror" data-mirror="H" title="Horizontal Mirror" style="background: none; border: none; color: white; display: flex; align-items: center; gap: 8px; padding: 12px; width: 100%; border-radius: 4px; cursor: pointer;">

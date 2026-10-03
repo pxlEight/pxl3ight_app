@@ -27,7 +27,9 @@ body {
     overscroll-behavior: none;
 }
 
-body.ui-hidden header,
+body.ui-hidden .header-left,
+body.ui-hidden .header-center,
+body.ui-hidden .header-tools > *:not(#btn-hide-ui),
 body.ui-hidden .widget,
 body.ui-hidden .bottom-widget,
 body.ui-hidden .corner-btn,
@@ -406,18 +408,21 @@ header {
 
 .bottom-widget {
     position: absolute;
-    bottom: 0;
     bottom: env(safe-area-inset-bottom, 0px);
     left: max(10px, env(safe-area-inset-left));
-    right: max(70px, calc(70px + env(safe-area-inset-right)));
+    right: max(10px, env(safe-area-inset-right));
     z-index: 20;
     pointer-events: none;
-    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: bottom 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .timeline-content { display: flex; flex-direction: column; gap: 6px; padding-top: 0px; }
 .bottom-widget.collapsed .timeline-content { display: none; }
-.bottom-widget.collapsed { transform: translateY(calc(100% - 56px)); }
+.bottom-widget.collapsed { 
+    transform: translateY(0);
+    bottom: max(24px, env(safe-area-inset-bottom, 24px));
+}
+.bottom-widget.collapsed .widget-handle { border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 
 .timeline-footer {
     height: 70px;
