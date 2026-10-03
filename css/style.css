@@ -245,6 +245,7 @@ header {
 }
 
 .dropdown-menu button:hover { background-color: rgba(255,255,255,0.2); }
+.dropdown-menu button.active { background-color: var(--accent); color: white; }
 .nested-dropdown { position: relative; display: flex; flex-direction: column; }
 .dropdown-menu.nested { top: 0; left: 100%; margin-top: 0; margin-left: 5px; }
 

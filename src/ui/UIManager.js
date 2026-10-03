@@ -76,9 +76,17 @@ export default class UIManager {
         this.events.on('ui:toggleSpriteSheet', (isActive) => this.toggleSpriteSheetUI(isActive));
         
         this.events.on('ui:toggleMirror', (mode) => {
-            ['btn-mirror-h', 'btn-mirror-v', 'btn-mirror-q'].forEach(id => document.getElementById(id).classList.remove('active'));
+            ['btn-mirror-h', 'btn-mirror-v', 'btn-mirror-q'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active');
+            });
+            const mainMenuBtn = document.getElementById('btn-mirror-menu');
             if (mode !== CONSTANTS.MIRROR.NONE) {
-                document.getElementById(`btn-mirror-${mode.toLowerCase()}`).classList.add('active');
+                const activeBtn = document.getElementById(`btn-mirror-${mode.toLowerCase()}`);
+                if (activeBtn) activeBtn.classList.add('active');
+                if (mainMenuBtn) mainMenuBtn.classList.add('active');
+            } else {
+                if (mainMenuBtn) mainMenuBtn.classList.remove('active');
             }
         });
 
@@ -230,6 +238,12 @@ export default class UIManager {
                     this.closeAllMenus(); 
                     if (fm.style.display !== 'flex') fm.style.display = 'flex'; 
                     break;
+                case 'toggleMirrorMenu': 
+                    e.stopPropagation(); 
+                    const mm = document.getElementById('mirror-menu'); 
+                    this.closeAllMenus(); 
+                    if (mm.style.display !== 'flex') mm.style.display = 'flex'; 
+                    break;
                 case 'undo': 
                     this.events.emit('core:undo'); 
                     break;
@@ -245,6 +259,7 @@ export default class UIManager {
                     break;
                 case 'toggleMirror': 
                     this.events.emit('core:toggleMirror', target.getAttribute('data-mirror')); 
+                    this.closeAllMenus();
                     break;
                 case 'setSelectTool': 
                     const bt = document.getElementById('btn-select'); 
@@ -389,6 +404,7 @@ export default class UIManager {
                 { id: 'palettePanel', excludes: ['#palettePanel', '#btn-palette-toggle', '#hsvMenu'] }, 
                 { id: 'frameMenu', excludes: ['#frameMenu', '.frame-square'] }, 
                 { id: 'file-menu', excludes: ['#file-menu', '#btn-file-menu'], extraCallback: () => document.getElementById('image-size-menu').style.display = 'none' }, 
+                { id: 'mirror-menu', excludes: ['#mirror-menu', '#btn-mirror-menu'] }, 
                 { id: 'brushShapeMenu', excludes: ['#brushShapeMenu', '.tool-btn'] },
                 { id: 'shapeMenu', excludes: ['#shapeMenu', '#btn-shape'] },
                 { id: 'selectMenu', excludes: ['#selectMenu', '#btn-select'] },
