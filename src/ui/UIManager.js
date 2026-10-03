@@ -1039,11 +1039,22 @@ export default class UIManager {
         if (!this.core.doc) return;
         const strip = document.getElementById('timelineStrip');
         
-        while (strip.children.length < this.core.doc.frames.length) strip.appendChild(this.createFrameNode());
-        while (strip.children.length > this.core.doc.frames.length) strip.removeChild(strip.lastChild);
+        let frameSquares = Array.from(strip.children).filter(el => el.classList.contains('frame-square'));
+        const addBtn = document.getElementById('addFrameTimelineBtn');
+        
+        while (frameSquares.length < this.core.doc.frames.length) {
+            const newNode = this.createFrameNode();
+            if (addBtn) strip.insertBefore(newNode, addBtn);
+            else strip.appendChild(newNode);
+            frameSquares.push(newNode);
+        }
+        while (frameSquares.length > this.core.doc.frames.length) {
+            const last = frameSquares.pop();
+            strip.removeChild(last);
+        }
         
         this.core.doc.frames.forEach((frame, idx) => {
-            const square = strip.children[idx];
+            const square = frameSquares[idx];
             const thumbCanvas = square.querySelector('canvas');
             
             square.dataset.frameIndex = idx; 

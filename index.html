@@ -362,14 +362,15 @@
             <div id="handle-timeline" style="text-align: center; font-weight: bold; font-size: 11px; letter-spacing: 1px;">TIMELINE ▲</div>
             <div style="position: absolute; right: 12px; display: flex; gap: 8px;">
                 <button id="onionToggleBtn" class="stop-propagation handle-btn" data-action="toggleOnionSkin" title="Toggle Onion Skin" style="font-size: 20px;">🧅</button>
-                <button class="stop-propagation handle-btn" data-action="addFrame" title="Add Frame" style="font-size: 20px;">➕</button>
             </div>
         </div>
         <div class="timeline-content">
             <div class="timeline-footer" id="timelineFooter">
                 <div class="timeline-controls"><button id="btn-play" data-action="togglePlay">▶️</button></div>
                 <div class="timeline-strip-container" id="timelineContainer">
-                    <div class="playhead-marker"></div><div class="timeline-strip" id="timelineStrip"></div>
+                    <div class="playhead-marker"></div><div class="timeline-strip" id="timelineStrip">
+                        <button id="addFrameTimelineBtn" class="add-frame-timeline-btn stop-propagation" data-action="addFrame" title="Add Frame">➕</button>
+                    </div>
                 </div>
             </div>
         </div>
