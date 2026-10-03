@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pxl3ight-v10';
+const CACHE_NAME = 'pxl3ight-v11';
 const ASSETS = [
     './',
     './index.html',
