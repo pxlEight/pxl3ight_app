@@ -16,7 +16,8 @@ body {
     background-color: var(--bg-color);
     color: var(--text);
     font-family: sans-serif;
-    height: 100dvh; 
+    height: 100vh;
+    height: var(--app-height, 100vh); 
     width: 100vw;
     overflow: hidden;
     position: relative;
@@ -405,7 +406,8 @@ header {
 
 .bottom-widget {
     position: absolute;
-    bottom: max(0px, env(safe-area-inset-bottom));
+    bottom: 0;
+    bottom: env(safe-area-inset-bottom, 0px);
     left: max(10px, env(safe-area-inset-left));
     right: max(70px, calc(70px + env(safe-area-inset-right)));
     z-index: 20;

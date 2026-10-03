@@ -48,7 +48,15 @@ export default class UIManager {
         });
         
         this.events.on('ui:hidePalettePanel', () => { document.getElementById('palettePanel').style.display = 'none'; });
-        this.events.on('ui:hideStartupScreen', () => { document.getElementById('startupScreen').style.display = 'none'; });
+        this.events.on('ui:hideStartupScreen', () => { 
+            document.getElementById('startupScreen').style.display = 'none'; 
+            const tw = document.getElementById('widget-timeline');
+            if (tw) {
+                tw.classList.remove('collapsed');
+                const handle = document.getElementById('handle-timeline');
+                if (handle) handle.innerText = 'TIMELINE  ';
+            }
+        });
         this.events.on('ui:resetFileInput', () => { 
             document.getElementById('fileInput').value = ''; 
             document.getElementById('projectFileInput').value = ''; 
