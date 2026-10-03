@@ -1,0 +1,17 @@
+{
+  "name": "pxl3ight",
+  "short_name": "pxl3ight",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#333333",
+  "description": "A simple pixel art editor",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

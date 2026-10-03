@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>pxl3ight</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="css/style.css">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+
+        const isIos = () => {
+            const userAgent = window.navigator.userAgent.toLowerCase();
+            return /iphone|ipad|ipod/.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        };
+        const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (isIos() && !isInStandaloneMode()) {
+                const iosPrompt = document.getElementById('iosInstallPrompt');
+                if (iosPrompt) iosPrompt.style.display = 'block';
+            }
+        });
+
+        window.deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.deferredPrompt = e;
+            
+            const tryShowBtn = () => {
+                const btn = document.getElementById('installPwaBtn');
+                if (btn) {
+                    btn.style.display = 'block';
+                    btn.onclick = async () => {
+                        btn.style.display = 'none';
+                        if (window.deferredPrompt) {
+                            window.deferredPrompt.prompt();
+                            const { outcome } = await window.deferredPrompt.userChoice;
+                            console.log(`User response: ${outcome}`);
+                            window.deferredPrompt = null;
+                        }
+                    };
+                }
+            };
+            
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', tryShowBtn);
+            } else {
+                tryShowBtn();
+            }
+        });
+    </script>
+</head>
+<body>
+
+    <div id="startupScreen">
+        <button id="installPwaBtn" style="display: none; position: absolute; top: max(16px, env(safe-area-inset-top)); left: max(16px, env(safe-area-inset-left)); background-color: var(--accent); color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; z-index: 100;">Install App</button>
+        <div id="iosInstallPrompt" style="display: none; position: absolute; top: max(16px, env(safe-area-inset-top)); left: max(16px, env(safe-area-inset-left)); background-color: var(--ui-bg); border: 2px solid var(--accent); color: #fff; padding: 12px; border-radius: 8px; font-size: 14px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); max-width: 250px;">
+            To install this app, tap <b>Share</b> <svg style="display:inline; vertical-align:sub;" viewBox="0 0 50 50" width="16" height="16"><path fill="#fff" d="M25 3L12 16h8v18h10V16h8z"/><path fill="#fff" d="M9 36v8h32v-8h4v12H5V36z"/></svg><br>and select <b>Add to Home Screen</b>.
+            <button onclick="document.getElementById('iosInstallPrompt').style.display='none'" style="display: block; margin-top: 10px; width: 100%; background-color: #555; color: #fff; border: none; padding: 6px; border-radius: 4px; cursor: pointer;">Dismiss</button>
+        </div>
+        <div class="startup-title">pxl3ight</div>
+        <div class="startup-controls" id="startupMenu">
+            <button class="startup-btn" data-action="showResPicker">New Project</button>
+            <button class="startup-btn" style="background-color: var(--ui-bg); border: 1px solid var(--accent);" data-action="openProjectPrompt">Open Project</button>
+            <button class="startup-btn" id="btn-resume-session" style="display: none; background-color: #2e7d32; border: 1px solid #4caf50; margin-top: 10px;" data-action="resumeSession">Resume Unsaved Work</button>
+        </div>
+        <div class="startup-controls" id="startupResPicker" style="display: none;">
+            <h3 style="margin: 0 0 5px 0;">Select Canvas Size</h3>
+            <button class="res-btn" data-action="startProject" data-res="1280x720">1280x720</button>
+            <button class="res-btn" data-action="startProject" data-res="720x720">720x720</button>
+            <button class="res-btn" data-action="startProject" data-res="180x320">180x320</button>
+            <button class="res-btn" data-action="startProject" data-res="128x128">128x128</button>
+            <button class="res-btn" data-action="startProject" data-res="64x64">64x64</button>
+            <button class="res-btn" data-action="startProject" data-res="32x32">32x32</button>
+            <button class="res-btn" data-action="startProject" data-res="24x24">24x24</button>
+            <button class="res-btn" data-action="startProject" data-res="16x16">16x16</button>
+        </div>
+    </div>
+
+    <div id="newProjectWarning">
+        <h3>Are You Sure?</h3>
+        <p>Starting a new project will discard your current work.</p>
+        <div style="display: flex; gap: 12px; margin-top: 10px;">
+            <button data-action="reloadPage" style="background-color: var(--accent); width: 100px; font-weight: bold;">Yes</button>
+            <button data-action="closeNewWarning" style="background-color: #555; width: 100px;">No</button>
+        </div>
+    </div>
+
+    <div id="frameMenu" class="context-menu" style="display: none;">
+        <button data-action="copyContextFrame">Copy Frame</button>
+        <button data-action="deleteContextFrame">Delete Frame</button>
+    </div>
+
+    <div id="layerMenu" class="context-menu" style="display: none;">
+        <div style="display: flex; gap: 4px; justify-content: space-between;">
+            <button data-action="toggleActiveLayerVisibility" id="lm-vis" title="Toggle Visibility" style="flex: 1; text-align: center;">👁️</button>
+            <button data-action="toggleActiveLayerLock" id="lm-lock" title="Toggle Lock" style="flex: 1; text-align: center;">🔓</button>
+        </div>
+        <div style="font-size: 10px; font-weight: bold; color: #aaaaaa; margin-top: 4px; margin-bottom: -2px; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">Opacity</div>
+        <div id="lm-opacity" style="font-size: 13px; font-weight: bold; cursor: ns-resize; padding: 14px 10px; margin: 4px 0; width: 100%; box-sizing: border-box; text-align: center; color: var(--accent); user-select: none; border-radius: 6px; background-color: rgba(255,255,255,0.05); touch-action: none;" title="Drag up/down for layer opacity">100</div>
+        <button data-action="openLayerAdjustMenu" title="Layer Adjustments" style="text-align: center;">🎛️</button>
+        <button data-action="duplicateActiveLayer" title="Duplicate Layer">📄➕</button>
+        <button id="lm-merge" data-action="mergeLayerDown" title="Merge Down">Merge ⬇️</button>
+    </div>
+
+    <div id="shapeMenu" class="shape-menu" style="display: none;">
+        <button data-shape="line">📏</button>
+        <button data-shape="rect">⬜</button>
+        <button data-shape="ellipse">⭕</button>
+    </div>
+    
+    <div id="selectMenu" class="shape-menu" style="display: none;">
+        <button data-action="setSelectTool" data-tool="wand" data-icon="🪄">🪄</button>
+        <button data-action="setSelectTool" data-tool="colorSelect" data-icon="🎨">🎨</button>
+        <button data-action="setSelectTool" data-tool="marquee" data-icon="🔲">🔲</button>
+        <button data-action="setSelectTool" data-tool="polygon" data-icon="⬠">⬠</button>
+        <button data-action="setSelectTool" data-tool="lasso" data-icon="➰">➰</button>
+    </div>
+
+    <div id="brushShapeMenu" class="shape-menu" style="display: none; z-index: 200;">
+        <button data-action="setBrushShape" data-shape="square" style="display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="3" y="3" width="18" height="18"/></svg></button>
+        <button data-action="setBrushShape" data-shape="round" style="display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="9"/></svg></button>
+    </div>
+    
+    <div id="hsvMenu" class="context-menu" style="display: none; flex-direction: column; gap: 18px; padding: 20px; width: 280px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 500; box-shadow: 0 10px 40px rgba(0,0,0,0.9);">
+        <div style="font-size: 14px; font-weight: bold; color: #ccc; margin-bottom: -4px;">Custom Color</div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="width: 12px; font-size: 12px; color: #aaa; font-weight: bold;">H</span>
+            <div class="slider-track" id="track-h"><input type="range" id="hsv-h" class="color-slider" min="0" max="360" value="0"></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="width: 12px; font-size: 12px; color: #aaa; font-weight: bold;">S</span>
+            <div class="slider-track" id="track-s"><input type="range" id="hsv-s" class="color-slider" min="0" max="100" value="0"></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="width: 12px; font-size: 12px; color: #aaa; font-weight: bold;">V</span>
+            <div class="slider-track" id="track-v"><input type="range" id="hsv-v" class="color-slider" min="0" max="100" value="100"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+            <div id="hsvColorProxy" class="color-proxy-label" style="background-color: #ffffff; cursor: default; border-color: #fff; border-width: 2px;"></div>
+            <button data-action="setHSVColor" style="background-color: var(--accent); padding: 10px 20px; font-weight: bold; font-size: 15px; border-radius: 6px; border: none; color: white;">Set Color</button>
+        </div>
+    </div>
+
+    <div id="layerAdjustMenu" style="display: none; flex-direction: column; gap: 14px; padding: 15px; width: 260px; position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 500;">
+        <div style="font-size: 14px; font-weight: bold; color: #ccc; margin-bottom: -4px; text-shadow: 0 1px 3px rgba(0,0,0,0.8);">Layer Adjustments</div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="width: 12px; font-size: 12px; color: #aaa; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">H</span>
+            <div class="slider-track" id="track-la-h"><input type="range" id="la-hsv-h" class="color-slider" min="-180" max="180" value="0"></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="width: 12px; font-size: 12px; color: #aaa; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">S</span>
+            <div class="slider-track" id="track-la-s"><input type="range" id="la-hsv-s" class="color-slider" min="-100" max="100" value="0"></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="width: 12px; font-size: 12px; color: #aaa; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">V</span>
+            <div class="slider-track" id="track-la-v"><input type="range" id="la-hsv-v" class="color-slider" min="-100" max="100" value="0"></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="width: 12px; font-size: 12px; color: #aaa; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">C</span>
+            <div class="slider-track" id="track-la-c"><input type="range" id="la-contrast" class="color-slider" min="-100" max="100" value="0"></div>
+        </div>
+    </div>
+
+    <div id="colorCrosshair" style="display: none; position: fixed; width: 40px; height: 40px; border: 2px solid rgba(255,255,255,0.8); border-radius: 50%; z-index: 500; pointer-events: none; transform: translate(-50%, -50%); align-items: center; justify-content: center; box-shadow: 0 0 4px rgba(0,0,0,0.5);">
+        <div style="position: absolute; width: 4px; height: 4px; background-color: red; border-radius: 50%; box-shadow: 0 0 2px rgba(0,0,0,0.8);"></div>
+        <div id="crosshairPreview" style="position: absolute; top: -35px; width: 28px; height: 28px; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.6); background-color: transparent;"></div>
+    </div>
+
+    <div id="brushSizeIndicator" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); align-items: center; justify-content: center; z-index: 200; pointer-events: none;">
+        <div id="brushSizeSquare" style="box-sizing: border-box; width: 2px; height: 2px;"></div>
+    </div>
+
+    <main id="mainContainer">
+        <div class="viewport" id="viewport">
+            <canvas id="bgCanvas" class="artCanvas"></canvas>
+            <canvas id="mainArtCanvas" class="artCanvas" style="z-index: 10;"></canvas>
+            <canvas id="onionCanvas" class="artCanvas" style="z-index: 50; opacity: 0.35; pointer-events: none; display: none;"></canvas>
+            <canvas id="floatingCanvas" class="artCanvas" style="z-index: 60; pointer-events: none; display: none;"></canvas>
+            <canvas id="selectionCanvas" class="artCanvas" style="z-index: 65; pointer-events: none; display: block; image-rendering: auto;"></canvas>
+            <canvas id="spriteSheetViewCanvas" class="artCanvas" style="z-index: 100; display: none;"></canvas>
+            
+            <div id="dragHandle" style="display: none; position: absolute; cursor: move; pointer-events: auto; touch-action: none; z-index: 105; width: 36px; height: 36px; background: rgba(43, 43, 54, 0.95); border: 2px solid var(--accent); border-radius: 50%; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.7);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-4 4M12 2l4 4M12 22l-4-4M12 22l4-4M2 12l4-4M2 12l4 4M22 12l-4-4M22 12l-4 4"/></svg>
+            </div>
+
+            <div id="radialMenu">
+                <div class="radial-btn" id="rb-paste" data-action="paste">Paste</div>
+                <div class="radial-btn" id="rb-copy" data-action="copy">Copy</div>
+                <div class="radial-btn" id="rb-duplicate" data-action="duplicate">Duplicate</div>
+                <div class="radial-btn" id="rb-fliph" data-action="fliph">Flip H</div>
+                <div class="radial-btn" id="rb-flipv" data-action="flipv">Flip V</div>
+                <div class="radial-btn" id="rb-cut" data-action="cut">Cut</div>
+            </div>
+        </div>
+    </main>
+
+    <header>
+        <div class="header-tools" style="pointer-events: auto; position: relative;">
+            <button id="btn-file-menu" class="icon-btn" style="padding: 8px 12px; font-weight: bold; border-radius: 6px; font-size: 15px;" data-action="toggleFileMenu">File ▼</button>
+            <div id="file-menu" class="dropdown-menu">
+                <button data-action="saveProjectFile">Save Project</button>
+                <button data-action="openProjectPrompt">Open Project</button>
+                <button data-action="clearHistoryMemory">Clear History (Purge Memory)</button>
+                <div style="height: 1px; background-color: rgba(255,255,255,0.1); margin: 4px 0;"></div>
+                <button data-action="importImagePrompt">Import Image</button>
+                <button data-action="exportPNG">Export Image</button>
+                <div style="height: 1px; background-color: rgba(255,255,255,0.1); margin: 4px 0;"></div>
+                <div class="nested-dropdown">
+                    <button id="btn-image-size" data-action="toggleImageSizeMenu">Image Size ►</button>
+                    <div id="image-size-menu" class="dropdown-menu nested">
+                        <button data-action="resampleProject" data-res="1280x720">1280x720</button>
+                        <button data-action="resampleProject" data-res="720x720">720x720</button>
+                        <button data-action="resampleProject" data-res="180x320">180x320</button>
+                        <button data-action="resampleProject" data-res="128x128">128x128</button>
+                        <button data-action="resampleProject" data-res="64x64">64x64</button>
+                        <button data-action="resampleProject" data-res="32x32">32x32</button>
+                        <button data-action="resampleProject" data-res="24x24">24x24</button>
+                        <button data-action="resampleProject" data-res="16x16">16x16</button>
+                    </div>
+                </div>
+                <button data-action="confirmNewProject">New</button>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+            <input type="file" id="projectFileInput" accept=".pxl3,application/json" style="display: none;">
+        </div>
+
+        <div class="header-center">
+            <button id="btn-undo" class="icon-btn" data-action="undo" title="Undo" style="margin-right: 12px; font-size: 18px;">↩️</button>
+            <button id="btn-mirror-h" class="icon-btn" data-action="toggleMirror" data-mirror="H" title="Horizontal Mirror">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="white" stroke="none"><rect x="11.25" y="2" width="1.5" height="20" fill="white"/><polygon points="4,5 10,12 4,19"/><polygon points="20,5 14,12 20,19"/></svg>
+            </button>
+            <button id="btn-mirror-q" class="icon-btn" data-action="toggleMirror" data-mirror="Q" title="Quad Mirror">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="white" stroke="none"><rect x="11.25" y="2" width="1.5" height="20" fill="white"/><rect x="2" y="11.25" width="20" height="1.5" fill="white"/><polygon points="3,8 9,12 3,16"/><polygon points="21,8 15,12 21,16"/><polygon points="8,3 12,9 16,3"/><polygon points="8,21 12,15 16,21"/></svg>
+            </button>
+            <button id="btn-mirror-v" class="icon-btn" data-action="toggleMirror" data-mirror="V" title="Vertical Mirror">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="white" stroke="none"><rect x="2" y="11.25" width="20" height="1.5" fill="white"/><polygon points="5,4 12,10 19,4"/><polygon points="5,20 12,14 19,20"/></svg>
+            </button>
+            <button id="btn-redo" class="icon-btn" data-action="redo" title="Redo" style="margin-left: 12px; font-size: 18px;">↪️</button>
+        </div>
+
+        <div class="header-tools" style="pointer-events: auto;">
+            <button class="icon-btn" data-action="reframeViewport" title="Reframe Canvas">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4M4 4l5 5M20 4l-5 5M4 20l5-5M20 20l-5-5"/></svg>
+            </button>
+        </div>
+    </header>
+
+    <div class="widget" id="widget-layers">
+        <div class="widget-handle" id="handle-layers">LAYERS</div>
+        <div class="toolbar" id="layerTools">
+            <button data-action="addLayer" title="Add Layer">➕</button>
+            <div class="layer-stack" id="layerStack"></div>
+            <div id="layerScrollIndicator" style="text-align: center; font-size: 10px; color: var(--accent); display: none; margin-top: -4px; margin-bottom: 2px;">▼</div>
+            <button data-action="deleteLayer" title="Delete Layer">🗑️</button>
+        </div>
+    </div>
+
+    <div class="widget" id="widget-tools">
+        <div class="widget-handle" id="handle-tools">TOOLS</div>
+        <div class="toolbar" id="drawTools">
+            <div class="tool-stack" id="toolStack">
+                <button class="tool-btn active" data-tool="pencil">✏️</button>
+                <button class="tool-btn" data-tool="eraser">🧽</button>
+                <button class="tool-btn" id="btn-shape" data-tool="shape">⬜</button>
+                <button class="tool-btn" data-tool="fill">🪣</button>
+                <button class="tool-btn" data-tool="dropper">💧</button>
+                <button class="tool-btn" id="btn-select" data-tool="wand">🪄</button>
+                <button class="tool-btn" data-tool="zoom">🔍</button>
+            </div>
+            <div id="toolScrollIndicator" style="text-align: center; font-size: 10px; color: var(--accent); display: none; margin-top: -4px; margin-bottom: 2px;">▼</div>
+        </div>
+    </div>
+
+    <div class="widget" id="widget-color">
+        <div class="widget-handle" id="handle-color">COLOR</div>
+        <div class="toolbar" id="colorTools">
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <div id="btn-palette-toggle" data-action="togglePalettePanel" title="Toggle Color Palette" style="cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: center; height: 44px; width: 44px; margin-bottom: 4px; pointer-events: auto;">
+                    <div id="currentColorDisplay" style="width: 36px; height: 36px; box-sizing: border-box; background-color: #000000; border: 2px solid #ffffff; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.5);"></div>
+                </div>
+                <div style="font-size: 10px; font-weight: bold; color: #aaaaaa; margin-top: 8px; margin-bottom: -2px; text-transform: uppercase; letter-spacing: 0.5px;">Opacity</div>
+                <div id="opacityVal" title="Drag up/down to change opacity" style="font-size: 13px; font-weight: bold; cursor: ns-resize; padding: 14px 10px; margin: 4px 0; width: 100%; box-sizing: border-box; text-align: center; color: var(--accent); user-select: none; border-radius: 6px; background-color: rgba(255,255,255,0.05); touch-action: none;">100</div>
+            </div>
+            
+            <div class="palette-panel" id="palettePanel" style="display: none; position: absolute; right: 100%; top: 0; margin-right: 10px; background-color: var(--ui-bg); padding: 12px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.7); backdrop-filter: blur(5px);">
+                <div class="section-header" data-action="togglePaletteSection" data-target="customGrid" data-chevron="customChevron">
+                    <span>Custom</span>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-left: 10px;" class="stop-propagation">
+                        <div id="customColorProxy" class="color-proxy-label" data-action="toggleHSVMenu" style="background-color: #ffffff;"></div>
+                        <button class="add-btn" data-action="addCustomColor" style="padding: 4px 8px; font-size: 12px; background-color: rgba(63, 63, 78, 0.9); border: 1px solid transparent; border-radius: 4px; color: #fff; cursor: pointer;">Add +</button>
+                    </div>
+                    <div style="flex-grow: 1;"></div>
+                    <span class="chevron" id="customChevron">▼</span>
+                </div>
+                <div class="palette-grid" id="customGrid"></div>
+
+                <div class="section-header" data-action="togglePaletteSection" data-target="swatchesGrid" data-chevron="swatchesChevron">
+                    <span>Swatches</span><span class="chevron" id="swatchesChevron">▼</span>
+                </div>
+                <div class="palette-grid" id="swatchesGrid"></div>
+
+                <div class="section-header" data-action="togglePaletteSection" data-target="greyscaleGrid" data-chevron="greyscaleChevron">
+                    <span>Greyscale</span><span class="chevron" id="greyscaleChevron">▼</span>
+                </div>
+                <div class="palette-grid" id="greyscaleGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-widget collapsed" id="widget-timeline">
+        <div class="widget-handle" data-action="toggleTimeline" style="position: relative; display: flex; justify-content: center; align-items: center; padding: 6px 12px; min-height: 56px; pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent;">
+            <button id="sheetToggleBtn" class="stop-propagation handle-btn" data-action="toggleSpriteSheetView" style="position: absolute; left: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase;">Sprites</button>
+            <div id="handle-timeline" style="text-align: center; font-weight: bold; font-size: 11px; letter-spacing: 1px;">TIMELINE ▲</div>
+            <div style="position: absolute; right: 12px; display: flex; gap: 8px;">
+                <button id="onionToggleBtn" class="stop-propagation handle-btn" data-action="toggleOnionSkin" title="Toggle Onion Skin" style="font-size: 20px;">🧅</button>
+                <button class="stop-propagation handle-btn" data-action="addFrame" title="Add Frame" style="font-size: 20px;">➕</button>
+            </div>
+        </div>
+        <div class="timeline-content">
+            <div class="timeline-footer" id="timelineFooter">
+                <div class="timeline-controls"><button id="btn-play" data-action="togglePlay">▶️</button></div>
+                <div class="timeline-strip-container" id="timelineContainer">
+                    <div class="playhead-marker"></div><div class="timeline-strip" id="timelineStrip"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="hidden-ui-buttons" style="display: none; position: absolute; inset: 0; pointer-events: none; z-index: 800;">
+        <div id="hidden-undo" style="position: absolute; top: max(0px, env(safe-area-inset-top)); left: 0; width: 60px; height: 60px; pointer-events: auto;"></div>
+        <div id="hidden-redo" style="position: absolute; top: max(0px, env(safe-area-inset-top)); right: 0; width: 60px; height: 60px; pointer-events: auto;"></div>
+        <div id="hidden-frame-canvas" style="position: absolute; top: max(0px, env(safe-area-inset-top)); left: 120px; right: 120px; height: 60px; pointer-events: auto;"></div>
+    </div>
+
+    <button class="corner-btn" id="btn-hide-ui" data-action="toggleAllUI" title="Toggle UI" style="right: max(12px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); z-index: 900;">👁️</button>
+
+    <div id="onionSkinMenu" class="context-menu" style="display: none; padding: 16px; z-index: 500; min-width: 150px; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <div style="font-size: 12px; font-weight: bold; color: #aaaaaa; text-transform: uppercase;">Frames Before</div>
+            <div id="onion-before-val" style="background-color: rgba(255,255,255,0.05); padding: 8px 32px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: ns-resize; user-select: none; color: white; touch-action: none; text-align: center;" title="Drag up/down">1</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <div style="font-size: 12px; font-weight: bold; color: #aaaaaa; text-transform: uppercase;">Frames After</div>
+            <div id="onion-after-val" style="background-color: rgba(255,255,255,0.05); padding: 8px 32px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: ns-resize; user-select: none; color: white; touch-action: none; text-align: center;" title="Drag up/down">1</div>
+        </div>
+    </div>
+
+    <div id="playbackMenu" class="context-menu" style="display: none; padding: 16px; z-index: 500; min-width: 160px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div style="font-size: 12px; font-weight: bold; color: #aaaaaa; text-transform: uppercase;">Frame Rate</div>
+            <div id="fps-val" style="display: flex; align-items: baseline; gap: 4px; background-color: rgba(255,255,255,0.05); padding: 8px 16px; border-radius: 6px; cursor: ns-resize; user-select: none; touch-action: none; color: var(--accent);" title="Drag up/down">
+                <span id="fps-val-text" style="font-size: 16px; font-weight: bold; pointer-events: none;">12</span>
+                <span style="font-size: 10px; color: #aaa; pointer-events: none;">fps</span>
+            </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="font-size: 12px; font-weight: bold; color: #aaaaaa; text-transform: uppercase; margin-bottom: 4px;">Loop Options</div>
+            <button class="loop-btn active" data-loop="on" style="background-color: var(--accent); color: white;">Looping On</button>
+            <button class="loop-btn" data-loop="off">Looping Off</button>
+            <button class="loop-btn" data-loop="pingpong">Ping Pong</button>
+        </div>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+</html><script>
+window.addEventListener('load', () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('demo') !== '1') return;
+
+    // Helper functions
+    function highlight(selector) {
+        document.querySelectorAll('.demo-highlight').forEach(el => {
+            el.style.border = ''; el.style.boxShadow = ''; el.classList.remove('demo-highlight');
+        });
+        if (!selector) return;
+        const el = document.querySelector(selector);
+        if (el) {
+            el.style.border = '4px solid #ff3366';
+            el.style.boxShadow = '0 0 20px #ff3366';
+            el.style.zIndex = '9999';
+            el.classList.add('demo-highlight');
+        }
+    }
+
+    const mainCtx = document.getElementById('mainArtCanvas').getContext('2d');
+    mainCtx.imageSmoothingEnabled = false;
+    mainCtx.fillStyle = '#2ecc71';
+
+    function drawPixel(x, y) {
+        mainCtx.fillRect(x * 10, y * 10, 10, 10);
+    }
+
+    // Sequence
+    setTimeout(() => { document.getElementById('startupScreen').style.display = 'none'; }, 1000);
+    
+    setTimeout(() => { highlight('#widget-tools'); }, 5000);
+    
+    setTimeout(() => { highlight('[data-tool="pencil"]'); }, 10000);
+    
+    setTimeout(() => {
+        let step = 0;
+        const pixels = [
+            [15,15], [16,16], [17,17], [18,18], [19,19],
+            [15,19], [16,18], [18,16], [19,15],
+            [14,14], [20,20], [14,20], [20,14]
+        ];
+        const timer = setInterval(() => {
+            if (step < pixels.length) {
+                drawPixel(pixels[step][0], pixels[step][1]);
+                step++;
+            } else {
+                clearInterval(timer);
+            }
+        }, 150);
+    }, 13000);
+
+    setTimeout(() => { 
+        highlight('#widget-color'); 
+        document.getElementById('palettePanel').style.display = 'block';
+    }, 16000);
+
+    setTimeout(() => { 
+        highlight('#widget-layers'); 
+        document.getElementById('layerMenu').style.display = 'block';
+        document.getElementById('layerMenu').style.top = '100px';
+    }, 21000);
+
+    setTimeout(() => { 
+        highlight('#file-menu'); 
+        document.getElementById('file-menu').style.display = 'block';
+    }, 26000);
+
+    setTimeout(() => { highlight(''); }, 32000);
+});
+</script>
