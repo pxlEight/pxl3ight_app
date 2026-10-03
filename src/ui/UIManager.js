@@ -453,6 +453,10 @@ export default class UIManager {
                     const rect = btn.getBoundingClientRect();
                     let leftPos = rect.left;
                     
+                    if (position === 'top-center') {
+                        leftPos = rect.left + (rect.width / 2) - (menu.offsetWidth / 2);
+                    }
+                    
                     if (leftPos + menu.offsetWidth > window.innerWidth - 10) {
                         leftPos = window.innerWidth - menu.offsetWidth - 10;
                     }
@@ -496,7 +500,7 @@ export default class UIManager {
         if (playBtn) bindLongPress(playBtn, 'playbackMenu');
         
         const mirrorBtn = document.getElementById('btn-mirror-menu');
-        if (mirrorBtn) bindLongPress(mirrorBtn, 'mirror-menu', 'top');
+        if (mirrorBtn) bindLongPress(mirrorBtn, 'mirror-menu', 'top-center');
 
         // Onion Skin sliders
         const setupSlider = (valId, prop, isFps = false) => {

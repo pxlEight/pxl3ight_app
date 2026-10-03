@@ -401,6 +401,7 @@ header {
 #layerMenu { flex-direction: column; align-items: stretch; gap: 4px; }
 #layerMenu button { background: rgba(255,255,255,0.1); padding: 8px 12px; font-size: 16px; text-align: center; }
 .context-menu button:hover { background-color: rgba(255,255,255,0.2); }
+.context-menu button.active { background-color: var(--accent); color: white; }
 
 .bottom-widget {
     position: absolute;
