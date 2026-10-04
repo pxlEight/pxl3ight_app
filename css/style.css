@@ -238,7 +238,7 @@ header {
     backdrop-filter: blur(5px);
 }
 
-.dropdown-menu button {
+.dropdown-menu button, .ui-menu-item {
     background: transparent;
     padding: 10px 16px;
     font-size: 15px;
@@ -247,7 +247,7 @@ header {
     border-radius: 4px;
 }
 
-.dropdown-menu button:hover { background-color: rgba(255,255,255,0.2); }
+.dropdown-menu button:hover, .ui-menu-item:hover { background-color: rgba(255,255,255,0.2); }
 .dropdown-menu button.active { background-color: var(--accent); color: white; }
 .nested-dropdown { position: relative; display: flex; flex-direction: column; }
 .dropdown-menu.nested { top: 0; left: 100%; margin-top: 0; margin-left: 5px; }
@@ -258,14 +258,25 @@ header {
     flex-direction: column;
     z-index: 20;
     pointer-events: none;
+    width: 64px;
+    box-sizing: border-box;
 }
 
-/* Default Widget Layout (Both Portrait & Landscape) */
-#widget-layers { top: calc(50% + 5px); right: max(10px, env(safe-area-inset-right)); left: auto; transform: translateY(-50%); }
-#widget-color { top: calc(50% - 170px); right: max(10px, env(safe-area-inset-right)); left: auto; transform: translateY(-50%); }
+/* Default Widget Layout (Portrait) */
+#widget-layers { top: calc(50% + 15px); right: max(10px, env(safe-area-inset-right)); left: auto; transform: translateY(-50%); }
+#widget-color { top: calc(50% - 175px); right: max(10px, env(safe-area-inset-right)); left: auto; transform: translateY(-50%); }
 #widget-tools { top: 50%; left: max(10px, env(safe-area-inset-left)); right: auto; transform: translateY(-50%); }
 
+/* Landscape mode widget layouts */
+@media screen and (orientation: landscape) {
+    #widget-layers { top: max(70px, env(safe-area-inset-top) + 70px); right: max(10px, env(safe-area-inset-right)); transform: none; }
+    #widget-color { top: max(70px, env(safe-area-inset-top) + 70px); right: calc(max(10px, env(safe-area-inset-right)) + 74px); transform: none; }
+    #widget-tools { top: 50%; left: max(10px, env(safe-area-inset-left)); transform: translateY(-50%); }
+}
+
 .widget-handle {
+    width: 100%;
+    box-sizing: border-box;
     background-color: var(--widget-bg);
     color: #ddd;
     font-size: 11px;
@@ -302,6 +313,9 @@ header {
 .toolbar {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
     gap: 8px;
     background-color: var(--widget-bg);
     padding: 8px;
