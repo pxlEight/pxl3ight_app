@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>pxl3ight</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=1791168155">
     <script>
         const setAppHeight = () => document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
         window.addEventListener('resize', setAppHeight);
@@ -253,8 +253,8 @@
             <div id="file-menu" class="dropdown-menu">
                 <button data-action="saveProjectFile">Save Project</button>
                 <button data-action="openProjectPrompt">Open Project</button>
-                <button data-action="clearHistoryMemory">Clear History (Purge Memory)</button>
                 <div style="height: 1px; background-color: rgba(255,255,255,0.1); margin: 4px 0;"></div>
+                <button id="sheetToggleBtn" data-action="toggleSpriteSheetView">Spritesheet</button>
                 <button data-action="importImagePrompt">Import Image</button>
                 <button data-action="exportPNG">Export Image</button>
                 <div style="height: 1px; background-color: rgba(255,255,255,0.1); margin: 4px 0;"></div>
@@ -271,7 +271,8 @@
                         <button data-action="resampleProject" data-res="16x16">16x16</button>
                     </div>
                 </div>
-                <button data-action="confirmNewProject">New</button>
+                <button data-action="clearHistoryMemory">Clear History</button>
+                <button data-action="confirmNewProject">New Project</button>
             </div>
             <input type="file" id="fileInput" accept="image/*" style="display: none;">
             <input type="file" id="projectFileInput" accept=".pxl3,application/json" style="display: none;">
@@ -357,12 +358,8 @@
     </div>
 
     <div class="bottom-widget collapsed" id="widget-timeline">
-        <div class="widget-handle" data-action="toggleTimeline" style="position: relative; display: flex; justify-content: center; align-items: center; padding: 6px 12px; min-height: 56px; pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent;">
-            <button id="sheetToggleBtn" class="stop-propagation handle-btn" data-action="toggleSpriteSheetView" style="position: absolute; left: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase;">Sprites</button>
+        <div class="widget-handle" data-action="toggleTimeline" style="position: relative; display: flex; justify-content: center; align-items: center; padding: 4px 12px; min-height: 24px; pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent;">
             <div id="handle-timeline" style="text-align: center; font-weight: bold; font-size: 11px; letter-spacing: 1px;">TIMELINE ▲</div>
-            <div style="position: absolute; right: 12px; display: flex; gap: 8px;">
-                <button id="onionToggleBtn" class="stop-propagation handle-btn" data-action="toggleOnionSkin" title="Toggle Onion Skin" style="font-size: 20px;">🧅</button>
-            </div>
         </div>
         <div class="timeline-content">
             <div class="timeline-footer" id="timelineFooter">
@@ -372,6 +369,7 @@
                         <button id="addFrameTimelineBtn" class="add-frame-timeline-btn stop-propagation" data-action="addFrame" title="Add Frame">➕</button>
                     </div>
                 </div>
+                <button id="onionToggleBtn" class="stop-propagation handle-btn" data-action="toggleOnionSkin" title="Toggle Onion Skin" style="font-size: 20px;">🧅</button>
             </div>
         </div>
     </div>
@@ -433,8 +431,7 @@
             <button id="btnUpdateReload" style="background-color: #555; padding: 8px 16px; font-size: 14px; font-weight: bold; border-radius: 4px; color: white; display: flex; justify-content: center; align-items: center; text-align: center;">Reload</button>
         </div>
     </div>
-
-    <script type="module" src="src/main.js"></script>
+    <script type="module" src="src/main.js?v=1791168155"></script>
 </body>
 </html><script>
 window.addEventListener('load', () => {

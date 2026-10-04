@@ -621,7 +621,7 @@ export default class UIManager {
             this.core.mainArtCanvas.style.display = 'none';
             this.core.spriteSheetViewCanvas.style.display = 'block';
         } else {
-            btn.innerText = 'Sprites';
+            btn.innerText = 'Spritesheet';
             uiElements.forEach(id => { 
                 if(document.getElementById(id) && id !== 'radialMenu' && id !== 'dragHandle') {
                     document.getElementById(id).style.display = 'flex'; 
