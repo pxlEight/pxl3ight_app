@@ -150,6 +150,21 @@ export default class UIManager {
     }
 
     bindGlobalEvents() {
+        document.querySelectorAll('.ui-toggle-checkbox').forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                const widgetId = e.target.getAttribute('data-widget');
+                const widget = document.getElementById(widgetId);
+                const label = e.target.nextElementSibling;
+                if (e.target.checked) {
+                    widget.style.display = widgetId === 'widget-timeline' ? 'block' : 'flex';
+                    label.style.color = 'white';
+                } else {
+                    widget.style.display = 'none';
+                    label.style.color = '#888';
+                }
+            });
+        });
+
         window.addEventListener('orientationchange', () => {
             ['widget-layers', 'widget-tools', 'widget-color'].forEach(id => {
                 const w = document.getElementById(id);
@@ -244,9 +259,17 @@ export default class UIManager {
                     break;
                 case 'toggleFileMenu': 
                     e.stopPropagation(); 
-                    const fm = document.getElementById('file-menu'); 
+                    const fm = document.getElementById('file-menu');
+                    const fmWasOpen = fm.style.display === 'flex';
                     this.closeAllMenus(); 
-                    if (fm.style.display !== 'flex') fm.style.display = 'flex'; 
+                    if (!fmWasOpen) fm.style.display = 'flex'; 
+                    break;
+                case 'toggleUIMenu': 
+                    e.stopPropagation(); 
+                    const um = document.getElementById('ui-menu');
+                    const umWasOpen = um.style.display === 'flex';
+                    this.closeAllMenus(); 
+                    if (!umWasOpen) um.style.display = 'flex'; 
                     break;
                 case 'toggleMirrorMain': 
                     e.stopPropagation(); 

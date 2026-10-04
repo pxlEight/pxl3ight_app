@@ -250,6 +250,23 @@
     <header>
         <div class="header-tools" style="pointer-events: auto;">
             <button class="icon-btn" id="btn-hide-ui" data-action="toggleAllUI" title="Toggle UI" style="font-size: 20px;">👁️</button>
+            <div style="position: relative; display: inline-block;">
+                <button class="icon-btn" id="btn-ui-menu" data-action="toggleUIMenu" title="UI Menus" style="font-size: 16px; font-weight: bold; width: 44px; height: 44px; padding: 0;">UI</button>
+                <div id="ui-menu" class="dropdown-menu" style="left: 0; right: auto; min-width: 120px; padding: 8px; gap: 8px; display: none;">
+                    <label class="ui-menu-item" style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: white; user-select: none;">
+                        <input type="checkbox" checked data-widget="widget-tools" class="ui-toggle-checkbox"> <span class="ui-menu-label" style="font-size: 15px;">Tools</span>
+                    </label>
+                    <label class="ui-menu-item" style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: white; user-select: none;">
+                        <input type="checkbox" checked data-widget="widget-color" class="ui-toggle-checkbox"> <span class="ui-menu-label" style="font-size: 15px;">Color</span>
+                    </label>
+                    <label class="ui-menu-item" style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: white; user-select: none;">
+                        <input type="checkbox" checked data-widget="widget-layers" class="ui-toggle-checkbox"> <span class="ui-menu-label" style="font-size: 15px;">Layers</span>
+                    </label>
+                    <label class="ui-menu-item" style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: white; user-select: none;">
+                        <input type="checkbox" checked data-widget="widget-timeline" class="ui-toggle-checkbox"> <span class="ui-menu-label" style="font-size: 15px;">Timeline</span>
+                    </label>
+                </div>
+            </div>
         </div>
 
         <div class="header-center">

@@ -260,17 +260,10 @@ header {
     pointer-events: none;
 }
 
-/* Default Widget Layout (Portrait) */
-#widget-layers { top: 240px; right: max(10px, env(safe-area-inset-right)); left: auto; }
-#widget-tools { top: 300px; left: max(10px, env(safe-area-inset-left)); right: auto; }
-#widget-color { top: 60px; right: max(10px, env(safe-area-inset-right)); left: auto; }
-
-/* Landscape mode widget layouts */
-@media screen and (max-width: 1000px) and (orientation: landscape), screen and (max-height: 600px) and (orientation: landscape) {
-    #widget-color { top: max(60px, env(safe-area-inset-top) + 20px); right: max(10px, env(safe-area-inset-right)); left: auto; }
-    #widget-layers { top: max(10px, env(safe-area-inset-top)); right: max(80px, calc(80px + env(safe-area-inset-right))); left: auto; }
-    #widget-tools { top: max(60px, env(safe-area-inset-top) + 20px); left: max(10px, env(safe-area-inset-left)); right: auto; }
-}
+/* Default Widget Layout (Both Portrait & Landscape) */
+#widget-layers { top: calc(50% + 5px); right: max(10px, env(safe-area-inset-right)); left: auto; transform: translateY(-50%); }
+#widget-color { top: calc(50% - 170px); right: max(10px, env(safe-area-inset-right)); left: auto; transform: translateY(-50%); }
+#widget-tools { top: 50%; left: max(10px, env(safe-area-inset-left)); right: auto; transform: translateY(-50%); }
 
 .widget-handle {
     background-color: var(--widget-bg);
