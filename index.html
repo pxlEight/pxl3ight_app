@@ -248,35 +248,7 @@
     </main>
 
     <header>
-        <div class="header-tools" style="pointer-events: auto; position: relative;">
-            <button id="btn-file-menu" class="icon-btn" style="padding: 8px 12px; font-weight: bold; border-radius: 6px; font-size: 15px;" data-action="toggleFileMenu">File ▼</button>
-            <div id="file-menu" class="dropdown-menu">
-                <button data-action="saveProjectFile">Save Project</button>
-                <button data-action="openProjectPrompt">Open Project</button>
-                <div style="height: 1px; background-color: rgba(255,255,255,0.1); margin: 4px 0;"></div>
-                <button id="sheetToggleBtn" data-action="toggleSpriteSheetView">Spritesheet</button>
-                <button data-action="importImagePrompt">Import Image</button>
-                <button data-action="exportPNG">Export Image</button>
-                <div style="height: 1px; background-color: rgba(255,255,255,0.1); margin: 4px 0;"></div>
-                <div class="nested-dropdown">
-                    <button id="btn-image-size" data-action="toggleImageSizeMenu">Image Size ►</button>
-                    <div id="image-size-menu" class="dropdown-menu nested">
-                        <button data-action="resampleProject" data-res="1280x720">1280x720</button>
-                        <button data-action="resampleProject" data-res="720x720">720x720</button>
-                        <button data-action="resampleProject" data-res="180x320">180x320</button>
-                        <button data-action="resampleProject" data-res="128x128">128x128</button>
-                        <button data-action="resampleProject" data-res="64x64">64x64</button>
-                        <button data-action="resampleProject" data-res="32x32">32x32</button>
-                        <button data-action="resampleProject" data-res="24x24">24x24</button>
-                        <button data-action="resampleProject" data-res="16x16">16x16</button>
-                    </div>
-                </div>
-                <button data-action="clearHistoryMemory">Clear History</button>
-                <button data-action="confirmNewProject">New Project</button>
-            </div>
-            <input type="file" id="fileInput" accept="image/*" style="display: none;">
-            <input type="file" id="projectFileInput" accept=".pxl3,application/json" style="display: none;">
-        </div>
+        <div class="header-tools" style="pointer-events: none; width: 44px;"></div>
 
         <div class="header-center">
             <button id="btn-undo" class="icon-btn" data-action="undo" title="Undo" style="margin-right: 12px; font-size: 18px;">↩️</button>
@@ -293,6 +265,35 @@
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4M4 4l5 5M20 4l-5 5M4 20l5-5M20 20l-5-5"/></svg>
             </button>
             <button class="icon-btn" id="btn-hide-ui" data-action="toggleAllUI" title="Toggle UI" style="font-size: 20px;">👁️</button>
+            <div style="position: relative;">
+                <button id="btn-file-menu" class="icon-btn" style="width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; border-radius: 6px;" data-action="toggleFileMenu">&#8942;</button>
+                <div id="file-menu" class="dropdown-menu" style="right: 0; left: auto;">
+                    <button data-action="saveProjectFile">Save Project</button>
+                    <button data-action="openProjectPrompt">Open Project</button>
+                    <div style="height: 1px; background-color: rgba(255,255,255,0.1); margin: 4px 0;"></div>
+                    <button id="sheetToggleBtn" data-action="toggleSpriteSheetView">Spritesheet</button>
+                    <button data-action="importImagePrompt">Import Image</button>
+                    <button data-action="exportPNG">Export Image</button>
+                    <div style="height: 1px; background-color: rgba(255,255,255,0.1); margin: 4px 0;"></div>
+                    <div class="nested-dropdown">
+                        <button id="btn-image-size" data-action="toggleImageSizeMenu">Image Size ►</button>
+                        <div id="image-size-menu" class="dropdown-menu nested">
+                            <button data-action="resampleProject" data-res="1280x720">1280x720</button>
+                            <button data-action="resampleProject" data-res="720x720">720x720</button>
+                            <button data-action="resampleProject" data-res="180x320">180x320</button>
+                            <button data-action="resampleProject" data-res="128x128">128x128</button>
+                            <button data-action="resampleProject" data-res="64x64">64x64</button>
+                            <button data-action="resampleProject" data-res="32x32">32x32</button>
+                            <button data-action="resampleProject" data-res="24x24">24x24</button>
+                            <button data-action="resampleProject" data-res="16x16">16x16</button>
+                        </div>
+                    </div>
+                    <button data-action="clearHistoryMemory">Clear History</button>
+                    <button data-action="confirmNewProject">New Project</button>
+                </div>
+                <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                <input type="file" id="projectFileInput" accept=".pxl3,application/json" style="display: none;">
+            </div>
         </div>
     </header>
 
@@ -358,7 +359,7 @@
     </div>
 
     <div class="bottom-widget collapsed" id="widget-timeline">
-        <div class="widget-handle" data-action="toggleTimeline" style="position: relative; display: flex; justify-content: center; align-items: center; padding: 4px 12px; min-height: 24px; pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent;">
+        <div class="widget-handle" data-action="toggleTimeline" style="position: relative; display: flex; justify-content: center; align-items: center; padding: 4px 12px; min-height: 36px; pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent;">
             <div id="handle-timeline" style="text-align: center; font-weight: bold; font-size: 11px; letter-spacing: 1px;">TIMELINE ▲</div>
         </div>
         <div class="timeline-content">
@@ -424,7 +425,7 @@
         </div>
     </div>
     <div id="updateToast" style="display: none; position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background-color: var(--ui-bg); border: 2px solid var(--accent); padding: 16px 48px; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,0.8); text-align: center; backdrop-filter: blur(8px); width: max-content;">
-        <button id="btnDismissUpdate" style="position: absolute; top: 8px; right: 8px; background: none; border: none; color: #aaa; font-size: 14px; cursor: pointer; padding: 4px;" title="Dismiss">✕</button>
+        <button id="btnDismissUpdate" style="position: absolute; top: 8px; right: 8px; background-color: transparent !important; border: none; color: #aaa; font-size: 14px; cursor: pointer; padding: 4px; min-width: 24px; min-height: 24px; display: flex; justify-content: center; align-items: center;" title="Dismiss">✕</button>
         <div style="font-weight: bold; margin-bottom: 12px; font-size: 16px; color: white;">Update Available!</div>
         <div style="display: flex; gap: 10px; justify-content: center;">
             <button id="btnUpdateSaveReload" style="background-color: var(--accent); padding: 8px 16px; font-size: 14px; font-weight: bold; border-radius: 4px; color: white; display: flex; justify-content: center; align-items: center;">Save / Reload</button>
