@@ -42,6 +42,13 @@ body.ui-hidden .rot-indicator {
 
 body.ui-hidden #btn-hide-ui {
     display: flex !important;
+    position: fixed;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(63, 63, 78, 0.9);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    z-index: 1000;
 }
 
 button, select {
