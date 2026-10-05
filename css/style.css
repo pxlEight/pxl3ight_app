@@ -39,9 +39,17 @@ body.ui-hidden .rot-indicator {
     display: none !important;
 }
 
+body.ui-hidden .header-center {
+    pointer-events: none;
+}
+
 body.ui-hidden .header-center > *:not(#ui-menu-container) {
     visibility: hidden;
     pointer-events: none;
+}
+
+body.ui-hidden #ui-menu-container {
+    pointer-events: auto;
 }
 
 body.ui-hidden #btn-ui-menu {
