@@ -30,11 +30,14 @@ export default class BrushManager {
     }
 
     initUI() {
-        const grid = document.getElementById('brushGrid');
-        grid.innerHTML = '';
+        const defaultGrid = document.getElementById('brushGrid');
+        const customGrid = document.getElementById('customBrushGrid');
         
-        this.defaultBrushes.forEach(brush => this.createBrushSwatch(brush, grid));
-        this.customBrushes.forEach(brush => this.createBrushSwatch(brush, grid));
+        if (defaultGrid) defaultGrid.innerHTML = '';
+        if (customGrid) customGrid.innerHTML = '';
+        
+        this.defaultBrushes.forEach(brush => this.createBrushSwatch(brush, defaultGrid));
+        this.customBrushes.forEach(brush => this.createBrushSwatch(brush, customGrid));
     }
 
     createBrushSwatch(brush, container) {
@@ -97,8 +100,8 @@ export default class BrushManager {
         // Prevent duplicate custom brushes
         if (!this.customBrushes.some(b => b.shape === brush.shape && b.size === brush.size && b.opacity === brush.opacity)) {
             this.customBrushes.push(brush);
-            const grid = document.getElementById('brushGrid');
-            this.createBrushSwatch(brush, grid);
+            const grid = document.getElementById('customBrushGrid');
+            if (grid) this.createBrushSwatch(brush, grid);
         }
     }
 

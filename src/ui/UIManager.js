@@ -336,7 +336,7 @@ export default class UIManager {
                     const brushSize = parseInt(target.getAttribute('data-size'));
                     const brushOpacity = parseFloat(target.getAttribute('data-opacity'));
                     this.events.emit('core:selectBrushSwatch', { shape: brushShape, size: brushSize, opacity: brushOpacity });
-                    document.querySelectorAll('#brushGrid .swatch').forEach(s => s.classList.remove('selected')); 
+                    document.querySelectorAll('#brushPanel .swatch').forEach(s => s.classList.remove('selected')); 
                     target.classList.add('selected');
                     break;
                 case 'selectColorSwatch': 
