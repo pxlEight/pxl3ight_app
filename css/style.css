@@ -29,7 +29,7 @@ body {
 
 body.ui-hidden .header-left,
 body.ui-hidden .header-center,
-body.ui-hidden .header-tools > *:not(#btn-hide-ui),
+body.ui-hidden .header-tools > *:not(#ui-menu-container),
 body.ui-hidden .widget,
 body.ui-hidden .bottom-widget,
 body.ui-hidden .corner-btn,
@@ -40,7 +40,7 @@ body.ui-hidden .rot-indicator {
     display: none !important;
 }
 
-body.ui-hidden #btn-hide-ui {
+body.ui-hidden #ui-menu-container {
     display: flex !important;
     position: fixed;
     bottom: max(20px, env(safe-area-inset-bottom));
@@ -507,7 +507,8 @@ header {
 }
 .header-controls .add-btn:hover { border-color: var(--accent); }
 .chevron { font-size: 12px; margin-left: auto; }
-.palette-grid { display: grid; grid-template-columns: repeat(4, 40px); gap: 8px; margin-bottom: 12px; justify-content: start; }
+.palette-grid { display: grid; grid-template-columns: repeat(4, 40px); gap: 8px; margin-bottom: 12px; justify-content: start; max-height: 116px; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; touch-action: pan-y; }
+.palette-grid::-webkit-scrollbar { display: none; }
 .palette-grid:last-child, .palette-grid:empty { margin-bottom: 0; }
 .palette-grid.collapsed { display: none; }
 

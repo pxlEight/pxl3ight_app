@@ -559,6 +559,9 @@ export default class UIManager {
         const playBtn = document.getElementById('btn-play');
         if (playBtn) bindLongPress(playBtn, 'playbackMenu');
         
+        const uiBtn = document.getElementById('btn-ui-menu');
+        if (uiBtn) bindLongPress(uiBtn, 'ui-menu', 'top');
+        
         const mirrorBtn = document.getElementById('btn-mirror-menu');
         if (mirrorBtn) bindLongPress(mirrorBtn, 'mirror-menu', 'top-center');
 
