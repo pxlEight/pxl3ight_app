@@ -18,6 +18,7 @@ export default class ToolContext {
     get toolId() { return this.core.state.tool.current; }
     get shape() { return this.core.state.tool.shape; }
     get brushShape() { return this.core.state.tool.brushShape; }
+    get smooth() { return this.core.state.tool.smooth; }
     
     getBrushSize() {
         if (this.toolId === CONSTANTS.TOOLS.ERASER) return this.core.state.sizes[CONSTANTS.TOOLS.ERASER];

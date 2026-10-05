@@ -124,6 +124,19 @@ export default class UIManager {
             }
         });
         
+        new UIDragInteraction(document.getElementById('smoothVal'), {
+            stopPropagation: true, 
+            preventDefaultOnMove: true,
+            onDown: (e, inst) => { 
+                inst.customData.startSmoothVal = this.core.state.tool.smooth || 0; 
+            },
+            onDragMove: (e, dx, dy, inst) => {
+                let newVal = Math.max(0, Math.min(100, inst.customData.startSmoothVal - Math.round(dy / 1.5)));
+                this.core.state.tool.smooth = newVal; 
+                document.getElementById('smoothVal').innerText = newVal;
+            }
+        });
+        
         new UIDragInteraction(document.getElementById('lm-opacity'), {
             stopPropagation: true, 
             preventDefaultOnMove: true,

@@ -6,7 +6,7 @@ export default class AppConfig {
         this.resolution = '64x64'; 
         this.mirrorMode = CONSTANTS.MIRROR.NONE; 
         this.isSpriteSheetView = false;
-        this.tool = { current: CONSTANTS.TOOLS.PENCIL, shape: CONSTANTS.TOOLS.RECT, opacity: 1.0, brushShape: CONSTANTS.BRUSH_SHAPE.SQUARE };
+        this.tool = { current: CONSTANTS.TOOLS.PENCIL, shape: CONSTANTS.TOOLS.RECT, opacity: 1.0, brushShape: CONSTANTS.BRUSH_SHAPE.SQUARE, smooth: 0 };
         this.sizes = { [CONSTANTS.TOOLS.PENCIL]: 1, [CONSTANTS.TOOLS.ERASER]: 1, [CONSTANTS.TOOLS.SHAPE]: 1 };
         this.input = {
             isDrawing: false, lastX: -1, lastY: -1, shapeStartX: -1, shapeStartY: -1, 

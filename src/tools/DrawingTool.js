@@ -15,6 +15,8 @@ export default class DrawingTool extends BaseTool {
         this.isDrawing = true; 
         this.lastX = pos.x; 
         this.lastY = pos.y;
+        this.realX = pos.x;
+        this.realY = pos.y;
         
         this.drawPixel(pos.x, pos.y); 
         this.context.updateActiveCanvasFromScratch();
@@ -24,12 +26,22 @@ export default class DrawingTool extends BaseTool {
     onPointerMove(pos, e) {
         if (!this.isDrawing) return;
         
-        this.drawLine(this.lastX, this.lastY, pos.x, pos.y); 
+        const smoothVal = this.context.smooth || 0;
+        if (smoothVal > 0) {
+            const factor = 1 - (smoothVal * 0.0095); // 0 -> 1.0, 100 -> 0.05
+            this.realX += (pos.x - this.realX) * factor;
+            this.realY += (pos.y - this.realY) * factor;
+        } else {
+            this.realX = pos.x;
+            this.realY = pos.y;
+        }
+        
+        this.drawLine(this.lastX, this.lastY, this.realX, this.realY); 
         this.context.updateActiveCanvasFromScratch();
         this.context.updateOnionSkin();
         
-        this.lastX = pos.x; 
-        this.lastY = pos.y;
+        this.lastX = this.realX; 
+        this.lastY = this.realY;
     }
     
     onPointerUp(pos, e) {
