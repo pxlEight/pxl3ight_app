@@ -6,21 +6,21 @@ export default class BrushManager {
         this.customBrushes = [];
         this.defaultBrushes = [
             // Round - 100%
-            { shape: 'round', size: 1, opacity: 1.0 },
-            { shape: 'round', size: 3, opacity: 1.0 },
-            { shape: 'round', size: 5, opacity: 1.0 },
+            { shape: 'round', size: 2, opacity: 1.0 },
+            { shape: 'round', size: 11, opacity: 1.0 },
+            { shape: 'round', size: 20, opacity: 1.0 },
             // Round - 35%
-            { shape: 'round', size: 1, opacity: 0.35 },
-            { shape: 'round', size: 3, opacity: 0.35 },
-            { shape: 'round', size: 5, opacity: 0.35 },
+            { shape: 'round', size: 2, opacity: 0.35 },
+            { shape: 'round', size: 11, opacity: 0.35 },
+            { shape: 'round', size: 20, opacity: 0.35 },
             // Square - 100%
-            { shape: 'square', size: 1, opacity: 1.0 },
-            { shape: 'square', size: 3, opacity: 1.0 },
-            { shape: 'square', size: 5, opacity: 1.0 },
+            { shape: 'square', size: 2, opacity: 1.0 },
+            { shape: 'square', size: 11, opacity: 1.0 },
+            { shape: 'square', size: 20, opacity: 1.0 },
             // Square - 35%
-            { shape: 'square', size: 1, opacity: 0.35 },
-            { shape: 'square', size: 3, opacity: 0.35 },
-            { shape: 'square', size: 5, opacity: 0.35 }
+            { shape: 'square', size: 2, opacity: 0.35 },
+            { shape: 'square', size: 11, opacity: 0.35 },
+            { shape: 'square', size: 20, opacity: 0.35 }
         ];
 
         this.initUI();

@@ -490,7 +490,7 @@ header {
     transform: scale(0.95);
 }
 
-.palette-panel { width: 240px; }
+.palette-panel { width: 210px; }
 .section-header { display: flex; align-items: center; font-size: 14px; font-weight: bold; margin-bottom: 8px; cursor: pointer; user-select: none; color: #eeeeee; }
 .section-header:hover { color: #ffffff; }
 .header-controls { display: flex; align-items: center; gap: 6px; margin-left: auto; margin-right: 8px; }
@@ -507,7 +507,7 @@ header {
 }
 .header-controls .add-btn:hover { border-color: var(--accent); }
 .chevron { font-size: 12px; margin-left: auto; }
-.palette-grid { display: grid; grid-template-columns: repeat(auto-fill, 40px); gap: 8px; margin-bottom: 12px; justify-content: start; }
+.palette-grid { display: grid; grid-template-columns: repeat(4, 40px); gap: 8px; margin-bottom: 12px; justify-content: start; }
 .palette-grid:last-child, .palette-grid:empty { margin-bottom: 0; }
 .palette-grid.collapsed { display: none; }
 
