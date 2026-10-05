@@ -118,6 +118,10 @@ export default class PixelEditor {
             this.events.emit('ui:togglePalettePanel');
         });
         
+        this.events.on('core:toggleBrushPanel', () => {
+            this.events.emit('ui:toggleBrushPanel');
+        });
+        
         this.events.on('core:addCustomColor', (hex) => {
             this.palette.addCustomSwatch(hex);
             this.ui.createSwatch(hex, document.getElementById('customGrid'));
