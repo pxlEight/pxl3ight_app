@@ -47,6 +47,11 @@ export default class UIManager {
             panel.style.display = (panel.style.display === 'none' || panel.style.display === '') ? 'block' : 'none';
         });
         
+        this.events.on('ui:toggleBrushPanel', () => {
+            const panel = document.getElementById('brushPanel');
+            panel.style.display = (panel.style.display === 'none' || panel.style.display === '') ? 'block' : 'none';
+        });
+        
         this.events.on('ui:hidePalettePanel', () => { document.getElementById('palettePanel').style.display = 'none'; });
         this.events.on('ui:hideStartupScreen', () => { 
             document.getElementById('startupScreen').style.display = 'none'; 
@@ -102,6 +107,7 @@ export default class UIManager {
 
         new UIWidgetDragger('widget-layers', 'handle-layers'); 
         new UIWidgetDragger('widget-tools', 'handle-tools'); 
+        new UIWidgetDragger('widget-brush', 'handle-brush'); 
         new UIWidgetDragger('widget-color', 'handle-color');
         
         new UIDragInteraction(document.getElementById('opacityVal'), {
@@ -166,7 +172,7 @@ export default class UIManager {
         });
 
         window.addEventListener('orientationchange', () => {
-            ['widget-layers', 'widget-tools', 'widget-color'].forEach(id => {
+            ['widget-layers', 'widget-tools', 'widget-color', 'widget-brush'].forEach(id => {
                 const w = document.getElementById(id);
                 if (w) {
                     w.style.top = '';
@@ -318,6 +324,21 @@ export default class UIManager {
                     e.stopPropagation(); 
                     this.events.emit('core:togglePalettePanel'); 
                     break;
+                case 'toggleBrushPanel': 
+                    e.stopPropagation(); 
+                    this.events.emit('core:toggleBrushPanel'); 
+                    break;
+                case 'addCustomBrush':
+                    this.events.emit('core:addCustomBrush');
+                    break;
+                case 'selectBrushSwatch':
+                    const brushShape = target.getAttribute('data-shape');
+                    const brushSize = parseInt(target.getAttribute('data-size'));
+                    const brushOpacity = parseFloat(target.getAttribute('data-opacity'));
+                    this.events.emit('core:selectBrushSwatch', { shape: brushShape, size: brushSize, opacity: brushOpacity });
+                    document.querySelectorAll('#brushGrid .swatch').forEach(s => s.classList.remove('selected')); 
+                    target.classList.add('selected');
+                    break;
                 case 'selectColorSwatch': 
                     const color = target.getAttribute('data-color');
                     this.core.palette.setCurrentColor(color); 
@@ -439,6 +460,7 @@ export default class UIManager {
                 { id: 'layerLongPressMenu', excludes: ['#layerLongPressMenu', '.layer-square'] }, 
                 { id: 'layerAdjustMenu', excludes: ['#layerAdjustMenu', '[data-action="openLayerAdjustMenu"]'], extraCallback: () => this.events.emit('ui:applyLayerAdjust') },
                 { id: 'palettePanel', excludes: ['#palettePanel', '#btn-palette-toggle', '#hsvMenu'] }, 
+                { id: 'brushPanel', excludes: ['#brushPanel', '#btn-brush-toggle'] },
                 { id: 'frameMenu', excludes: ['#frameMenu', '.frame-square'] }, 
                 { id: 'file-menu', excludes: ['#file-menu', '#btn-file-menu'], extraCallback: () => document.getElementById('image-size-menu').style.display = 'none' }, 
                 { id: 'mirror-menu', excludes: ['#mirror-menu', '#btn-mirror-menu'] }, 
@@ -595,7 +617,7 @@ export default class UIManager {
         bindDoubleTap('hidden-frame-canvas', () => this.events.emit('core:reframeViewport'));
 
         // Menu Collapsing
-        ['handle-tools', 'handle-color', 'handle-layers'].forEach(handleId => {
+        ['handle-tools', 'handle-color', 'handle-layers', 'handle-brush'].forEach(handleId => {
             const handle = document.getElementById(handleId);
             if (handle) {
                 let pstartX = 0, pstartY = 0;
@@ -631,7 +653,7 @@ export default class UIManager {
 
     toggleSpriteSheetUI(isActive) {
         const btn = document.getElementById('sheetToggleBtn');
-        const uiElements = ['widget-layers', 'widget-tools', 'widget-color', 'selectionCanvas', 'dragHandle', 'radialMenu'];
+        const uiElements = ['widget-layers', 'widget-tools', 'widget-color', 'widget-brush', 'selectionCanvas', 'dragHandle', 'radialMenu'];
         
         if (isActive) {
             btn.innerText = 'Canvas';

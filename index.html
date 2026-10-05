@@ -257,6 +257,9 @@
                         <input type="checkbox" checked data-widget="widget-tools" class="ui-toggle-checkbox"> <span class="ui-menu-label" style="font-size: 15px;">Tools</span>
                     </label>
                     <label class="ui-menu-item" style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: white; user-select: none;">
+                        <input type="checkbox" checked data-widget="widget-brush" class="ui-toggle-checkbox"> <span class="ui-menu-label" style="font-size: 15px;">Brush</span>
+                    </label>
+                    <label class="ui-menu-item" style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: white; user-select: none;">
                         <input type="checkbox" checked data-widget="widget-color" class="ui-toggle-checkbox"> <span class="ui-menu-label" style="font-size: 15px;">Color</span>
                     </label>
                     <label class="ui-menu-item" style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: white; user-select: none;">
@@ -337,6 +340,26 @@
                 <button class="tool-btn" data-tool="zoom">🔍</button>
             </div>
             <div id="toolScrollIndicator" style="text-align: center; font-size: 10px; color: var(--accent); display: none; margin-top: -4px; margin-bottom: 2px;">▼</div>
+        </div>
+    </div>
+
+    <div class="widget" id="widget-brush">
+        <div class="widget-handle" id="handle-brush">BRUSH</div>
+        <div class="toolbar" id="brushTools">
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <div id="btn-brush-toggle" data-action="toggleBrushPanel" title="Toggle Brush Library" style="cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: center; height: 44px; width: 44px; margin-bottom: 4px; pointer-events: auto;">
+                    <div style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background-color: var(--widget-bg); border: 2px solid #ffffff; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20.5 3.5C18.5 1.5 15 1.5 13 3.5L4 12.5C3.5 13 3 14 3 15C3 16 3.5 17 4 17.5L5.5 19L7 20.5C7.5 21 8.5 21 9.5 20.5L18.5 11.5C20.5 9.5 20.5 6 20.5 3.5ZM5.5 19L4 20.5L7 20.5L7 19H5.5Z"/></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="palette-panel" id="brushPanel" style="display: none; position: absolute; left: 100%; right: auto; top: 0; margin-left: 10px; margin-right: 0; background-color: var(--ui-bg); padding: 12px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.7); backdrop-filter: blur(5px); width: 260px;">
+                <div class="section-header" style="margin-bottom: 12px; display: flex; justify-content: space-between;">
+                    <span>Brushes</span>
+                    <button class="add-btn" data-action="addCustomBrush" style="padding: 4px 8px; font-size: 12px; background-color: rgba(63, 63, 78, 0.9); border: 1px solid transparent; border-radius: 4px; color: #fff; cursor: pointer;">Add +</button>
+                </div>
+                <div class="palette-grid" id="brushGrid" style="grid-template-columns: repeat(auto-fill, 44px); gap: 10px;"></div>
+            </div>
         </div>
     </div>
 

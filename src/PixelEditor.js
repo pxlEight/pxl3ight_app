@@ -8,6 +8,7 @@ import SelectionManager from './selection/SelectionManager.js';
 import PlaybackController from './animation/PlaybackController.js';
 import ToolManager from './tools/ToolManager.js';
 import PaletteManager from './ui/PaletteManager.js';
+import BrushManager from './ui/BrushManager.js';
 import UIManager from './ui/UIManager.js';
 import InputManager from './ui/InputManager.js';
 import PixelDocument from './models/PixelDocument.js';
@@ -76,6 +77,7 @@ export default class PixelEditor {
         this.tools.registerTool(CONSTANTS.TOOLS.ZOOM, ZoomTool);
         
         this.ui = new UIManager(this);
+        this.brushManager = new BrushManager(this);
         this.input = new InputManager(document.getElementById('mainContainer'), this);
 
         this.events.on('requestToolChange', (tool, isToggle = false) => { 

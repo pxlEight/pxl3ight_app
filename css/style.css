@@ -273,12 +273,14 @@ header {
 #widget-layers { top: calc(50% + 15px); right: max(10px, env(safe-area-inset-right)); left: auto; transform: translateY(-50%); }
 #widget-color { top: calc(50% - 175px); right: max(10px, env(safe-area-inset-right)); left: auto; transform: translateY(-50%); }
 #widget-tools { top: 50%; left: max(10px, env(safe-area-inset-left)); right: auto; transform: translateY(-50%); }
+#widget-brush { top: calc(50% - 210px); left: max(10px, env(safe-area-inset-left)); right: auto; transform: translateY(-50%); }
 
 /* Landscape mode widget layouts */
 @media screen and (orientation: landscape) {
     #widget-layers { top: max(70px, env(safe-area-inset-top) + 70px); right: max(10px, env(safe-area-inset-right)); transform: none; }
     #widget-color { top: max(70px, env(safe-area-inset-top) + 70px); right: calc(max(10px, env(safe-area-inset-right)) + 74px); transform: none; }
     #widget-tools { top: 50%; left: max(10px, env(safe-area-inset-left)); transform: translateY(-50%); }
+    #widget-brush { top: 50%; left: calc(max(10px, env(safe-area-inset-left)) + 74px); right: auto; transform: translateY(-50%); }
 }
 
 .widget-handle {
