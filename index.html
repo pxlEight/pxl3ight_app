@@ -271,13 +271,14 @@
     </main>
 
     <header>
-        <div class="header-tools" style="pointer-events: auto; width: 44px;">
+        <div class="header-tools" style="pointer-events: auto;">
+        </div>
+
+        <div class="header-center" style="position: absolute; left: calc(50% - 93px); right: max(90px, env(safe-area-inset-right)); transform: none; display: flex; justify-content: space-between; align-items: center; pointer-events: auto;">
             <div id="ui-menu-container" style="position: relative; display: inline-block;">
                 <button class="icon-btn ui-btn" id="btn-ui-menu" data-action="toggleAllUI" title="UI Menus" style="font-size: 16px; font-weight: bold; width: 44px; height: 44px; padding: 0;">UI</button>
             </div>
-        </div>
-
-        <div class="header-center" style="position: static; transform: none; display: flex; flex: 1; justify-content: space-evenly; margin: 0 10px;">
+            
             <button id="btn-undo" class="icon-btn" data-action="undo" title="Undo" style="font-size: 18px;">↩️</button>
             
             <button id="btn-mirror-menu" class="icon-btn" data-action="toggleMirrorMain" title="Mirror Options">

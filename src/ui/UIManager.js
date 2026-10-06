@@ -562,7 +562,9 @@ export default class UIManager {
                         menu.style.bottom = (window.innerHeight - rect.top + 10) + 'px';
                         menu.style.top = 'auto';
                     } else {
-                        menu.style.top = (rect.bottom + 10) + 'px';
+                        let topPos = rect.bottom + 10;
+                        if (topPos + menu.offsetHeight > window.innerHeight - 10) topPos = window.innerHeight - menu.offsetHeight - 10;
+                        menu.style.top = Math.max(10, topPos) + 'px';
                         menu.style.bottom = 'auto';
                     }
                     
@@ -893,7 +895,9 @@ export default class UIManager {
                     }
                     
                     lpMenu.style.left = leftPos + 'px'; 
-                    lpMenu.style.top = rect.top + 'px';
+                    let topPos = rect.top;
+                    if (topPos + menuRect.height > window.innerHeight - 10) topPos = window.innerHeight - menuRect.height - 10;
+                    lpMenu.style.top = Math.max(10, topPos) + 'px';
                 }
             } else if (!longPressed && !hasScrolled) {
                 const menu = document.getElementById('layerMenu');
@@ -917,7 +921,9 @@ export default class UIManager {
                     }
                     
                     menu.style.left = leftPos + 'px'; 
-                    menu.style.top = rect.top + 'px';
+                    let topPos = rect.top;
+                    if (topPos + menuRect.height > window.innerHeight - 10) topPos = window.innerHeight - menuRect.height - 10;
+                    menu.style.top = Math.max(10, topPos) + 'px';
                     
                     const l = this.core.doc.activeFrame.layers[currentIndex];
                     document.getElementById('lm-vis').innerText = l.visible ? '👁️' : '🙈'; 
@@ -1376,7 +1382,9 @@ export default class UIManager {
                         let leftPos = rect.right + 10;
                         if (leftPos + smRect.width > window.innerWidth - 10) leftPos = rect.left - smRect.width - 10;
                         sm.style.left = leftPos + 'px'; 
-                        sm.style.top = rect.top + 'px';
+                        let topPos = rect.top;
+                        if (topPos + smRect.height > window.innerHeight - 10) topPos = window.innerHeight - smRect.height - 10;
+                        sm.style.top = Math.max(10, topPos) + 'px';
                     }
                 } else if (isDraggingTool) {
                     isDraggingTool = false; 
@@ -1418,7 +1426,9 @@ export default class UIManager {
                         let leftPos = rect.right + 10;
                         if (leftPos + smRect.width > window.innerWidth - 10) leftPos = rect.left - smRect.width - 10;
                         sm.style.left = leftPos + 'px'; 
-                        sm.style.top = rect.top + 'px';
+                        let topPos = rect.top;
+                        if (topPos + smRect.height > window.innerHeight - 10) topPos = window.innerHeight - smRect.height - 10;
+                        sm.style.top = Math.max(10, topPos) + 'px';
                     }
                 }
             };
@@ -1453,7 +1463,9 @@ export default class UIManager {
                         let leftPos = rect.right + 10;
                         if (leftPos + smRect.width > window.innerWidth - 10) leftPos = rect.left - smRect.width - 10;
                         sm.style.left = leftPos + 'px'; 
-                        sm.style.top = rect.top + 'px'; 
+                        let topPos = rect.top;
+                        if (topPos + smRect.height > window.innerHeight - 10) topPos = window.innerHeight - smRect.height - 10;
+                        sm.style.top = Math.max(10, topPos) + 'px'; 
                     } else if (currentToolName === CONSTANTS.TOOLS.WAND || currentToolName === CONSTANTS.TOOLS.MARQUEE || currentToolName === CONSTANTS.TOOLS.POLYGON || currentToolName === CONSTANTS.TOOLS.COLOR_SELECT || currentToolName === CONSTANTS.TOOLS.LASSO) { 
                         const sm = document.getElementById('selectMenu');
                         const rect = btn.getBoundingClientRect(); 
@@ -1462,7 +1474,9 @@ export default class UIManager {
                         let leftPos = rect.right + 10;
                         if (leftPos + smRect.width > window.innerWidth - 10) leftPos = rect.left - smRect.width - 10;
                         sm.style.left = leftPos + 'px'; 
-                        sm.style.top = rect.top + 'px'; 
+                        let topPos = rect.top;
+                        if (topPos + smRect.height > window.innerHeight - 10) topPos = window.innerHeight - smRect.height - 10;
+                        sm.style.top = Math.max(10, topPos) + 'px'; 
                     }
                 }, 400);
                 
