@@ -55,7 +55,10 @@ export default class HistoryManager {
         if (!doc) return;
         
         if (this.step < this.history.length - 1) {
+            this.discardedRedo = this.history.slice(this.step + 1);
             this.history.length = this.step + 1;
+        } else {
+            this.discardedRedo = null;
         }
         
         const prevState = this.step >= 0 ? this.history[this.step] : null;

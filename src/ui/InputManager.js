@@ -53,8 +53,12 @@ export default class InputManager {
                         this.lastHiddenTapTime = 0;
                         if (action !== 'core:reframeViewport') {
                             this.core.events.emit('core:undo');
-                            if (action === 'core:redo') {
-                                this.core.events.emit('core:redo');
+                            if (this.core.history.discardedRedo) {
+                                this.core.history.history.pop();
+                                this.core.history.history.push(...this.core.history.discardedRedo);
+                                this.core.history.discardedRedo = null;
+                            } else {
+                                this.core.history.history.pop();
                             }
                         }
                         this.core.events.emit(action);
