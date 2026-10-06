@@ -227,6 +227,8 @@ header {
     position: absolute;
     left: calc(106px - max(10px, env(safe-area-inset-left)));
     right: 104px;
+    top: 0;
+    bottom: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -301,19 +303,23 @@ header {
     #ui-menu-container {
         position: absolute;
         left: calc(50% - 198px);
+        top: 0;
     }
     #btn-undo {
         position: absolute;
         left: calc(50% - 110px);
+        top: 0;
     }
     #btn-mirror-menu {
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
+        top: 0;
     }
     #btn-redo {
         position: absolute;
         left: calc(50% + 66px);
+        top: 0;
     }
 }
 
