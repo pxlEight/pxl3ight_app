@@ -60,9 +60,19 @@ export default class UIManager {
                         panel.style.marginRight = '10px';
                         panel.style.marginLeft = '0';
                     }
+                    
+                    panel.style.top = '0px';
+                    panel.style.bottom = 'auto';
+                    panel.style.display = 'block';
+                    const panelRect = panel.getBoundingClientRect();
+                    if (panelRect.bottom > window.innerHeight - 10) {
+                        const overflow = panelRect.bottom - (window.innerHeight - 10);
+                        panel.style.top = `-${overflow}px`;
+                    }
                 }
+            } else {
+                panel.style.display = 'none';
             }
-            panel.style.display = isOpening ? 'block' : 'none';
         });
         
         this.events.on('ui:toggleBrushPanel', () => {
@@ -83,9 +93,19 @@ export default class UIManager {
                         panel.style.marginRight = '10px';
                         panel.style.marginLeft = '0';
                     }
+
+                    panel.style.top = '0px';
+                    panel.style.bottom = 'auto';
+                    panel.style.display = 'block';
+                    const panelRect = panel.getBoundingClientRect();
+                    if (panelRect.bottom > window.innerHeight - 10) {
+                        const overflow = panelRect.bottom - (window.innerHeight - 10);
+                        panel.style.top = `-${overflow}px`;
+                    }
                 }
+            } else {
+                panel.style.display = 'none';
             }
-            panel.style.display = isOpening ? 'block' : 'none';
         });
         
         this.events.on('ui:hidePalettePanel', () => { document.getElementById('palettePanel').style.display = 'none'; });

@@ -225,10 +225,10 @@ header {
 .header-tools { display: flex; gap: 8px; pointer-events: auto; }
 .header-center {
     position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    left: calc(124px - max(10px, env(safe-area-inset-left)));
+    right: 104px;
     display: flex;
-    gap: 8px;
+    justify-content: space-between;
     align-items: center;
     pointer-events: auto;
 }
@@ -291,6 +291,30 @@ header {
     #widget-color { top: max(70px, env(safe-area-inset-top) + 70px); right: calc(max(10px, env(safe-area-inset-right)) + 74px); transform: none; }
     #widget-tools { top: 50%; left: max(10px, env(safe-area-inset-left)); transform: translateY(-50%); }
     #widget-brush { top: 50%; left: calc(max(10px, env(safe-area-inset-left)) + 74px); right: auto; transform: translateY(-50%); }
+
+    .header-center {
+        left: 0;
+        right: 0;
+        width: 100%;
+        justify-content: center;
+    }
+    #ui-menu-container {
+        position: absolute;
+        left: calc(50% + 22px);
+    }
+    #btn-undo {
+        position: absolute;
+        left: calc(50% - 110px);
+    }
+    #btn-mirror-menu {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    #btn-redo {
+        position: absolute;
+        left: calc(50% + 66px);
+    }
 }
 
 .widget-handle {
