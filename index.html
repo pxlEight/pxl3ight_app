@@ -271,21 +271,20 @@
     </main>
 
     <header>
-        <div class="header-tools" style="pointer-events: auto;">
-        </div>
-
-        <div class="header-center">
-            <div id="ui-menu-container" style="position: relative; display: inline-block; margin-right: 12px;">
+        <div class="header-tools" style="pointer-events: auto; width: 44px;">
+            <div id="ui-menu-container" style="position: relative; display: inline-block;">
                 <button class="icon-btn ui-btn" id="btn-ui-menu" data-action="toggleAllUI" title="UI Menus" style="font-size: 16px; font-weight: bold; width: 44px; height: 44px; padding: 0;">UI</button>
             </div>
-            
-            <button id="btn-undo" class="icon-btn" data-action="undo" title="Undo" style="margin-right: 12px; font-size: 18px;">↩️</button>
+        </div>
+
+        <div class="header-center" style="position: static; transform: none; display: flex; flex: 1; justify-content: space-evenly; margin: 0 10px;">
+            <button id="btn-undo" class="icon-btn" data-action="undo" title="Undo" style="font-size: 18px;">↩️</button>
             
             <button id="btn-mirror-menu" class="icon-btn" data-action="toggleMirrorMain" title="Mirror Options">
                 <svg id="mirror-main-icon" width="22" height="22" viewBox="0 0 24 24" fill="white" stroke="none"><rect x="11.25" y="2" width="1.5" height="20" fill="white"/><polygon points="4,5 10,12 4,19"/><polygon points="20,5 14,12 20,19"/></svg>
             </button>
 
-            <button id="btn-redo" class="icon-btn" data-action="redo" title="Redo" style="margin-left: 12px; font-size: 18px;">↪️</button>
+            <button id="btn-redo" class="icon-btn" data-action="redo" title="Redo" style="font-size: 18px;">↪️</button>
         </div>
 
         <div class="header-tools" style="pointer-events: auto;">
@@ -435,11 +434,7 @@
         </div>
     </div>
 
-    <div id="hidden-ui-buttons" style="display: none; position: absolute; inset: 0; pointer-events: none; z-index: 800;">
-        <div id="hidden-undo" style="position: absolute; top: max(0px, env(safe-area-inset-top)); left: 0; width: 60px; height: 60px; pointer-events: auto;"></div>
-        <div id="hidden-redo" style="position: absolute; top: max(0px, env(safe-area-inset-top)); right: 0; width: 60px; height: 60px; pointer-events: auto;"></div>
-        <div id="hidden-frame-canvas" style="position: absolute; top: max(0px, env(safe-area-inset-top)); left: 120px; right: 120px; height: 60px; pointer-events: auto;"></div>
-    </div>
+
 
 
 

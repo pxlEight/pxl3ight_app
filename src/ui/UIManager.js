@@ -44,12 +44,48 @@ export default class UIManager {
         
         this.events.on('ui:togglePalettePanel', () => {
             const panel = document.getElementById('palettePanel');
-            panel.style.display = (panel.style.display === 'none' || panel.style.display === '') ? 'block' : 'none';
+            const isOpening = (panel.style.display === 'none' || panel.style.display === '');
+            if (isOpening) {
+                const widget = panel.closest('.widget');
+                if (widget) {
+                    const rect = widget.getBoundingClientRect();
+                    if (rect.left < window.innerWidth / 2) {
+                        panel.style.left = '100%';
+                        panel.style.right = 'auto';
+                        panel.style.marginLeft = '10px';
+                        panel.style.marginRight = '0';
+                    } else {
+                        panel.style.right = '100%';
+                        panel.style.left = 'auto';
+                        panel.style.marginRight = '10px';
+                        panel.style.marginLeft = '0';
+                    }
+                }
+            }
+            panel.style.display = isOpening ? 'block' : 'none';
         });
         
         this.events.on('ui:toggleBrushPanel', () => {
             const panel = document.getElementById('brushPanel');
-            panel.style.display = (panel.style.display === 'none' || panel.style.display === '') ? 'block' : 'none';
+            const isOpening = (panel.style.display === 'none' || panel.style.display === '');
+            if (isOpening) {
+                const widget = panel.closest('.widget');
+                if (widget) {
+                    const rect = widget.getBoundingClientRect();
+                    if (rect.left < window.innerWidth / 2) {
+                        panel.style.left = '100%';
+                        panel.style.right = 'auto';
+                        panel.style.marginLeft = '10px';
+                        panel.style.marginRight = '0';
+                    } else {
+                        panel.style.right = '100%';
+                        panel.style.left = 'auto';
+                        panel.style.marginRight = '10px';
+                        panel.style.marginLeft = '0';
+                    }
+                }
+            }
+            panel.style.display = isOpening ? 'block' : 'none';
         });
         
         this.events.on('ui:hidePalettePanel', () => { document.getElementById('palettePanel').style.display = 'none'; });
@@ -612,25 +648,7 @@ export default class UIManager {
             });
         });
 
-        // Hidden UI invisible buttons
-        let lastTapMap = {};
-        const bindDoubleTap = (id, action) => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.addEventListener('pointerdown', (e) => {
-                const now = Date.now();
-                const last = lastTapMap[id] || 0;
-                if (now - last < 300) {
-                    action();
-                    lastTapMap[id] = 0;
-                } else {
-                    lastTapMap[id] = now;
-                }
-            });
-        };
-        bindDoubleTap('hidden-undo', () => this.events.emit('core:undo'));
-        bindDoubleTap('hidden-redo', () => this.events.emit('core:redo'));
-        bindDoubleTap('hidden-frame-canvas', () => this.events.emit('core:reframeViewport'));
+
 
         // Menu Collapsing
         ['handle-tools', 'handle-color', 'handle-layers', 'handle-brush'].forEach(handleId => {
@@ -1354,7 +1372,10 @@ export default class UIManager {
                         const sm = document.getElementById('brushShapeMenu');
                         const rect = btn.getBoundingClientRect();
                         sm.style.display = 'flex'; 
-                        sm.style.left = (rect.right + 10) + 'px'; 
+                        const smRect = sm.getBoundingClientRect();
+                        let leftPos = rect.right + 10;
+                        if (leftPos + smRect.width > window.innerWidth - 10) leftPos = rect.left - smRect.width - 10;
+                        sm.style.left = leftPos + 'px'; 
                         sm.style.top = rect.top + 'px';
                     }
                 } else if (isDraggingTool) {
@@ -1393,7 +1414,10 @@ export default class UIManager {
                         const sm = document.getElementById('brushShapeMenu');
                         const rect = btn.getBoundingClientRect();
                         sm.style.display = 'flex'; 
-                        sm.style.left = (rect.right + 10) + 'px'; 
+                        const smRect = sm.getBoundingClientRect();
+                        let leftPos = rect.right + 10;
+                        if (leftPos + smRect.width > window.innerWidth - 10) leftPos = rect.left - smRect.width - 10;
+                        sm.style.left = leftPos + 'px'; 
                         sm.style.top = rect.top + 'px';
                     }
                 }
@@ -1425,13 +1449,19 @@ export default class UIManager {
                         const sm = document.getElementById('shapeMenu');
                         const rect = btn.getBoundingClientRect(); 
                         sm.style.display = 'flex'; 
-                        sm.style.left = (rect.right + 10) + 'px'; 
+                        const smRect = sm.getBoundingClientRect();
+                        let leftPos = rect.right + 10;
+                        if (leftPos + smRect.width > window.innerWidth - 10) leftPos = rect.left - smRect.width - 10;
+                        sm.style.left = leftPos + 'px'; 
                         sm.style.top = rect.top + 'px'; 
                     } else if (currentToolName === CONSTANTS.TOOLS.WAND || currentToolName === CONSTANTS.TOOLS.MARQUEE || currentToolName === CONSTANTS.TOOLS.POLYGON || currentToolName === CONSTANTS.TOOLS.COLOR_SELECT || currentToolName === CONSTANTS.TOOLS.LASSO) { 
                         const sm = document.getElementById('selectMenu');
                         const rect = btn.getBoundingClientRect(); 
                         sm.style.display = 'flex'; 
-                        sm.style.left = (rect.right + 10) + 'px'; 
+                        const smRect = sm.getBoundingClientRect();
+                        let leftPos = rect.right + 10;
+                        if (leftPos + smRect.width > window.innerWidth - 10) leftPos = rect.left - smRect.width - 10;
+                        sm.style.left = leftPos + 'px'; 
                         sm.style.top = rect.top + 'px'; 
                     }
                 }, 400);
