@@ -228,7 +228,6 @@ header {
     left: calc(106px - max(10px, env(safe-area-inset-left)));
     right: 104px;
     top: 0;
-    bottom: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
