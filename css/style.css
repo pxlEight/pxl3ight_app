@@ -300,7 +300,7 @@ header {
     }
     #ui-menu-container {
         position: absolute;
-        left: calc(50% - 154px);
+        left: calc(50% - 198px);
     }
     #btn-undo {
         position: absolute;
