@@ -483,7 +483,7 @@ export default class PixelEditor {
         const file = event.target.files[0]; 
         if (!file) return;
         
-        this.projectName = file.name.replace(/\.pxl3$/i, '');
+        this.projectName = file.name.replace(/(\.pxl3|\.json|\.pxl3\.json)$/gi, '');
         
         const reader = new FileReader();
         reader.onload = async (e) => {
@@ -579,7 +579,7 @@ export default class PixelEditor {
         if (!fileName) return; 
         if (!fileName.toLowerCase().endsWith('.pxl3')) fileName += '.pxl3';
         
-        this.projectName = fileName.replace(/\.pxl3$/i, '');
+        this.projectName = fileName.replace(/(\.pxl3|\.json|\.pxl3\.json)$/gi, '');
         
         const blob = new Blob([JSON.stringify(projectData)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -842,7 +842,7 @@ export default class PixelEditor {
                 }
             }
             
-            document.getElementById('expStatus').innerText = "Ready to Share!";
+            document.getElementById('expStatus').style.display = 'none';
             document.getElementById('expShareBtn').style.display = 'block';
             document.getElementById('expCloseBtn').style.display = 'block';
             
@@ -854,12 +854,13 @@ export default class PixelEditor {
                         shared = true;
                     } catch(e) {
                         console.error("Share failed", e);
-                        // User cancelled or browser rejected the zip file despite canShare being true
                     }
                 } 
                 
+                removeModal();
+                this.events.emit('ui:closeAllMenus');
+                
                 if (!shared && finalFiles.length > 0) {
-                    // Fallback to traditional download
                     for (const f of finalFiles) {
                         const url = URL.createObjectURL(f);
                         const a = document.createElement('a'); a.href = url; a.download = f.name;
@@ -867,16 +868,14 @@ export default class PixelEditor {
                         setTimeout(() => URL.revokeObjectURL(url), 10000);
                     }
                     
-                    document.getElementById('expStatus').innerText = "Check Your Device Downloads Folder.";
-                    document.getElementById('expShareBtn').style.display = 'none';
-                    document.getElementById('expCloseBtn').style.display = 'none';
+                    const toast = document.createElement('div');
+                    toast.style.cssText = 'position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background-color: var(--ui-bg); border: 2px solid var(--accent); padding: 16px 48px; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,0.8); text-align: center; backdrop-filter: blur(8px); width: max-content;';
+                    toast.innerHTML = `<div style="font-weight: bold; margin-bottom: 0px; font-size: 16px; color: white;">Check Your Device Downloads Folder.</div>`;
+                    document.body.appendChild(toast);
+                    
                     setTimeout(() => {
-                        removeModal();
-                        this.events.emit('ui:closeAllMenus');
-                    }, 2000);
-                } else {
-                    removeModal();
-                    this.events.emit('ui:closeAllMenus');
+                        if (toast.parentNode) toast.parentNode.removeChild(toast);
+                    }, 3000);
                 }
             };
             
