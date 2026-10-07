@@ -213,6 +213,28 @@ export default class UIManager {
             },
             onDragEnd: () => this.core.saveState()
         });
+        new UIDragInteraction(document.getElementById('long-press-timer-val'), {
+            stopPropagation: true, 
+            preventDefaultOnMove: true,
+            onDown: (e, inst) => { 
+                inst.customData.startVal = window.longPressTimer; 
+            },
+            onDragMove: (e, dx, dy, inst) => {
+                let defaultVal = window.defaultLongPressTimer;
+                let minVal = Math.round(defaultVal * 0.9);
+                let maxVal = Math.round(defaultVal * 1.1);
+                let newVal = Math.max(minVal, Math.min(maxVal, inst.customData.startVal - Math.round(dy / 1.5)));
+                window.longPressTimer = newVal; 
+                localStorage.setItem('longPressTimer', newVal);
+                document.getElementById('long-press-timer-val').innerText = newVal;
+            }
+        });
+        
+        // init UI
+        if (document.getElementById('long-press-timer-val')) {
+            document.getElementById('long-press-timer-val').innerText = window.longPressTimer;
+        }
+
 
         this.makeShapeMenuDraggable();
         this.makeToolsDraggable();
@@ -354,6 +376,15 @@ export default class UIManager {
                         fm.style.display = 'flex'; 
                         const ind = document.getElementById('file-menu-scroll-indicator');
                         if (ind) ind.innerHTML = Math.abs((fm.scrollTop + fm.clientHeight) - fm.scrollHeight) <= 5 ? '▲' : '▼';
+                    }
+                    break;
+                case 'toggleSettingsMenu': 
+                    e.stopPropagation(); 
+                    const sm = document.getElementById('settings-menu');
+                    const smWasOpen = sm.style.display === 'flex';
+                    this.closeAllMenus(); 
+                    if (!smWasOpen) {
+                        sm.style.display = 'flex'; 
                     }
                     break;
                 case 'toggleUIMenu': 
@@ -605,7 +636,7 @@ export default class UIManager {
                         menu.style.bottom = 'auto';
                     }
                     
-                }, 500);
+                }, window.longPressTimer || 500);
             });
             btn.addEventListener('pointermove', (e) => { 
                 if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) {
@@ -985,7 +1016,7 @@ export default class UIManager {
                 square.style.transform = 'scale(1.15)'; 
                 try { square.setPointerCapture(e.pointerId); } catch(err) {} 
                 this.closeAllMenus(); 
-            }, 400);
+            }, window.longPressTimer || 400);
             
             square.addEventListener('pointermove', onMove); 
             square.addEventListener('pointerup', onUp); 
@@ -1148,7 +1179,7 @@ export default class UIManager {
             frameDragTimer = setTimeout(() => { 
                 longPressed = true; 
                 square.style.transform = 'scale(1.15)'; 
-            }, 400);
+            }, window.longPressTimer || 400);
             
             square.addEventListener('pointermove', onMove); 
             square.addEventListener('pointerup', onUp); 
@@ -1302,7 +1333,7 @@ export default class UIManager {
                     startSize = this.core.state.sizes[CONSTANTS.TOOLS.SHAPE]; 
                     currentStickySize = startSize; 
                     this.showBrushSizePreview(startSize, CONSTANTS.TOOLS.SHAPE);
-                }, 400);
+                }, window.longPressTimer || 400);
                 
                 btn.addEventListener('pointermove', onMove); 
                 btn.addEventListener('pointerup', onUp); 
@@ -1515,7 +1546,7 @@ export default class UIManager {
                         if (topPos + smRect.height > window.innerHeight - 10) topPos = window.innerHeight - smRect.height - 10;
                         sm.style.top = Math.max(10, topPos) + 'px'; 
                     }
-                }, 400);
+                }, window.longPressTimer || 400);
                 
                 btn.addEventListener('pointermove', onMove); 
                 btn.addEventListener('pointerup', onUp); 

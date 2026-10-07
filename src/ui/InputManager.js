@@ -230,7 +230,7 @@ export default class InputManager {
                 
                 this.core.events.emit('ui:showCrosshair');
                 this.updateCrosshairPosition(e.clientX, e.clientY);
-            }, requireLongPress ? 400 : 0);
+            }, requireLongPress ? (window.longPressTimer || 400) : 0);
         });
     }
 }

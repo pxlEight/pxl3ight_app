@@ -753,7 +753,7 @@ export default class SelectionManager {
                 for (let t in this.scaleHandles) {
                     this.scaleHandles[t].visual.style.backgroundColor = 'rgba(255, 215, 0, 0.4)';
                 }
-            }, 500);
+            }, window.longPressTimer || 500);
 
             const onMove = (em) => {
                 if (Math.abs(em.clientX - startClientX) > 4 || Math.abs(em.clientY - startClientY) > 4) {

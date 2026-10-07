@@ -53,7 +53,7 @@ export default class PolygonSelectTool extends BaseTool {
                 this.isLongPress = true;
                 this.isMovingMask = false;
                 this.context.core.events.emit('selection:showModifierUI', { clientX: e.clientX, clientY: e.clientY });
-            }, 500);
+            }, window.longPressTimer || 500);
         } else {
             if (!this.isDrawing && isActive && !isInside && mode === CONSTANTS.SELECT_MODE.REPLACE) {
                 this.context.core.selection.clear();
