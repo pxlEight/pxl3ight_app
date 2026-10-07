@@ -483,6 +483,8 @@ export default class PixelEditor {
         const file = event.target.files[0]; 
         if (!file) return;
         
+        this.projectName = file.name.replace(/\.pxl3$/i, '');
+        
         const reader = new FileReader();
         reader.onload = async (e) => {
             try {
@@ -572,9 +574,12 @@ export default class PixelEditor {
             }))
         };
         
-        let fileName = prompt("Name your project file:", `project_${Date.now()}`); 
+        let defaultName = this.projectName ? this.projectName : `project_${Date.now()}`;
+        let fileName = prompt("Name your project file:", defaultName); 
         if (!fileName) return; 
         if (!fileName.toLowerCase().endsWith('.pxl3')) fileName += '.pxl3';
+        
+        this.projectName = fileName.replace(/\.pxl3$/i, '');
         
         const blob = new Blob([JSON.stringify(projectData)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -862,7 +867,7 @@ export default class PixelEditor {
                         setTimeout(() => URL.revokeObjectURL(url), 10000);
                     }
                     
-                    document.getElementById('expStatus').innerText = "Download Started!";
+                    document.getElementById('expStatus').innerText = "Check Your Device Downloads Folder.";
                     document.getElementById('expShareBtn').style.display = 'none';
                     document.getElementById('expCloseBtn').style.display = 'none';
                     setTimeout(() => {
