@@ -90,7 +90,7 @@ export default class LassoSelectTool extends BaseTool {
             this.isMovingMask = true;
             this.longPressTimer = setTimeout(() => {
                 this.longPressTimer = null;
-                this.isLongPress = true;
+                this.isLongPress = true; if (navigator.vibrate) navigator.vibrate(window.longPressTimer || 500);
                 this.isMovingMask = false;
                 this.context.core.events.emit('selection:showModifierUI', { clientX: e.clientX, clientY: e.clientY });
             }, window.longPressTimer || 500);
