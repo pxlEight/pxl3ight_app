@@ -717,12 +717,23 @@ export default class PixelEditor {
                 <span>.png</span>
             </div>
             ${isSpriteSheet ? '' : '<label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="expZip"> .zip (all frames zipped)</label>'}
-            <button id="expFinalBtn" class="startup-btn" style="margin-top:10px;">Export</button>
+            <button id="expFinalBtn" class="startup-btn" style="margin-top:10px;">Prepare Export</button>
             <button id="expCancel2Btn" class="startup-btn" style="margin-top:5px; background:transparent; border:1px solid #777;">Cancel</button>
+        `;
+
+        const step3 = document.createElement('div');
+        step3.style.display = 'none';
+        step3.style.flexDirection = 'column';
+        step3.style.gap = '10px';
+        step3.innerHTML = `
+            <h3 style="margin:0 0 10px 0;" id="expStatus">Processing...</h3>
+            <button id="expShareBtn" class="startup-btn" style="margin-top:10px; display:none; background-color:var(--accent);">Share / Save</button>
+            <button id="expCloseBtn" class="startup-btn" style="margin-top:5px; background:transparent; border:1px solid #777; display:none;">Close</button>
         `;
         
         content.appendChild(step1);
         content.appendChild(step2);
+        content.appendChild(step3);
         modal.appendChild(content);
         document.body.appendChild(modal);
         
@@ -748,8 +759,11 @@ export default class PixelEditor {
                 if (start > end) { const temp = start; start = end; end = temp; }
             }
             
-            removeModal();
-            this.events.emit('ui:closeAllMenus');
+            step2.style.display = 'none';
+            step3.style.display = 'flex';
+            
+            let finalFiles = [];
+            let finalTitle = baseName;
             
             if (isSpriteSheet) {
                 const exportCanvas = document.createElement('canvas'); 
@@ -757,18 +771,8 @@ export default class PixelEditor {
                 exportCanvas.height = this.spriteSheetViewCanvas.height;
                 exportCanvas.getContext('2d').drawImage(this.spriteSheetViewCanvas, 0, 0); 
                 
-                exportCanvas.toBlob(async (blob) => {
-                    const fileName = `${baseName}.png`;
-                    const file = new File([blob], fileName, { type: 'image/png' });
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        try { await navigator.share({ files: [file], title: fileName }); } catch (e) { console.error(e); }
-                    } else {
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a'); a.href = url; a.download = fileName;
-                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                    }
-                }, 'image/png');
+                const blob = await new Promise(r => exportCanvas.toBlob(r, 'image/png'));
+                finalFiles = [new File([blob], `${baseName}.png`, { type: 'image/png' })];
             } else {
                 const framesToExport = [];
                 for (let i = start - 1; i <= end - 1; i++) {
@@ -787,48 +791,83 @@ export default class PixelEditor {
                     fd.canvas.toBlob(blob => res({ index: fd.index, blob }), 'image/png');
                 })));
                 
-                if (doZip && window.JSZip) {
-                    const zip = new window.JSZip();
-                    const blobs = await getBlobs();
-                    blobs.forEach(b => {
-                        const idxStr = b.index.toString().padStart(3, '0');
-                        zip.file(`${baseName}_${idxStr}.png`, b.blob);
-                    });
-                    const zipBlob = await zip.generateAsync({ type: 'blob' });
-                    const zipName = `${baseName}.zip`;
-                    const file = new File([zipBlob], zipName, { type: 'application/zip' });
-                    
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        try { await navigator.share({ files: [file], title: zipName }); } catch(e) {}
+                if (doZip) {
+                    document.getElementById('expStatus').innerText = "Loading zip engine...";
+                    if (!window.JSZip) {
+                        try {
+                            await new Promise((res, rej) => {
+                                const script = document.createElement('script');
+                                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                                script.onload = res;
+                                script.onerror = rej;
+                                document.head.appendChild(script);
+                            });
+                        } catch (e) {
+                            console.error("Failed to load JSZip", e);
+                        }
+                    }
+
+                    if (window.JSZip) {
+                        document.getElementById('expStatus').innerText = "Zipping files...";
+                        const zip = new window.JSZip();
+                        const blobs = await getBlobs();
+                        blobs.forEach(b => {
+                            const idxStr = b.index.toString().padStart(3, '0');
+                            zip.file(`${baseName}_${idxStr}.png`, b.blob);
+                        });
+                        const zipBlob = await zip.generateAsync({ type: 'blob' });
+                        finalTitle = `${baseName}.zip`;
+                        finalFiles = [new File([zipBlob], finalTitle, { type: 'application/zip' })];
                     } else {
-                        const url = URL.createObjectURL(zipBlob);
-                        const a = document.createElement('a'); a.href = url; a.download = zipName;
-                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
+                        // Fallback to individual files if JSZip failed to load
+                        document.getElementById('expStatus').innerText = "Preparing images...";
+                        const blobs = await getBlobs();
+                        finalFiles = blobs.map(b => {
+                            const idxStr = b.index.toString().padStart(3, '0');
+                            return new File([b.blob], `${baseName}_${idxStr}.png`, { type: 'image/png' });
+                        });
                     }
                 } else {
+                    document.getElementById('expStatus').innerText = "Preparing images...";
                     const blobs = await getBlobs();
-                    const files = blobs.map(b => {
+                    finalFiles = blobs.map(b => {
                         const idxStr = b.index.toString().padStart(3, '0');
                         return new File([b.blob], `${baseName}_${idxStr}.png`, { type: 'image/png' });
                     });
-                    
-                    if (navigator.canShare && navigator.canShare({ files })) {
-                        try { await navigator.share({ files, title: baseName }); } catch(e) {
-                            // User might have cancelled, or multiple files might not be fully supported by share target, fallback below
-                        }
-                    } else {
-                        files.forEach((f, idx) => {
-                            setTimeout(() => {
-                                const url = URL.createObjectURL(f);
-                                const a = document.createElement('a'); a.href = url; a.download = f.name;
-                                document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                                setTimeout(() => URL.revokeObjectURL(url), 1000);
-                            }, idx * 100);
-                        });
-                    }
                 }
             }
+            
+            document.getElementById('expStatus').innerText = "Ready to Share!";
+            document.getElementById('expShareBtn').style.display = 'block';
+            document.getElementById('expCloseBtn').style.display = 'block';
+            
+            document.getElementById('expShareBtn').onclick = async () => {
+                if (navigator.canShare && navigator.canShare({ files: finalFiles })) {
+                    try { 
+                        await navigator.share({ files: finalFiles, title: finalTitle }); 
+                        removeModal();
+                        this.events.emit('ui:closeAllMenus');
+                    } catch(e) {
+                        console.error("Share failed", e);
+                    }
+                } else {
+                    finalFiles.forEach((f, idx) => {
+                        setTimeout(() => {
+                            const url = URL.createObjectURL(f);
+                            const a = document.createElement('a'); a.href = url; a.download = f.name;
+                            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                            setTimeout(() => URL.revokeObjectURL(url), 1000);
+                        }, idx * 100);
+                    });
+                    removeModal();
+                    this.events.emit('ui:closeAllMenus');
+                }
+            };
+            
+            document.getElementById('expCloseBtn').onclick = () => {
+                removeModal();
+                this.events.emit('ui:closeAllMenus');
+            };
         };
     }
 
