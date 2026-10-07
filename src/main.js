@@ -3,7 +3,7 @@ import PixelEditor from './PixelEditor.js';
 document.addEventListener('DOMContentLoaded', () => {
     window.defaultLongPressTimer = 450;
     const storedTimer = localStorage.getItem('longPressTimer');
-    window.longPressTimer = storedTimer ? parseInt(storedTimer, 10) : window.defaultLongPressTimer;
+    let p = parseInt(storedTimer, 10); window.longPressTimer = (storedTimer && !isNaN(p) && p >= 150 && p <= 750) ? p : window.defaultLongPressTimer; localStorage.setItem("longPressTimer", window.longPressTimer);
 
     window.appCore = new PixelEditor(); 
     window.appCore.init();
