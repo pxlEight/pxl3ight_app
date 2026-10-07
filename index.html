@@ -294,26 +294,32 @@
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4M4 4l5 5M20 4l-5 5M4 20l5-5M20 20l-5-5"/></svg>
             </button>
             <div style="position: relative;">
-                <button id="btn-file-menu" class="icon-btn" style="width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; border-radius: 6px;" data-action="toggleFileMenu">&#8942;</button>
-                <div id="file-menu" class="dropdown-menu" style="right: 0; left: auto;">
+                <button id="btn-file-menu" class="icon-btn" style="width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; border-radius: 6px;" data-action="toggleFileMenu">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                        <circle cx="12" cy="4" r="2"/>
+                        <circle cx="12" cy="12" r="2"/>
+                        <circle cx="12" cy="20" r="2"/>
+                    </svg>
+                </button>
+                <div id="file-menu" class="dropdown-menu" style="right: 0; left: auto; max-height: 110px; overflow-y: auto; overflow-x: hidden;">
                     <button data-action="saveProjectFile">Save Project</button>
                     <button data-action="openProjectPrompt">Open Project</button>
-                    <div style="height: 1px; background-color: rgba(255,255,255,0.1); margin: 4px 0;"></div>
+                    <button data-action="exportPNG">Export Image</button>
+                    <div style="height: 1px; background-color: rgba(255,255,255,0.1); margin: 4px 0; flex-shrink: 0;"></div>
                     <button id="sheetToggleBtn" data-action="toggleSpriteSheetView">Spritesheet</button>
                     <button data-action="importImagePrompt">Import Image</button>
-                    <button data-action="exportPNG">Export Image</button>
-                    <div style="height: 1px; background-color: rgba(255,255,255,0.1); margin: 4px 0;"></div>
+                    <div style="height: 1px; background-color: rgba(255,255,255,0.1); margin: 4px 0; flex-shrink: 0;"></div>
                     <div class="nested-dropdown">
-                        <button id="btn-image-size" data-action="toggleImageSizeMenu">◄ Image Size</button>
-                        <div id="image-size-menu" class="dropdown-menu nested" style="left: auto; right: 100%; margin-left: 0; margin-right: 5px;">
-                            <button data-action="resampleProject" data-res="1280x720">1280x720</button>
-                            <button data-action="resampleProject" data-res="720x720">720x720</button>
-                            <button data-action="resampleProject" data-res="180x320">180x320</button>
-                            <button data-action="resampleProject" data-res="128x128">128x128</button>
-                            <button data-action="resampleProject" data-res="64x64">64x64</button>
-                            <button data-action="resampleProject" data-res="32x32">32x32</button>
-                            <button data-action="resampleProject" data-res="24x24">24x24</button>
-                            <button data-action="resampleProject" data-res="16x16">16x16</button>
+                        <button id="btn-image-size" data-action="toggleImageSizeMenu" style="display:flex; justify-content:space-between; align-items:center; width:100%;">Image Size <span>▼</span></button>
+                        <div id="image-size-menu" style="display: none; flex-direction: column; gap: 4px; padding-left: 10px; margin-top: 4px; margin-bottom: 4px;">
+                            <button data-action="resampleProject" data-res="1280x720" style="background:transparent; color:white; border:none; text-align:left; padding:6px;">1280x720</button>
+                            <button data-action="resampleProject" data-res="720x720" style="background:transparent; color:white; border:none; text-align:left; padding:6px;">720x720</button>
+                            <button data-action="resampleProject" data-res="180x320" style="background:transparent; color:white; border:none; text-align:left; padding:6px;">180x320</button>
+                            <button data-action="resampleProject" data-res="128x128" style="background:transparent; color:white; border:none; text-align:left; padding:6px;">128x128</button>
+                            <button data-action="resampleProject" data-res="64x64" style="background:transparent; color:white; border:none; text-align:left; padding:6px;">64x64</button>
+                            <button data-action="resampleProject" data-res="32x32" style="background:transparent; color:white; border:none; text-align:left; padding:6px;">32x32</button>
+                            <button data-action="resampleProject" data-res="24x24" style="background:transparent; color:white; border:none; text-align:left; padding:6px;">24x24</button>
+                            <button data-action="resampleProject" data-res="16x16" style="background:transparent; color:white; border:none; text-align:left; padding:6px;">16x16</button>
                         </div>
                     </div>
                     <button data-action="clearHistoryMemory">Clear History</button>

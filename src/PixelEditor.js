@@ -869,7 +869,7 @@ export default class PixelEditor {
                     }
                     
                     const toast = document.createElement('div');
-                    toast.style.cssText = 'position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background-color: var(--ui-bg); border: 2px solid var(--accent); padding: 16px 48px; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,0.8); text-align: center; backdrop-filter: blur(8px); width: max-content;';
+                    toast.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: var(--ui-bg); border: 2px solid var(--accent); padding: 16px 48px; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,0.8); text-align: center; backdrop-filter: blur(8px); width: max-content;';
                     toast.innerHTML = `<div style="font-weight: bold; margin-bottom: 0px; font-size: 16px; color: white;">Check Your Device Downloads Folder.</div>`;
                     document.body.appendChild(toast);
                     
