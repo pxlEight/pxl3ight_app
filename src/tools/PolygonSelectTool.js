@@ -50,7 +50,7 @@ export default class PolygonSelectTool extends BaseTool {
             this.isMovingMask = true;
             this.longPressTimer = setTimeout(() => {
                 this.longPressTimer = null;
-                this.isLongPress = true; if (navigator.vibrate) navigator.vibrate(window.longPressTimer || 500);
+                this.isLongPress = true; if (navigator.vibrate) navigator.vibrate(40);
                 this.isMovingMask = false;
                 this.context.core.events.emit('selection:showModifierUI', { clientX: e.clientX, clientY: e.clientY });
             }, window.longPressTimer || 500);

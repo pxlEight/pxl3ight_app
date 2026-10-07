@@ -220,7 +220,7 @@ export default class InputManager {
         
         this.core.events.on('tool:startCrosshairTimer', ({ e, requireLongPress }) => {
             this.core.state.input.crosshairTimer = setTimeout(() => {
-                this.core.state.input.isCrosshairSampling = true; if (navigator.vibrate) navigator.vibrate(window.longPressTimer || 500); 
+                this.core.state.input.isCrosshairSampling = true; if (navigator.vibrate) navigator.vibrate(40); 
                 
                 if (this.core.state.tool.current !== CONSTANTS.TOOLS.DROPPER && this.core.state.tool.current !== CONSTANTS.TOOLS.FILL) {
                     if (this.core.tools.activeTool && this.core.tools.activeTool.cancel) {

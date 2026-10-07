@@ -220,8 +220,8 @@ export default class UIManager {
                 inst.customData.startVal = window.longPressTimer; 
             },
             onDragMove: (e, dx, dy, inst) => {
-                let minVal = 1;
-                let maxVal = 650;
+                let minVal = 150;
+                let maxVal = 750;
                 let newVal = Math.max(minVal, Math.min(maxVal, inst.customData.startVal - Math.round(dy / 1.5)));
                 window.longPressTimer = newVal; 
                 localStorage.setItem('longPressTimer', newVal);
@@ -607,7 +607,7 @@ export default class UIManager {
                 startX = e.clientX;
                 startY = e.clientY;
                 timer = setTimeout(() => {
-                    isLongPress = true; if (navigator.vibrate) navigator.vibrate(window.longPressTimer || 500);
+                    isLongPress = true; if (navigator.vibrate) navigator.vibrate(40);
                     this.closeAllMenus();
                     const menu = document.getElementById(menuId);
                     menu.style.display = 'flex';
@@ -1011,7 +1011,7 @@ export default class UIManager {
             startY = e.clientY;
             
             layerDragTimer = setTimeout(() => { 
-                longPressed = true; if (navigator.vibrate) navigator.vibrate(window.longPressTimer || 500); 
+                longPressed = true; if (navigator.vibrate) navigator.vibrate(40); 
                 square.style.transform = 'scale(1.15)'; 
                 try { square.setPointerCapture(e.pointerId); } catch(err) {} 
                 this.closeAllMenus(); 
@@ -1176,7 +1176,7 @@ export default class UIManager {
             try { square.setPointerCapture(e.pointerId); } catch(err) {}
             
             frameDragTimer = setTimeout(() => { 
-                longPressed = true; if (navigator.vibrate) navigator.vibrate(window.longPressTimer || 500); 
+                longPressed = true; if (navigator.vibrate) navigator.vibrate(40); 
                 square.style.transform = 'scale(1.15)'; 
             }, window.longPressTimer || 400);
             
@@ -1325,7 +1325,7 @@ export default class UIManager {
                 startY = e.clientY;
                 
                 toolDragTimer = setTimeout(() => {
-                    longPressed = true; if (navigator.vibrate) navigator.vibrate(window.longPressTimer || 500); 
+                    longPressed = true; if (navigator.vibrate) navigator.vibrate(40); 
                     btn.style.transform = 'scale(1.15)'; 
                     try { btn.setPointerCapture(e.pointerId); } catch(err) {}
                     
@@ -1514,7 +1514,7 @@ export default class UIManager {
                 const isSizeable = currentToolName === CONSTANTS.TOOLS.PENCIL || currentToolName === CONSTANTS.TOOLS.ERASER;
                 
                 toolDragTimer = setTimeout(() => {
-                    longPressed = true; if (navigator.vibrate) navigator.vibrate(window.longPressTimer || 500); 
+                    longPressed = true; if (navigator.vibrate) navigator.vibrate(40); 
                     btn.style.transform = 'scale(1.15)'; 
                     try { btn.setPointerCapture(e.pointerId); } catch(err) {}
                     

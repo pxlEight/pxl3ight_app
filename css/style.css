@@ -57,7 +57,7 @@ body.ui-hidden #btn-ui-menu {
     text-shadow: 0px 0px 3px rgba(255, 255, 255, 0.8);
 }
 
-button, select {
+button, select { -webkit-user-select: none; -webkit-touch-callout: none; user-select: none;
     background-color: rgba(63, 63, 78, 0.9);
     color: white;
     border: none;
@@ -385,7 +385,7 @@ header {
     position: relative;
 }
 
-.layer-square {
+.layer-square { -webkit-user-select: none; -webkit-touch-callout: none; user-select: none;
     width: 44px;
     height: 44px;
     background-color: #ffffff;
@@ -507,7 +507,7 @@ header {
     padding-right: 50vw; height: 100%; align-items: center; width: 100%;
 }
 
-.frame-square {
+.frame-square { -webkit-user-select: none; -webkit-touch-callout: none; user-select: none;
     width: 44px; height: 44px; border: 2px solid transparent; border-radius: 6px;
     cursor: pointer; flex-shrink: 0; display: flex; align-items: center;
     justify-content: center; position: relative; overflow: hidden;

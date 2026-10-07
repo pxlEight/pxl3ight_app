@@ -103,7 +103,7 @@ export default class ColorSelectTool extends BaseTool {
         if (isActive && isInside && mode === CONSTANTS.SELECT_MODE.REPLACE) {
             this.longPressTimer = setTimeout(() => {
                 this.longPressTimer = null;
-                this.isModifierUIPress = true; if (navigator.vibrate) navigator.vibrate(window.longPressTimer || 500);
+                this.isModifierUIPress = true; if (navigator.vibrate) navigator.vibrate(40);
                 this.context.core.events.emit('selection:showModifierUI', { clientX: e.clientX, clientY: e.clientY });
             }, window.longPressTimer || 500);
         } else {

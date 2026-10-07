@@ -87,7 +87,7 @@ export default class WandTool extends BaseTool {
         if (isActive && isInside && mode === CONSTANTS.SELECT_MODE.REPLACE) {
             this.isMovingMask = true;
             this.longPressTimer = setTimeout(() => {
-                this.isWandLongPress = true; if (navigator.vibrate) navigator.vibrate(window.longPressTimer || 500); 
+                this.isWandLongPress = true; if (navigator.vibrate) navigator.vibrate(40); 
                 this.longPressTimer = null;
                 this.isMovingMask = false;
                 if (this.doubleTapWaitTimer) {

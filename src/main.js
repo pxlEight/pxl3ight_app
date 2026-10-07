@@ -1,7 +1,7 @@
 import PixelEditor from './PixelEditor.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    window.defaultLongPressTimer = 500;
+    window.defaultLongPressTimer = 450;
     const storedTimer = localStorage.getItem('longPressTimer');
     window.longPressTimer = storedTimer ? parseInt(storedTimer, 10) : window.defaultLongPressTimer;
 
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Prevent default context menu (long press on mobile)
-    document.addEventListener('contextmenu', e => e.preventDefault());
+    window.addEventListener("contextmenu", e => { e.preventDefault(); e.stopPropagation(); return false; }, { capture: true, passive: false });
 
     // Final safety net: show a confirmation dialog if they somehow manage to navigate away
     window.addEventListener('beforeunload', (event) => {
