@@ -239,6 +239,14 @@ export default class UIManager {
                 }
             });
         });
+        
+        const fileMenu = document.getElementById('file-menu');
+        const scrollIndicator = document.getElementById('file-menu-scroll-indicator');
+        if (fileMenu && scrollIndicator) {
+            fileMenu.addEventListener('scroll', () => {
+                scrollIndicator.innerHTML = Math.abs((fileMenu.scrollTop + fileMenu.clientHeight) - fileMenu.scrollHeight) <= 5 ? '▲' : '▼';
+            });
+        }
 
         window.addEventListener('orientationchange', () => {
             ['widget-layers', 'widget-tools', 'widget-color', 'widget-brush'].forEach(id => {
@@ -328,6 +336,11 @@ export default class UIManager {
                 case 'toggleImageSizeMenu': 
                     e.stopPropagation(); 
                     document.getElementById('image-size-menu').style.display = document.getElementById('image-size-menu').style.display === 'flex' ? 'none' : 'flex'; 
+                    setTimeout(() => {
+                        const fmMenu = document.getElementById('file-menu');
+                        const ind = document.getElementById('file-menu-scroll-indicator');
+                        if (fmMenu && ind) ind.innerHTML = Math.abs((fmMenu.scrollTop + fmMenu.clientHeight) - fmMenu.scrollHeight) <= 5 ? '▲' : '▼';
+                    }, 0);
                     break;
                 case 'resampleProject': 
                     this.events.emit('core:resampleProject', target.getAttribute('data-res')); 
@@ -337,7 +350,11 @@ export default class UIManager {
                     const fm = document.getElementById('file-menu');
                     const fmWasOpen = fm.style.display === 'flex';
                     this.closeAllMenus(); 
-                    if (!fmWasOpen) fm.style.display = 'flex'; 
+                    if (!fmWasOpen) {
+                        fm.style.display = 'flex'; 
+                        const ind = document.getElementById('file-menu-scroll-indicator');
+                        if (ind) ind.innerHTML = Math.abs((fm.scrollTop + fm.clientHeight) - fm.scrollHeight) <= 5 ? '▲' : '▼';
+                    }
                     break;
                 case 'toggleUIMenu': 
                     e.stopPropagation(); 
