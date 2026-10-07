@@ -717,7 +717,7 @@ export default class PixelEditor {
                 <span>.png</span>
             </div>
             ${isSpriteSheet ? '' : '<label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="expZip"> .zip (all frames zipped)</label>'}
-            <button id="expFinalBtn" class="startup-btn" style="margin-top:10px;">Prepare Export</button>
+            <button id="expFinalBtn" class="startup-btn" style="margin-top:10px;">Okay</button>
             <button id="expCancel2Btn" class="startup-btn" style="margin-top:5px; background:transparent; border:1px solid #777;">Cancel</button>
         `;
 
@@ -727,7 +727,7 @@ export default class PixelEditor {
         step3.style.gap = '10px';
         step3.innerHTML = `
             <h3 style="margin:0 0 10px 0;" id="expStatus">Processing...</h3>
-            <button id="expShareBtn" class="startup-btn" style="margin-top:10px; display:none; background-color:var(--accent);">Share / Save</button>
+            <button id="expShareBtn" class="startup-btn" style="margin-top:10px; display:none; background-color:var(--accent);">Export</button>
             <button id="expCloseBtn" class="startup-btn" style="margin-top:5px; background:transparent; border:1px solid #777; display:none;">Close</button>
         `;
         
@@ -861,10 +861,18 @@ export default class PixelEditor {
                         document.body.appendChild(a); a.click(); document.body.removeChild(a);
                         setTimeout(() => URL.revokeObjectURL(url), 10000);
                     }
+                    
+                    document.getElementById('expStatus').innerText = "Download Started!";
+                    document.getElementById('expShareBtn').style.display = 'none';
+                    document.getElementById('expCloseBtn').style.display = 'none';
+                    setTimeout(() => {
+                        removeModal();
+                        this.events.emit('ui:closeAllMenus');
+                    }, 2000);
+                } else {
+                    removeModal();
+                    this.events.emit('ui:closeAllMenus');
                 }
-                
-                removeModal();
-                this.events.emit('ui:closeAllMenus');
             };
             
             document.getElementById('expCloseBtn').onclick = () => {
