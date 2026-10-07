@@ -221,8 +221,8 @@ export default class UIManager {
             },
             onDragMove: (e, dx, dy, inst) => {
                 let defaultVal = window.defaultLongPressTimer;
-                let minVal = Math.round(defaultVal * 0.9);
-                let maxVal = Math.round(defaultVal * 1.1);
+                let minVal = Math.round(defaultVal * 0.5);
+                let maxVal = Math.round(defaultVal * 1.5);
                 let newVal = Math.max(minVal, Math.min(maxVal, inst.customData.startVal - Math.round(dy / 1.5)));
                 window.longPressTimer = newVal; 
                 localStorage.setItem('longPressTimer', newVal);
