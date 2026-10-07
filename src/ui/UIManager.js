@@ -220,7 +220,7 @@ export default class UIManager {
                 inst.customData.startVal = window.longPressTimer; 
             },
             onDragMove: (e, dx, dy, inst) => {
-                let minVal = 250;
+                let minVal = 1;
                 let maxVal = 650;
                 let newVal = Math.max(minVal, Math.min(maxVal, inst.customData.startVal - Math.round(dy / 1.5)));
                 window.longPressTimer = newVal; 
