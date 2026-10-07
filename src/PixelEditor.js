@@ -842,26 +842,29 @@ export default class PixelEditor {
             document.getElementById('expCloseBtn').style.display = 'block';
             
             document.getElementById('expShareBtn').onclick = async () => {
+                let shared = false;
                 if (navigator.canShare && navigator.canShare({ files: finalFiles })) {
                     try { 
                         await navigator.share({ files: finalFiles, title: finalTitle }); 
-                        removeModal();
-                        this.events.emit('ui:closeAllMenus');
+                        shared = true;
                     } catch(e) {
                         console.error("Share failed", e);
+                        // User cancelled or browser rejected the zip file despite canShare being true
                     }
-                } else {
-                    finalFiles.forEach((f, idx) => {
-                        setTimeout(() => {
-                            const url = URL.createObjectURL(f);
-                            const a = document.createElement('a'); a.href = url; a.download = f.name;
-                            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                            setTimeout(() => URL.revokeObjectURL(url), 1000);
-                        }, idx * 100);
-                    });
-                    removeModal();
-                    this.events.emit('ui:closeAllMenus');
+                } 
+                
+                if (!shared && finalFiles.length > 0) {
+                    // Fallback to traditional download
+                    for (const f of finalFiles) {
+                        const url = URL.createObjectURL(f);
+                        const a = document.createElement('a'); a.href = url; a.download = f.name;
+                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                        setTimeout(() => URL.revokeObjectURL(url), 10000);
+                    }
                 }
+                
+                removeModal();
+                this.events.emit('ui:closeAllMenus');
             };
             
             document.getElementById('expCloseBtn').onclick = () => {
