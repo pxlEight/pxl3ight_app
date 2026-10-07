@@ -683,41 +683,153 @@ export default class PixelEditor {
         if (!this.doc) return; 
         this.selection.anchor(); 
         
-        let exportCanvas, fileNamePrefix;
-        if (this.state.isSpriteSheetView) {
-            exportCanvas = document.createElement('canvas'); 
-            exportCanvas.width = this.spriteSheetViewCanvas.width; 
-            exportCanvas.height = this.spriteSheetViewCanvas.height;
-            exportCanvas.getContext('2d').drawImage(this.spriteSheetViewCanvas, 0, 0); 
-            fileNamePrefix = 'spritesheet';
-        } else {
-            exportCanvas = document.createElement('canvas'); 
-            exportCanvas.width = this.doc.width; 
-            exportCanvas.height = this.doc.height;
-            
-            const eCtx = exportCanvas.getContext('2d'); 
-            this.doc.activeFrame.layers.forEach(l => { 
-                if (l.visible) { 
-                    eCtx.globalAlpha = l.opacity; 
-                    eCtx.drawImage(l.canvas, 0, 0); 
-                } 
-            }); 
-            fileNamePrefix = 'frame';
+        const isSpriteSheet = this.state.isSpriteSheetView;
+        const totalFrames = this.doc.frames.length;
+        
+        const modal = document.createElement('div');
+        modal.id = 'exportModal';
+        modal.style.cssText = 'position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; display:flex; justify-content:center; align-items:center;';
+        
+        const content = document.createElement('div');
+        content.style.cssText = 'background:var(--ui-bg, #333); padding:20px; border-radius:8px; display:flex; flex-direction:column; gap:15px; color:white; min-width: 250px; font-family: sans-serif;';
+        
+        const step1 = document.createElement('div');
+        step1.style.display = isSpriteSheet ? 'none' : 'flex';
+        step1.style.flexDirection = 'column';
+        step1.style.gap = '10px';
+        step1.innerHTML = `
+            <h3 style="margin:0 0 10px 0;">Export Frame Range</h3>
+            <label style="display:flex; justify-content:space-between; align-items:center;">Start Frame: <input type="number" id="expStart" value="1" min="1" max="${totalFrames}" style="width:60px; padding:4px;"></label>
+            <label style="display:flex; justify-content:space-between; align-items:center;">End Frame: <input type="number" id="expEnd" value="${totalFrames}" min="1" max="${totalFrames}" style="width:60px; padding:4px;"></label>
+            <button id="expOkayBtn" class="startup-btn" style="margin-top:10px;">Okay</button>
+            <button id="expCancel1Btn" class="startup-btn" style="margin-top:5px; background:transparent; border:1px solid #777;">Cancel</button>
+        `;
+        
+        const defaultName = this.projectName || 'Untitled01';
+        const step2 = document.createElement('div');
+        step2.style.display = isSpriteSheet ? 'flex' : 'none';
+        step2.style.flexDirection = 'column';
+        step2.style.gap = '10px';
+        step2.innerHTML = `
+            <h3 style="margin:0 0 10px 0;">Export Options</h3>
+            <div style="display:flex; align-items:center; gap:5px;">
+                <input type="text" id="expFilename" value="${defaultName}" style="flex:1; padding:4px;">
+                <span>.png</span>
+            </div>
+            ${isSpriteSheet ? '' : '<label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="expZip"> .zip (all frames zipped)</label>'}
+            <button id="expFinalBtn" class="startup-btn" style="margin-top:10px;">Export</button>
+            <button id="expCancel2Btn" class="startup-btn" style="margin-top:5px; background:transparent; border:1px solid #777;">Cancel</button>
+        `;
+        
+        content.appendChild(step1);
+        content.appendChild(step2);
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+        
+        const removeModal = () => { if (modal.parentNode) modal.parentNode.removeChild(modal); };
+        
+        if (!isSpriteSheet) {
+            document.getElementById('expCancel1Btn').onclick = removeModal;
+            document.getElementById('expOkayBtn').onclick = () => {
+                step1.style.display = 'none';
+                step2.style.display = 'flex';
+            };
         }
         
-        let fileName = prompt("Name your exported image:", `pxl3ight_${fileNamePrefix}_${Date.now()}`); 
-        if (!fileName) return; 
-        if (!fileName.toLowerCase().endsWith('.png')) fileName += '.png';
-        
-        const url = exportCanvas.toDataURL('image/png');
-        const a = document.createElement('a');
-        a.href = url; 
-        a.download = fileName; 
-        
-        document.body.appendChild(a); 
-        a.click(); 
-        document.body.removeChild(a); 
-        this.events.emit('ui:closeAllMenus');
+        document.getElementById('expCancel2Btn').onclick = removeModal;
+        document.getElementById('expFinalBtn').onclick = async () => {
+            const baseName = document.getElementById('expFilename').value || 'Untitled01';
+            const doZip = document.getElementById('expZip') ? document.getElementById('expZip').checked : false;
+            
+            let start = 1, end = totalFrames;
+            if (!isSpriteSheet) {
+                start = Math.max(1, parseInt(document.getElementById('expStart').value, 10));
+                end = Math.min(totalFrames, parseInt(document.getElementById('expEnd').value, 10));
+                if (start > end) { const temp = start; start = end; end = temp; }
+            }
+            
+            removeModal();
+            this.events.emit('ui:closeAllMenus');
+            
+            if (isSpriteSheet) {
+                const exportCanvas = document.createElement('canvas'); 
+                exportCanvas.width = this.spriteSheetViewCanvas.width; 
+                exportCanvas.height = this.spriteSheetViewCanvas.height;
+                exportCanvas.getContext('2d').drawImage(this.spriteSheetViewCanvas, 0, 0); 
+                
+                exportCanvas.toBlob(async (blob) => {
+                    const fileName = `${baseName}.png`;
+                    const file = new File([blob], fileName, { type: 'image/png' });
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        try { await navigator.share({ files: [file], title: fileName }); } catch (e) { console.error(e); }
+                    } else {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a'); a.href = url; a.download = fileName;
+                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }
+                }, 'image/png');
+            } else {
+                const framesToExport = [];
+                for (let i = start - 1; i <= end - 1; i++) {
+                    const f = this.doc.frames[i];
+                    const exportCanvas = document.createElement('canvas'); 
+                    exportCanvas.width = this.doc.width; 
+                    exportCanvas.height = this.doc.height;
+                    const eCtx = exportCanvas.getContext('2d'); 
+                    f.layers.forEach(l => { 
+                        if (l.visible) { eCtx.globalAlpha = l.opacity; eCtx.drawImage(l.canvas, 0, 0); } 
+                    });
+                    framesToExport.push({ index: i + 1, canvas: exportCanvas });
+                }
+                
+                const getBlobs = () => Promise.all(framesToExport.map(fd => new Promise(res => {
+                    fd.canvas.toBlob(blob => res({ index: fd.index, blob }), 'image/png');
+                })));
+                
+                if (doZip && window.JSZip) {
+                    const zip = new window.JSZip();
+                    const blobs = await getBlobs();
+                    blobs.forEach(b => {
+                        const idxStr = b.index.toString().padStart(3, '0');
+                        zip.file(`${baseName}_${idxStr}.png`, b.blob);
+                    });
+                    const zipBlob = await zip.generateAsync({ type: 'blob' });
+                    const zipName = `${baseName}.zip`;
+                    const file = new File([zipBlob], zipName, { type: 'application/zip' });
+                    
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        try { await navigator.share({ files: [file], title: zipName }); } catch(e) {}
+                    } else {
+                        const url = URL.createObjectURL(zipBlob);
+                        const a = document.createElement('a'); a.href = url; a.download = zipName;
+                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }
+                } else {
+                    const blobs = await getBlobs();
+                    const files = blobs.map(b => {
+                        const idxStr = b.index.toString().padStart(3, '0');
+                        return new File([b.blob], `${baseName}_${idxStr}.png`, { type: 'image/png' });
+                    });
+                    
+                    if (navigator.canShare && navigator.canShare({ files })) {
+                        try { await navigator.share({ files, title: baseName }); } catch(e) {
+                            // User might have cancelled, or multiple files might not be fully supported by share target, fallback below
+                        }
+                    } else {
+                        files.forEach((f, idx) => {
+                            setTimeout(() => {
+                                const url = URL.createObjectURL(f);
+                                const a = document.createElement('a'); a.href = url; a.download = f.name;
+                                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                            }, idx * 100);
+                        });
+                    }
+                }
+            }
+        };
     }
 
     resampleProject(newRes) {
