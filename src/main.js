@@ -2,8 +2,8 @@ import PixelEditor from './PixelEditor.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     window.defaultLongPressTimer = 450;
-    const storedTimer = localStorage.getItem('longPressTimer');
-    let p = parseInt(storedTimer, 10); window.longPressTimer = (storedTimer && !isNaN(p) && p >= 150 && p <= 750) ? p : window.defaultLongPressTimer; localStorage.setItem("longPressTimer", window.longPressTimer);
+    const storedTimer = localStorage.getItem("longPressTimer_v2");
+    let p = parseInt(storedTimer, 10); window.longPressTimer = (storedTimer && !isNaN(p) && p >= 150 && p <= 750) ? p : window.defaultLongPressTimer; localStorage.setItem("longPressTimer_v2", window.longPressTimer);
 
     window.appCore = new PixelEditor(); 
     window.appCore.init();

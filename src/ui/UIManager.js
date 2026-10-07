@@ -224,7 +224,7 @@ export default class UIManager {
                 let maxVal = 750;
                 let newVal = Math.max(minVal, Math.min(maxVal, inst.customData.startVal - Math.round(dy / 1.5)));
                 window.longPressTimer = newVal; 
-                localStorage.setItem('longPressTimer', newVal);
+                localStorage.setItem('longPressTimer_v2', newVal);
                 document.getElementById('long-press-timer-val').innerText = newVal;
             }
         });
