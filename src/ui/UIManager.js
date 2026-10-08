@@ -1105,12 +1105,94 @@ export default class UIManager {
         ind.style.display = (stack && stack.scrollHeight > stack.clientHeight && Math.ceil(stack.scrollTop + stack.clientHeight) < stack.scrollHeight) ? 'block' : 'none';
     }
 
+    getFrameX(index) {
+        if (!this.core.doc) return 0;
+        let x = 0;
+        for (let i = 0; i < index; i++) {
+            const hC = this.core.doc.frames[i].holdCount || 1;
+            x += (44 * hC + 8 * (hC - 1)) + 8;
+        }
+        return x;
+    }
+
+    getFrameIndexAtX(targetX) {
+        if (!this.core.doc) return 0;
+        let currentX = 0;
+        let foundIndex = 0;
+        for (let i = 0; i < this.core.doc.frames.length; i++) {
+            const hC = this.core.doc.frames[i].holdCount || 1;
+            const fw = (44 * hC + 8 * (hC - 1)) + 8;
+            if (currentX + fw / 2 > targetX) {
+                foundIndex = i;
+                break;
+            }
+            currentX += fw;
+            foundIndex = i + 1;
+        }
+        return Math.max(0, Math.min(this.core.doc.frames.length - 1, foundIndex));
+    }
+
     createFrameNode() {
         const square = document.createElement('div'); 
         square.className = 'frame-square';
         
         const thumbCanvas = document.createElement('canvas'); 
         square.appendChild(thumbCanvas);
+        
+        const holdHandle = document.createElement('div');
+        holdHandle.className = 'frame-hold-handle';
+        square.appendChild(holdHandle);
+
+        let holdDragTimer, isDraggingHold = false, holdStartX, startHoldCount;
+
+        holdHandle.addEventListener('pointerdown', (e) => {
+            if (this.core.playback.isPlaying || this.core.state.isSpriteSheetView) return;
+            e.stopPropagation();
+            e.preventDefault();
+            holdStartX = e.clientX;
+            const currentIndex = parseInt(square.dataset.frameIndex, 10);
+            startHoldCount = this.core.doc.frames[currentIndex].holdCount || 1;
+            isDraggingHold = false;
+            
+            holdDragTimer = setTimeout(() => {
+                isDraggingHold = true;
+                if (navigator.vibrate) navigator.vibrate(40);
+                holdHandle.classList.add('dragging');
+                try { holdHandle.setPointerCapture(e.pointerId); } catch(err) {}
+            }, window.longPressTimer || 400);
+            
+            const onHoldMove = (em) => {
+                if (!isDraggingHold) {
+                    if (Math.abs(em.clientX - holdStartX) > 5) {
+                        clearTimeout(holdDragTimer);
+                    }
+                    return;
+                }
+                const dx = em.clientX - holdStartX;
+                const addedHolds = Math.round(dx / 52); 
+                let newHold = Math.max(1, startHoldCount + addedHolds);
+                if (newHold !== this.core.doc.frames[currentIndex].holdCount) {
+                    this.core.doc.frames[currentIndex].holdCount = newHold;
+                    this.updateTimelineUI(); 
+                }
+            };
+            
+            const onHoldUp = (eu) => {
+                clearTimeout(holdDragTimer);
+                holdHandle.classList.remove('dragging');
+                try { holdHandle.releasePointerCapture(eu.pointerId); } catch(err) {}
+                holdHandle.removeEventListener('pointermove', onHoldMove);
+                holdHandle.removeEventListener('pointerup', onHoldUp);
+                holdHandle.removeEventListener('pointercancel', onHoldUp);
+                if (isDraggingHold) {
+                    this.core.saveState();
+                }
+            };
+            
+            holdHandle.addEventListener('pointermove', onHoldMove);
+            holdHandle.addEventListener('pointerup', onHoldUp);
+            holdHandle.addEventListener('pointercancel', onHoldUp);
+        });
         
         let frameDragTimer, longPressed = false, isDraggingFrame = false, hasScrolled = false, startX, startY, dragGhost = null, scrubStartScroll = 0;
         
@@ -1133,14 +1215,14 @@ export default class UIManager {
                     let clampedIndex;
                     
                     if (isLandscape) {
-                        const startIndex = Math.round(scrubStartScroll / 52);
-                        const framesMoved = Math.round(dx / 40);
-                        clampedIndex = Math.max(0, Math.min(this.core.doc.frames.length - 1, startIndex + framesMoved));
-                        strip.scrollLeft = (clampedIndex * 52) - (strip.clientWidth / 2) + 26;
+                        const targetX = scrubStartScroll + dx;
+                        clampedIndex = this.getFrameIndexAtX(targetX);
+                        const newX = this.getFrameX(clampedIndex);
+                        strip.scrollLeft = newX - (strip.clientWidth / 2) + 26;
                     } else {
                         const intendedScroll = scrubStartScroll - (dx * 1.5);
                         strip.scrollLeft = intendedScroll;
-                        clampedIndex = Math.max(0, Math.min(this.core.doc.frames.length - 1, Math.round(intendedScroll / 52)));
+                        clampedIndex = this.getFrameIndexAtX(intendedScroll);
                     }
                     
                     if (clampedIndex !== this.core.doc.currentFrameIndex) {
@@ -1182,8 +1264,8 @@ export default class UIManager {
                 const strip = document.getElementById('timelineStrip');
                 const stripRect = strip.getBoundingClientRect();
                 
-                let dropIndex = Math.floor((eu.clientX - stripRect.left + strip.scrollLeft) / 52); 
-                dropIndex = Math.max(0, Math.min(this.core.doc.frames.length - 1, dropIndex));
+                const dropX = eu.clientX - stripRect.left + strip.scrollLeft;
+                const dropIndex = this.getFrameIndexAtX(dropX);
                 
                 const movedFrame = this.core.doc.frames.splice(currentIndex, 1)[0]; 
                 this.core.doc.frames.splice(dropIndex, 0, movedFrame);
@@ -1210,11 +1292,11 @@ export default class UIManager {
             } else if (!hasScrolled) {
                 if (!this.core.playback.isPlaying && !this.core.state.isSpriteSheetView) { 
                     this.events.emit('core:switchFrame', currentIndex); 
-                    document.getElementById('timelineStrip').scrollTo({ left: currentIndex * 52, behavior: 'smooth' }); 
+                    document.getElementById('timelineStrip').scrollTo({ left: this.getFrameX(currentIndex), behavior: 'smooth' }); 
                 }
             } else {
                 if (this.core.doc && !this.core.playback.isPlaying && !this.core.state.isSpriteSheetView) {
-                    document.getElementById('timelineStrip').scrollTo({ left: this.core.doc.currentFrameIndex * 52, behavior: 'smooth' });
+                    document.getElementById('timelineStrip').scrollTo({ left: this.getFrameX(this.core.doc.currentFrameIndex), behavior: 'smooth' });
                 }
             }
         };
@@ -1228,7 +1310,7 @@ export default class UIManager {
             hasScrolled = false; 
             startX = e.clientX; 
             startY = e.clientY;
-            scrubStartScroll = this.core.doc.currentFrameIndex * 52;
+            scrubStartScroll = this.getFrameX(this.core.doc.currentFrameIndex);
             
             try { square.setPointerCapture(e.pointerId); } catch(err) {}
             
@@ -1269,20 +1351,32 @@ export default class UIManager {
             square.dataset.frameIndex = idx; 
             square.classList.toggle('active', idx === this.core.doc.currentFrameIndex);
             
+            const hCount = frame.holdCount || 1;
+            square.style.width = (44 * hCount + 8 * (hCount - 1)) + 'px';
+            
             if (thumbCanvas) {
-                if (thumbCanvas.width !== this.core.doc.width) thumbCanvas.width = this.core.doc.width;
+                const targetW = this.core.doc.width * hCount;
+                if (thumbCanvas.width !== targetW) thumbCanvas.width = targetW;
                 if (thumbCanvas.height !== this.core.doc.height) thumbCanvas.height = this.core.doc.height;
                 
                 const thumbCtx = thumbCanvas.getContext('2d'); 
                 thumbCtx.clearRect(0, 0, thumbCanvas.width, thumbCanvas.height);
                 
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = this.core.doc.width;
+                tempCanvas.height = this.core.doc.height;
+                const tCtx = tempCanvas.getContext('2d');
+                
                 frame.layers.forEach(l => { 
                     if (l.visible) { 
-                        thumbCtx.globalAlpha = l.opacity; 
-                        thumbCtx.drawImage(l.canvas, 0, 0); 
+                        tCtx.globalAlpha = l.opacity; 
+                        tCtx.drawImage(l.canvas, 0, 0); 
                     } 
                 }); 
-                thumbCtx.globalAlpha = 1.0;
+                
+                for (let i = 0; i < hCount; i++) {
+                    thumbCtx.drawImage(tempCanvas, i * this.core.doc.width, 0);
+                }
             }
         });
     }

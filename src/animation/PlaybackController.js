@@ -9,6 +9,7 @@ export default class PlaybackController {
         this.playDirection = 1;
         this.onionFramesBefore = 1;
         this.onionFramesAfter = 1;
+        this.currentHoldTick = 0;
         
         this.core.events.on('updateOnionSkin', () => this.updateOnionSkin()); 
     }
@@ -20,6 +21,7 @@ export default class PlaybackController {
         if (this.isPlaying) {
             this.core.onionCanvas.style.display = 'none'; 
             this.playDirection = 1;
+            this.currentHoldTick = 0;
             
             this._startPlaybackLoop();
         } else { 
@@ -30,6 +32,16 @@ export default class PlaybackController {
     _startPlaybackLoop() {
         this._stopPlaybackLoop();
         this.playInterval = setInterval(() => {
+            const currentFrame = this.core.doc.frames[this.core.doc.currentFrameIndex];
+            const hCount = currentFrame.holdCount || 1;
+            
+            if (this.currentHoldTick < hCount - 1) {
+                this.currentHoldTick++;
+                return;
+            }
+            
+            this.currentHoldTick = 0;
+            
             let nextIndex = this.core.doc.currentFrameIndex + this.playDirection;
             const len = this.core.doc.frames.length;
             

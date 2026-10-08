@@ -789,7 +789,11 @@ export default class PixelEditor {
                     f.layers.forEach(l => { 
                         if (l.visible) { eCtx.globalAlpha = l.opacity; eCtx.drawImage(l.canvas, 0, 0); } 
                     });
-                    framesToExport.push({ index: i + 1, canvas: exportCanvas });
+                    
+                    const hC = f.holdCount || 1;
+                    for (let h = 0; h < hC; h++) {
+                        framesToExport.push({ index: framesToExport.length + 1, canvas: exportCanvas });
+                    }
                 }
                 
                 const getBlobs = () => Promise.all(framesToExport.map(fd => new Promise(res => {
