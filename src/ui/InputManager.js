@@ -58,31 +58,17 @@ export default class InputManager {
         if (e.target.closest('.widget') || e.target.closest('.bottom-widget') || e.target.closest('.context-menu') || e.target.closest('.shape-menu')) return; 
 
         if (document.body.classList.contains('ui-hidden')) {
-            const now = Date.now();
             const topInset = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top') || '0', 10);
-            if (e.clientY <= 80 + topInset) {
+            if (e.clientY <= 44 + topInset) {
                 let action = null;
                 const w = window.innerWidth;
-                if (e.clientX < 80) action = 'core:undo';
-                else if (e.clientX > w - 80) action = 'core:redo';
-                else if (e.clientX > 120 && e.clientX < w - 120) action = 'core:reframeViewport';
+                if (e.clientX <= 44) action = 'core:undo';
+                else if (e.clientX >= w - 44) action = 'core:redo';
+                else if (e.clientX >= 88 && e.clientX <= w - 88) action = 'core:reframeViewport';
                 
                 if (action) {
-                    if (this.lastHiddenTapTime && now - this.lastHiddenTapTime < 300 && this.lastHiddenTapAction === action) {
-                        this.lastHiddenTapTime = 0;
-                        this.core.events.emit('core:undo');
-                        if (this.core.history.discardedRedo) {
-                            this.core.history.history.pop();
-                            this.core.history.history.push(...this.core.history.discardedRedo);
-                            this.core.history.discardedRedo = null;
-                        } else {
-                            this.core.history.history.pop();
-                        }
-                        this.core.events.emit(action);
-                        return; 
-                    }
-                    this.lastHiddenTapTime = now;
-                    this.lastHiddenTapAction = action;
+                    this.core.events.emit(action);
+                    return; // Prevent drawing
                 }
             }
         }
