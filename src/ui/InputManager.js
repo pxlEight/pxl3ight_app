@@ -34,6 +34,25 @@ export default class InputManager {
         }
     }
     
+    getAdjustedPos(e) {
+        let cx = e.clientX;
+        let cy = e.clientY;
+        const tool = this.core.state.tool.current;
+        const isSupportedTool = [
+            CONSTANTS.TOOLS.PENCIL, CONSTANTS.TOOLS.ERASER, 
+            CONSTANTS.TOOLS.MARQUEE, CONSTANTS.TOOLS.LASSO, 
+            CONSTANTS.TOOLS.POLYGON, CONSTANTS.TOOLS.COLOR_SELECT, 
+            CONSTANTS.TOOLS.WAND, CONSTANTS.TOOLS.LINE, 
+            CONSTANTS.TOOLS.RECT, CONSTANTS.TOOLS.ELLIPSE
+        ].includes(tool);
+        
+        if (isSupportedTool && window.drawOffset && (window.drawOffset.x !== 0 || window.drawOffset.y !== 0)) {
+            cx += window.drawOffset.x;
+            cy += window.drawOffset.y;
+        }
+        return this.core.viewport.getCanvasPos(cx, cy);
+    }
+    
     onPointerDown(e) {
         if(e.target.id === 'dragHandle' || e.target.closest('.scale-handle') || e.target.closest('.corner-btn') || e.target.closest('#radialMenu') || e.target.closest('header')) return;
         if (e.target.closest('.widget') || e.target.closest('.bottom-widget') || e.target.closest('.context-menu') || e.target.closest('.shape-menu')) return; 
@@ -68,7 +87,7 @@ export default class InputManager {
             }
         }
 
-        const pos = this.core.viewport.getCanvasPos(e.clientX, e.clientY);
+        const pos = this.getAdjustedPos(e);
 
         if (this.core.selection.isActive) {
             const sb = this.core.selection.bounds;
@@ -143,7 +162,7 @@ export default class InputManager {
         if (!this.activePointers.has(e.pointerId)) return; 
         this.activePointers.set(e.pointerId, e);
         
-        const pos = this.core.viewport.getCanvasPos(e.clientX, e.clientY);
+        const pos = this.getAdjustedPos(e);
         
         if (this.core.state.input.crosshairTimer && (Math.abs(e.clientX - this.pointerDownX) > 10 || Math.abs(e.clientY - this.pointerDownY) > 10)) {
             clearTimeout(this.core.state.input.crosshairTimer); 
@@ -198,7 +217,7 @@ export default class InputManager {
                 return;
             }
             
-            const pos = this.core.viewport.getCanvasPos(e.clientX, e.clientY);
+            const pos = this.getAdjustedPos(e);
             if (this.core.tools.activeTool) {
                 this.core.tools.activeTool.onPointerUp(pos, e);
             }

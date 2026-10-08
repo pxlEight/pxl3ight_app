@@ -229,6 +229,37 @@ export default class UIManager {
             }
         });
         
+        try {
+            window.drawOffset = JSON.parse(localStorage.getItem('drawOffset_v1') || '{"x":0, "y":0}');
+        } catch (e) {
+            window.drawOffset = {x: 0, y: 0};
+        }
+        const drawOffsetDot = document.getElementById('draw-offset-dot');
+        if (drawOffsetDot) {
+            drawOffsetDot.style.transform = `translate(calc(-50% + ${window.drawOffset.x}px), calc(-50% + ${window.drawOffset.y}px))`;
+            new UIDragInteraction(drawOffsetDot, {
+                stopPropagation: true,
+                preventDefaultOnMove: true,
+                onDown: (e, inst) => {
+                    inst.customData.startX = window.drawOffset.x;
+                    inst.customData.startY = window.drawOffset.y;
+                },
+                onDragMove: (e, dx, dy, inst) => {
+                    // Limit offset so it doesn't go completely outside the 108x108 box.
+                    // The center is 0,0. Box is -54 to 54. 
+                    let nx = inst.customData.startX + dx;
+                    let ny = inst.customData.startY + dy;
+                    nx = Math.max(-50, Math.min(50, nx));
+                    ny = Math.max(-50, Math.min(50, ny));
+                    
+                    window.drawOffset.x = nx;
+                    window.drawOffset.y = ny;
+                    localStorage.setItem('drawOffset_v1', JSON.stringify(window.drawOffset));
+                    drawOffsetDot.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
+                }
+            });
+        }
+        
         // init UI
         if (document.getElementById('long-press-timer-val')) {
             document.getElementById('long-press-timer-val').innerText = window.longPressTimer;
