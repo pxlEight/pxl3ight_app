@@ -189,6 +189,7 @@ export default class InputManager {
     }
     
     onPointerUp(e) {
+        if (!this.activePointers.has(e.pointerId)) return;
         this.activePointers.delete(e.pointerId);
         
         if (this.activePointers.size === 0) {
@@ -254,3 +255,4 @@ export default class InputManager {
         });
     }
 }
+

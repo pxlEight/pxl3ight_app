@@ -470,7 +470,6 @@ export default class UIManager {
                     break;
                 case 'toggleAllUI': 
                     document.body.classList.toggle('ui-hidden'); 
-                    document.getElementById('btn-hide-ui').innerText = document.body.classList.contains('ui-hidden') ? '👁️‍🗨️' : '👁️'; 
                     break;
                 case 'toggleMirror': 
                     this.events.emit('core:toggleMirror', target.getAttribute('data-mirror')); 
