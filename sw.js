@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pxl3ight-v80';
+const CACHE_NAME = 'pxl3ight-v81';
 const ASSETS = [
     './',
     './index.html',
@@ -42,3 +42,4 @@ self.addEventListener('activate', event => {
     );
     self.clients.claim();
 });
+

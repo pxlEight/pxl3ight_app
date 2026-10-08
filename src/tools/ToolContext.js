@@ -72,12 +72,23 @@ export default class ToolContext {
             return;
         }
         if (!this.isSpriteSheetView) {
-            this.core.saveState();
-            this.core.events.emit('frameChanged');
-            this.core.playback.updateOnionSkin();
+            if (this.core.input && this.core.input.hiddenTapPending) {
+                this.core.input.hiddenTapPending = false;
+                this.core.input.hiddenTapTimeout = setTimeout(() => {
+                    this.core.input.hiddenTapTimeout = null;
+                    this.core.saveState();
+                    this.core.events.emit('frameChanged');
+                    this.core.playback.updateOnionSkin();
+                }, 300);
+            } else {
+                this.core.saveState();
+                this.core.events.emit('frameChanged');
+                this.core.playback.updateOnionSkin();
+            }
         }
+        this.hasDrawnInBounds = false;
     }
-    
+
     cancelDrawing() {
         if (!this.activeCtx) return;
         const ctx = this.activeCtx;
@@ -192,3 +203,5 @@ export default class ToolContext {
     clearSelectionMask() { this.core.selection.mask.fill(0); }
     setSelectionPixel(x, y, val) { this.core.selection.mask[y * this.canvasWidth + x] = val; }
 }
+
+

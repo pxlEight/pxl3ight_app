@@ -70,22 +70,34 @@ export default class InputManager {
                 if (action) {
                     if (this.lastHiddenTapTime && now - this.lastHiddenTapTime < 300 && this.lastHiddenTapAction === action) {
                         this.lastHiddenTapTime = 0;
-                        this.core.events.emit('core:undo');
-                        if (this.core.history.discardedRedo) {
-                            this.core.history.history.pop();
-                            this.core.history.history.push(...this.core.history.discardedRedo);
-                            this.core.history.discardedRedo = null;
-                        } else {
-                            this.core.history.history.pop();
+                        if (this.hiddenTapTimeout) {
+                            clearTimeout(this.hiddenTapTimeout);
+                            this.hiddenTapTimeout = null;
                         }
+                        
+                        if (this.core.doc && this.core.doc.activeLayer) {
+                            const ctx = this.core.doc.activeCtx;
+                            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                            ctx.drawImage(this.core.backupCanvas, 0, 0);
+                            if (this.core.renderer) this.core.renderer.render();
+                        }
+                        
                         this.core.events.emit(action);
                         return; // Prevent drawing for second tap
                     }
                     this.lastHiddenTapTime = now;
                     this.lastHiddenTapAction = action;
-                    // Do not return here, allow the first tap to draw normally
+                    this.hiddenTapPending = true;
                 }
             }
+        }
+        
+        if (this.hiddenTapTimeout) {
+            clearTimeout(this.hiddenTapTimeout);
+            this.hiddenTapTimeout = null;
+            this.core.saveState();
+            this.core.events.emit('frameChanged');
+            this.core.playback.updateOnionSkin();
         }
 
         const pos = this.getAdjustedPos(e);
@@ -163,6 +175,10 @@ export default class InputManager {
         if (!this.activePointers.has(e.pointerId)) return; 
         this.activePointers.set(e.pointerId, e);
         
+        if (this.hiddenTapPending && (Math.abs(e.clientX - this.pointerDownX) > 5 || Math.abs(e.clientY - this.pointerDownY) > 5)) {
+            this.hiddenTapPending = false;
+        }
+        
         const pos = this.getAdjustedPos(e);
         
         if (this.core.state.input.crosshairTimer && (Math.abs(e.clientX - this.pointerDownX) > 10 || Math.abs(e.clientY - this.pointerDownY) > 10)) {
@@ -189,7 +205,6 @@ export default class InputManager {
     }
     
     onPointerUp(e) {
-        if (!this.activePointers.has(e.pointerId)) return;
         this.activePointers.delete(e.pointerId);
         
         if (this.activePointers.size === 0) {
