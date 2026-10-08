@@ -510,14 +510,14 @@ header {
 .frame-square { -webkit-user-select: none; -webkit-touch-callout: none; user-select: none;
     width: 44px; height: 44px; border: 2px solid transparent; border-radius: 6px;
     cursor: pointer; flex-shrink: 0; display: flex; align-items: center;
-    justify-content: center; position: relative; overflow: hidden;
+    justify-content: center; position: relative;
     box-shadow: 0 2px 5px rgba(0,0,0,0.4); transition: transform 0.1s; touch-action: none;
     background-color: #DCDCDC;
     background-image: linear-gradient(45deg, #FFFFFF 25%, transparent 25%, transparent 75%, #FFFFFF 75%, #FFFFFF), linear-gradient(45deg, #FFFFFF 25%, transparent 25%, transparent 75%, #FFFFFF 75%, #FFFFFF);
     background-size: 16px 16px; background-position: 0 0, 8px 8px;
 }
 .frame-square.active { border-color: var(--accent); transform: scale(1.05); }
-.frame-square canvas { width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; pointer-events: none; }
+.frame-square canvas { width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; pointer-events: none; border-radius: inherit; }
 
 .add-frame-timeline-btn {
     width: 44px; height: 44px; border: 2px dashed rgba(255,255,255,0.3); border-radius: 6px;
@@ -586,5 +586,9 @@ header {
 .ui-hidden #hidden-ui-buttons { display: block !important; }
 
 
-.frame-hold-handle { position: absolute; right: 0; top: 0; bottom: 0; width: 12px; cursor: ew-resize; z-index: 10; background: linear-gradient(to right, transparent, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.3) 100%); } .frame-hold-handle:hover { background: linear-gradient(to right, transparent, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.5) 100%); } .frame-hold-handle.dragging { background: rgba(0,0,0,0.6); }
+.frame-hold-handle { position: absolute; right: -4px; top: 50%; transform: translateY(-50%); width: 8px; height: 28px; background-color: var(--accent); border-radius: 4px; cursor: ew-resize; z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,0.6); opacity: 0.8; transition: opacity 0.15s, transform 0.1s; }
+.frame-hold-handle::after { content: ''; position: absolute; top: -10px; bottom: -10px; left: -10px; right: -10px; }
+.frame-hold-handle:hover { opacity: 1; transform: translateY(-50%) scaleX(1.2); }
+.frame-hold-handle.dragging { opacity: 1; transform: translateY(-50%) scaleX(1.2); box-shadow: 0 0 6px var(--accent); }
+
 
