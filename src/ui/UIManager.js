@@ -356,15 +356,20 @@ export default class UIManager {
                     break;
                 case 'toggleImageSizeMenu': 
                     e.stopPropagation(); 
-                    document.getElementById('image-size-menu').style.display = document.getElementById('image-size-menu').style.display === 'flex' ? 'none' : 'flex'; 
-                    setTimeout(() => {
-                        const fmMenu = document.getElementById('file-menu');
-                        const ind = document.getElementById('file-menu-scroll-indicator');
-                        if (fmMenu && ind) ind.innerHTML = Math.abs((fmMenu.scrollTop + fmMenu.clientHeight) - fmMenu.scrollHeight) <= 5 ? '▲' : '▼';
-                    }, 0);
+                    const ism = document.getElementById('image-size-menu');
+                    if (ism.style.display === 'flex') {
+                        ism.style.display = 'none';
+                    } else {
+                        ism.style.display = 'flex';
+                        const rect = target.getBoundingClientRect();
+                        ism.style.top = rect.top + 'px';
+                        ism.style.right = (window.innerWidth - rect.left + 5) + 'px';
+                        ism.style.left = 'auto';
+                    }
                     break;
                 case 'resampleProject': 
                     this.events.emit('core:resampleProject', target.getAttribute('data-res')); 
+                    this.closeAllMenus();
                     break;
                 case 'toggleFileMenu': 
                     e.stopPropagation(); 
@@ -578,7 +583,8 @@ export default class UIManager {
                 { id: 'palettePanel', excludes: ['#palettePanel', '#btn-palette-toggle', '#hsvMenu'] }, 
                 { id: 'brushPanel', excludes: ['#brushPanel', '#btn-brush-toggle'] },
                 { id: 'frameMenu', excludes: ['#frameMenu', '.frame-square'] }, 
-                { id: 'file-menu', excludes: ['#file-menu', '#btn-file-menu'], extraCallback: () => document.getElementById('image-size-menu').style.display = 'none' }, 
+                { id: 'file-menu', excludes: ['#file-menu', '#btn-file-menu', '#image-size-menu'], extraCallback: () => document.getElementById('image-size-menu').style.display = 'none' }, 
+                { id: 'image-size-menu', excludes: ['#image-size-menu', '#btn-image-size'] },
                 { id: 'mirror-menu', excludes: ['#mirror-menu', '#btn-mirror-menu'] }, 
                 { id: 'brushShapeMenu', excludes: ['#brushShapeMenu', '.tool-btn'] },
                 { id: 'shapeMenu', excludes: ['#shapeMenu', '#btn-shape'] },
