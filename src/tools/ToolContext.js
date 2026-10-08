@@ -34,6 +34,7 @@ export default class ToolContext {
 
     setupDrawingState() {
         if (!this.activeCanvas) return;
+        this.hasDrawnInBounds = false;
         const cvs = this.activeCanvas;
         if (this.core.backupCanvas.width !== cvs.width || this.core.backupCanvas.height !== cvs.height) {
             this.core.backupCanvas.width = cvs.width; this.core.backupCanvas.height = cvs.height;
@@ -66,6 +67,10 @@ export default class ToolContext {
     }
     
     commitDrawing() {
+        if (this.hasDrawnInBounds === false) {
+            this.cancelDrawing();
+            return;
+        }
         if (!this.isSpriteSheetView) {
             this.core.saveState();
             this.core.events.emit('frameChanged');
@@ -99,6 +104,10 @@ export default class ToolContext {
         const size = this.getBrushSize();
         const startX = cx - Math.floor(size / 2);
         const startY = cy - Math.floor(size / 2);
+        
+        if (startX < this.canvasWidth && startY < this.canvasHeight && startX + size > 0 && startY + size > 0) {
+            this.hasDrawnInBounds = true;
+        }
         
         this.scratchCtx.fillStyle = (this.toolId === CONSTANTS.TOOLS.ERASER) ? "#000000" : this.color;
         const isRound = (this.brushShape === CONSTANTS.BRUSH_SHAPE.ROUND && size > 1 && (this.toolId === CONSTANTS.TOOLS.PENCIL || this.toolId === CONSTANTS.TOOLS.ERASER));

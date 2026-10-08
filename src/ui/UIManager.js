@@ -234,29 +234,49 @@ export default class UIManager {
         } catch (e) {
             window.drawOffset = {x: 0, y: 0};
         }
+        const drawOffsetContainer = document.getElementById('draw-offset-container');
         const drawOffsetDot = document.getElementById('draw-offset-dot');
-        if (drawOffsetDot) {
+        const resetDrawOffsetBtn = document.getElementById('btn-reset-draw-offset');
+        
+        if (drawOffsetContainer && drawOffsetDot) {
             drawOffsetDot.style.transform = `translate(calc(-50% + ${window.drawOffset.x}px), calc(-50% + ${window.drawOffset.y}px))`;
-            new UIDragInteraction(drawOffsetDot, {
+            
+            const updateDotPosition = (e) => {
+                const rect = drawOffsetContainer.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                
+                let nx = e.clientX - centerX;
+                let ny = e.clientY - centerY;
+                
+                nx = Math.max(-50, Math.min(50, nx));
+                ny = Math.max(-50, Math.min(50, ny));
+                
+                window.drawOffset.x = nx;
+                window.drawOffset.y = ny;
+                localStorage.setItem('drawOffset_v1', JSON.stringify(window.drawOffset));
+                drawOffsetDot.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
+            };
+            
+            new UIDragInteraction(drawOffsetContainer, {
                 stopPropagation: true,
                 preventDefaultOnMove: true,
                 onDown: (e, inst) => {
-                    inst.customData.startX = window.drawOffset.x;
-                    inst.customData.startY = window.drawOffset.y;
+                    updateDotPosition(e);
                 },
                 onDragMove: (e, dx, dy, inst) => {
-                    // Limit offset so it doesn't go completely outside the 108x108 box.
-                    // The center is 0,0. Box is -54 to 54. 
-                    let nx = inst.customData.startX + dx;
-                    let ny = inst.customData.startY + dy;
-                    nx = Math.max(-50, Math.min(50, nx));
-                    ny = Math.max(-50, Math.min(50, ny));
-                    
-                    window.drawOffset.x = nx;
-                    window.drawOffset.y = ny;
-                    localStorage.setItem('drawOffset_v1', JSON.stringify(window.drawOffset));
-                    drawOffsetDot.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
+                    updateDotPosition(e);
                 }
+            });
+        }
+        
+        if (resetDrawOffsetBtn && drawOffsetDot) {
+            resetDrawOffsetBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.drawOffset.x = 0;
+                window.drawOffset.y = 0;
+                localStorage.setItem('drawOffset_v1', JSON.stringify(window.drawOffset));
+                drawOffsetDot.style.transform = `translate(-50%, -50%)`;
             });
         }
         

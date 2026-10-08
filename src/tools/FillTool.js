@@ -10,6 +10,7 @@ export default class FillTool extends BaseTool {
 
     async floodFill(startX, startY, fillColorHex) {
         if (this.isProcessing) return;
+        if (startX < 0 || startX >= this.context.canvasWidth || startY < 0 || startY >= this.context.canvasHeight) return;
         const imgData = this.context.getImageData();
         if (!imgData) return;
         
@@ -59,6 +60,7 @@ export default class FillTool extends BaseTool {
             }
             const newImgData = new ImageData(new Uint8ClampedArray(currentBuffer), this.context.canvasWidth, this.context.canvasHeight);
             this.context.putImageData(newImgData);
+            this.context.hasDrawnInBounds = true;
             this.context.commitDrawing();
         } catch (e) {
             console.error("Worker Fill Error", e);
