@@ -480,7 +480,7 @@ header {
 .bottom-widget.collapsed .widget-handle { border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 
 .timeline-footer {
-    height: 70px;
+    height: 120px;
     background-color: var(--widget-bg);
     backdrop-filter: blur(5px);
     border-radius: 0;
@@ -494,7 +494,7 @@ header {
 
 .timeline-controls { display: flex; gap: 6px; }
 .timeline-controls.right-controls { margin-left: 4px; }
-.timeline-strip-container { position: relative; flex: 1; height: 52px; overflow: hidden; display: flex; align-items: center; }
+.timeline-strip-container { position: relative; flex: 1; height: 110px; overflow-y: auto; overflow-x: hidden; display: flex; align-items: flex-start; padding-top: 10px; padding-bottom: 10px; }
 
 .playhead-marker {
     position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
@@ -504,20 +504,35 @@ header {
 
 .timeline-strip {
     display: flex; gap: 8px; overflow-x: hidden; padding-left: 10px;
-    padding-right: 50vw; height: 100%; align-items: center; width: 100%;
+    padding-right: 50vw; height: max-content; align-items: flex-start; width: 100%;
+}
+
+.layer-labels-column {
+    display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; position: sticky; left: 0; z-index: 20;
+    justify-content: flex-start; padding-right: 8px; background-color: var(--widget-bg); margin-left: -10px; padding-left: 10px;
+}
+
+.layer-label {
+    width: 30px; height: 44px; display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 12px; font-weight: bold; background-color: rgba(255,255,255,0.1); border-radius: 4px; box-sizing: border-box;
 }
 
 .frame-square { -webkit-user-select: none; -webkit-touch-callout: none; user-select: none;
+    width: 44px; display: flex; flex-direction: column; gap: 4px;
+    cursor: pointer; flex-shrink: 0; align-items: center;
+    justify-content: flex-start; position: relative;
+    transition: transform 0.1s; touch-action: none;
+}
+.layer-thumb-container {
     width: 44px; height: 44px; border: 2px solid transparent; border-radius: 6px;
-    cursor: pointer; flex-shrink: 0; display: flex; align-items: center;
-    justify-content: center; position: relative;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.4); transition: transform 0.1s; touch-action: none;
-    background-color: #DCDCDC;
+    background-color: #DCDCDC; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+    box-sizing: border-box; flex-shrink: 0;
     background-image: linear-gradient(45deg, #FFFFFF 25%, transparent 25%, transparent 75%, #FFFFFF 75%, #FFFFFF), linear-gradient(45deg, #FFFFFF 25%, transparent 25%, transparent 75%, #FFFFFF 75%, #FFFFFF);
     background-size: 16px 16px; background-position: 0 0, 8px 8px;
 }
-.frame-square.active { border-color: var(--accent); transform: scale(1.05); }
-.frame-square canvas { width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; pointer-events: none; border-radius: inherit; }
+.frame-square.active { transform: scale(1.05); }
+.frame-square.active .layer-thumb-container { border-color: var(--accent); }
+.layer-thumb-container canvas { width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; pointer-events: none; border-radius: inherit; }
 
 .add-frame-timeline-btn {
     width: 44px; height: 44px; border: 2px dashed rgba(255,255,255,0.3); border-radius: 6px;

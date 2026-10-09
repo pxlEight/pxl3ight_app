@@ -14,7 +14,10 @@ export default class UIManager {
         this.bindExtraUI();
         
         this.events.on('ui:updateTool', (tool) => this.setTool(tool));
-        this.events.on('ui:layerChanged', () => this.updateLayerStackUI());
+        this.events.on('ui:layerChanged', () => {
+            this.updateLayerStackUI();
+            this.updateTimelineUI();
+        });
         this.events.on('ui:frameChanged', () => { 
             this.updateTimelineUI(); 
             this.updateLayerStackUI(); 
@@ -1106,7 +1109,7 @@ export default class UIManager {
 
     getFrameX(index) {
         if (!this.core.doc) return 0;
-        let x = 0;
+        let x = 40; // offset for labels column
         for (let i = 0; i < index; i++) {
             const hC = this.core.doc.frames[i].holdCount || 1;
             x += (44 * hC + 8 * (hC - 1)) + 8;
@@ -1116,7 +1119,7 @@ export default class UIManager {
 
     getFrameIndexAtX(targetX) {
         if (!this.core.doc) return 0;
-        let currentX = 0;
+        let currentX = 40; // offset for labels column
         let foundIndex = 0;
         for (let i = 0; i < this.core.doc.frames.length; i++) {
             const hC = this.core.doc.frames[i].holdCount || 1;
@@ -1134,9 +1137,6 @@ export default class UIManager {
     createFrameNode() {
         const square = document.createElement('div'); 
         square.className = 'frame-square';
-        
-        const thumbCanvas = document.createElement('canvas'); 
-        square.appendChild(thumbCanvas);
         
         const holdHandle = document.createElement('div');
         holdHandle.className = 'frame-hold-handle';
@@ -1329,6 +1329,29 @@ export default class UIManager {
         if (!this.core.doc) return;
         const strip = document.getElementById('timelineStrip');
         
+        let labelsCol = strip.querySelector('.layer-labels-column');
+        if (!labelsCol) {
+            labelsCol = document.createElement('div');
+            labelsCol.className = 'layer-labels-column';
+            strip.insertBefore(labelsCol, strip.firstChild);
+        }
+        
+        const layerCount = this.core.doc.activeFrame.layers.length;
+        
+        while (labelsCol.children.length < layerCount) {
+            const lbl = document.createElement('div');
+            lbl.className = 'layer-label';
+            labelsCol.appendChild(lbl);
+        }
+        while (labelsCol.children.length > layerCount) {
+            labelsCol.removeChild(labelsCol.lastChild);
+        }
+        
+        for (let i = 0; i < layerCount; i++) {
+            // Descending order below layer one -> L1 is at top (index 0)
+            labelsCol.children[i].innerText = 'L' + (i + 1);
+        }
+        
         let frameSquares = Array.from(strip.children).filter(el => el.classList.contains('frame-square'));
         const addBtn = document.getElementById('addFrameTimelineBtn');
         
@@ -1345,7 +1368,6 @@ export default class UIManager {
         
         this.core.doc.frames.forEach((frame, idx) => {
             const square = frameSquares[idx];
-            const thumbCanvas = square.querySelector('canvas');
             
             square.dataset.frameIndex = idx; 
             square.classList.toggle('active', idx === this.core.doc.currentFrameIndex);
@@ -1353,7 +1375,27 @@ export default class UIManager {
             const hCount = frame.holdCount || 1;
             square.style.width = (44 * hCount + 8 * (hCount - 1)) + 'px';
             
-            if (thumbCanvas) {
+            let thumbContainers = Array.from(square.children).filter(el => el.classList.contains('layer-thumb-container'));
+            while (thumbContainers.length < layerCount) {
+                const c = document.createElement('div');
+                c.className = 'layer-thumb-container';
+                const cnv = document.createElement('canvas');
+                c.appendChild(cnv);
+                square.appendChild(c);
+                thumbContainers.push(c);
+            }
+            while (thumbContainers.length > layerCount) {
+                const last = thumbContainers.pop();
+                square.removeChild(last);
+            }
+            
+            for (let i = 0; i < layerCount; i++) {
+                const container = thumbContainers[i];
+                container.style.width = '100%';
+                square.appendChild(container); // order correctly
+                
+                const layer = frame.layers[i];
+                const thumbCanvas = container.querySelector('canvas');
                 const targetW = this.core.doc.width * hCount;
                 if (thumbCanvas.width !== targetW) thumbCanvas.width = targetW;
                 if (thumbCanvas.height !== this.core.doc.height) thumbCanvas.height = this.core.doc.height;
@@ -1361,22 +1403,23 @@ export default class UIManager {
                 const thumbCtx = thumbCanvas.getContext('2d'); 
                 thumbCtx.clearRect(0, 0, thumbCanvas.width, thumbCanvas.height);
                 
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = this.core.doc.width;
-                tempCanvas.height = this.core.doc.height;
-                const tCtx = tempCanvas.getContext('2d');
-                
-                frame.layers.forEach(l => { 
-                    if (l.visible) { 
-                        tCtx.globalAlpha = l.opacity; 
-                        tCtx.drawImage(l.canvas, 0, 0); 
-                    } 
-                }); 
-                
-                for (let i = 0; i < hCount; i++) {
-                    thumbCtx.drawImage(tempCanvas, i * this.core.doc.width, 0);
+                if (layer && layer.visible) {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = this.core.doc.width;
+                    tempCanvas.height = this.core.doc.height;
+                    const tCtx = tempCanvas.getContext('2d');
+                    
+                    tCtx.globalAlpha = layer.opacity;
+                    tCtx.drawImage(layer.canvas, 0, 0);
+                    
+                    for (let j = 0; j < hCount; j++) {
+                        thumbCtx.drawImage(tempCanvas, j * this.core.doc.width, 0);
+                    }
                 }
             }
+            
+            const holdHandle = square.querySelector('.frame-hold-handle');
+            if (holdHandle) square.appendChild(holdHandle);
         });
     }
 
