@@ -1,4 +1,4 @@
-import { CONSTANTS } from '../core/Constants.js';
+﻿import { CONSTANTS } from '../core/Constants.js';
 import UIWidgetDragger from './UIWidgetDragger.js';
 import UIDragInteraction from './UIDragInteraction.js';
 import PaletteManager from './PaletteManager.js';
@@ -1348,8 +1348,8 @@ export default class UIManager {
         }
         
         for (let i = 0; i < layerCount; i++) {
-            // Descending order below layer one -> L1 is at top (index 0)
-            labelsCol.children[i].innerText = 'L' + (i + 1);
+            const layerObj = this.core.doc.activeFrame.layers[i];
+            labelsCol.children[i].innerText = layerObj.locked ? `🔒${i + 1}` : `L${i + 1}`;
         }
         
         let frameSquares = Array.from(strip.children).filter(el => el.classList.contains('frame-square'));
