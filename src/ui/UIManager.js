@@ -543,7 +543,7 @@ export default class UIManager {
                 case 'toggleTimeline': 
                     const tw = document.getElementById('widget-timeline'); 
                     tw.classList.toggle('collapsed'); 
-                    document.getElementById('handle-timeline').innerText = tw.classList.contains('collapsed') ? 'TIMELINE â–²' : 'TIMELINE â–¼'; 
+                    document.getElementById('handle-timeline').innerText = tw.classList.contains('collapsed') ? 'TIMELINE Ã¢â€“Â²' : 'TIMELINE Ã¢â€“Â¼'; 
                     break;
                 case 'toggleSpriteSheetView': 
                     this.events.emit('core:toggleSpriteSheetView'); 
@@ -1414,6 +1414,7 @@ export default class UIManager {
                         addBtn.title = 'Add Frame';
                         addBtn.innerText = '➕';
                         addBtn.style.pointerEvents = 'auto';
+                        addBtn.dataset.layerAddBtn = i;
                         addBtn.onclick = (e) => {
                             e.stopPropagation();
                             this.events.emit('core:addLayerFrame', i);
@@ -1456,6 +1457,12 @@ export default class UIManager {
                             
                             const lWidth = (44 * newHold + 8 * (newHold - 1));
                             container.style.width = lWidth + 'px';
+                            
+                            const addBtn = strip.querySelector(`[data-layer-add-btn="${i}"]`);
+                            if (addBtn) {
+                                const holdDiff = newHold - startHoldCount;
+                                addBtn.style.transform = holdDiff !== 0 ? `translateX(${holdDiff * 52}px)` : 'none';
+                            }
                         };
                         
                         const onHoldUp = (eu) => {
@@ -1560,6 +1567,7 @@ export default class UIManager {
                 addBtn.className = 'add-frame-timeline-btn stop-propagation';
                 addBtn.title = 'Add Frame';
                 addBtn.innerText = '➕';
+                        addBtn.dataset.layerAddBtn = i;
                 addBtn.onclick = (e) => {
                     e.stopPropagation();
                     this.events.emit('core:addLayerFrame', i);
@@ -1893,5 +1901,6 @@ export default class UIManager {
         });
     }
 }
+
 
 
