@@ -1,4 +1,4 @@
-import BaseTool from './BaseTool.js?cb=110';
+import BaseTool from './BaseTool.js?cb=111';
 
 export default class DrawingTool extends BaseTool {
     constructor(context) {

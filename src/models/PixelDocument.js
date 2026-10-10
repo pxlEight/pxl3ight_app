@@ -1,5 +1,5 @@
-import PixelLayer from './PixelLayer.js?cb=110';
-import PixelFrame from './PixelFrame.js?cb=110';
+import PixelLayer from './PixelLayer.js?cb=111';
+import PixelFrame from './PixelFrame.js?cb=111';
 
 export default class PixelDocument {
     constructor(w, h, events) { 

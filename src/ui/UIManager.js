@@ -1,7 +1,7 @@
-import { CONSTANTS } from '../core/Constants.js?cb=110';
-import UIWidgetDragger from './UIWidgetDragger.js?cb=110';
-import UIDragInteraction from './UIDragInteraction.js?cb=110';
-import PaletteManager from './PaletteManager.js?cb=110';
+import { CONSTANTS } from '../core/Constants.js?cb=111';
+import UIWidgetDragger from './UIWidgetDragger.js?cb=111';
+import UIDragInteraction from './UIDragInteraction.js?cb=111';
+import PaletteManager from './PaletteManager.js?cb=111';
 
 export default class UIManager {
     constructor(core) {

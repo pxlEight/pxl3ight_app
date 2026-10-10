@@ -6,7 +6,7 @@
     <title>pxl3ight</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="css/style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js?cb=110"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js?cb=111"></script>
     <script>
         const setAppHeight = () => document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
         window.addEventListener('resize', setAppHeight);
@@ -251,7 +251,7 @@
         <div class="viewport" id="viewport">
             <canvas id="bgCanvas" class="artCanvas"></canvas>
             <canvas id="mainArtCanvas" class="artCanvas" style="z-index: 10;"></canvas>
-            <canvas id="onionCanvas" class="artCanvas" style="z-index: 50; opacity: 0.35; pointer-events: none; display: none;"></canvas>
+            <canvas id="onionCanvas" class="artCanvas" style="z-index: 50; opacity: 0.5; mix-blend-mode: multiply; pointer-events: none; display: none;"></canvas>
             <canvas id="floatingCanvas" class="artCanvas" style="z-index: 60; pointer-events: none; display: none;"></canvas>
             <canvas id="selectionCanvas" class="artCanvas" style="z-index: 65; pointer-events: none; display: block; image-rendering: auto;"></canvas>
             <canvas id="spriteSheetViewCanvas" class="artCanvas" style="z-index: 100; display: none;"></canvas>
@@ -528,7 +528,7 @@
             <button id="btnUpdateReload" style="background-color: #555; padding: 8px 16px; font-size: 14px; font-weight: bold; border-radius: 4px; color: white; display: flex; justify-content: center; align-items: center; text-align: center;">Reload</button>
         </div>
     </div>
-    <script type="module" src="src/main.js?cb=110"></script>
+    <script type="module" src="src/main.js?cb=111"></script>
 </body>
 </html><script>
 window.addEventListener('load', () => {

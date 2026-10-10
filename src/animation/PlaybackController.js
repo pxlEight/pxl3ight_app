@@ -174,9 +174,19 @@ export default class PlaybackController {
                 } 
             }
             
-            tCtx.globalCompositeOperation = 'source-in';
-            tCtx.fillStyle = tint;
-            tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            const tintCanvas = document.createElement('canvas');
+            tintCanvas.width = this.core.doc.width;
+            tintCanvas.height = this.core.doc.height;
+            const tintCtx = tintCanvas.getContext('2d');
+            
+            tintCtx.fillStyle = tint;
+            tintCtx.fillRect(0, 0, tintCanvas.width, tintCanvas.height);
+            
+            tintCtx.globalCompositeOperation = 'destination-in';
+            tintCtx.drawImage(tempCanvas, 0, 0);
+            
+            tCtx.globalCompositeOperation = 'multiply';
+            tCtx.drawImage(tintCanvas, 0, 0);
             
             this.core.onionCtx.globalAlpha = baseAlpha;
             this.core.onionCtx.drawImage(tempCanvas, 0, 0);

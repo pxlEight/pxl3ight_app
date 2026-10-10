@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js?cb=110';
-import { CONSTANTS } from '../core/Constants.js?cb=110';
+import BaseTool from './BaseTool.js?cb=111';
+import { CONSTANTS } from '../core/Constants.js?cb=111';
 
 export default class PolygonSelectTool extends BaseTool {
     constructor(context) { 
