@@ -1,4 +1,4 @@
-import { CONSTANTS } from '../core/Constants.js';
+﻿import { CONSTANTS } from '../core/Constants.js';
 import UIWidgetDragger from './UIWidgetDragger.js';
 import UIDragInteraction from './UIDragInteraction.js';
 import PaletteManager from './PaletteManager.js';
@@ -543,7 +543,7 @@ export default class UIManager {
                 case 'toggleTimeline': 
                     const tw = document.getElementById('widget-timeline'); 
                     tw.classList.toggle('collapsed'); 
-                    document.getElementById('handle-timeline').innerText = tw.classList.contains('collapsed') ? 'TIMELINE ▲' : 'TIMELINE ▼'; 
+                    document.getElementById('handle-timeline').innerText = tw.classList.contains('collapsed') ? 'TIMELINE â–²' : 'TIMELINE â–¼'; 
                     break;
                 case 'toggleSpriteSheetView': 
                     this.events.emit('core:toggleSpriteSheetView'); 
@@ -1273,6 +1273,17 @@ export default class UIManager {
         if (!this.core.doc) return;
         const strip = document.getElementById('timelineStrip');
         
+        const isIndexEmptySpace = (layerIdx, frameIdx) => {
+            if (!this.core.doc.frames[frameIdx].layers[layerIdx].isDeleted) return false;
+            for (let k = frameIdx - 1; k >= 0; k--) {
+                const prevLayer = this.core.doc.frames[k].layers[layerIdx];
+                if (!prevLayer.isDeleted) {
+                    return (k + (prevLayer.holdCount || 1) <= frameIdx);
+                }
+            }
+            return true;
+        };
+        
         let labelsCol = strip.querySelector('.layer-labels-column');
         if (!labelsCol) {
             labelsCol = document.createElement('div');
@@ -1396,8 +1407,8 @@ export default class UIManager {
                     container.style.pointerEvents = 'none';
                     
                     // Is this the first deleted frame for this layer?
-                    const firstDeletedIdx = this.core.doc.frames.findIndex(f => f.layers[i].isDeleted);
-                    if (idx === firstDeletedIdx) {
+                    const firstEmptyIdx = this.core.doc.frames.findIndex((f, checkIdx) => isIndexEmptySpace(i, checkIdx));
+                    if (idx === firstEmptyIdx) {
                         const addBtn = document.createElement('button');
                         addBtn.className = 'add-frame-timeline-btn stop-propagation';
                         addBtn.title = 'Add Frame';
@@ -1488,7 +1499,7 @@ export default class UIManager {
                 }
                 
                 if (holdHandle) {
-                    holdHandle.style.display = (i === this.core.doc.activeLayerIndex) ? 'block' : 'none';
+                    holdHandle.style.display = (i === this.core.doc.activeLayerIndex && idx === this.core.doc.currentFrameIndex) ? 'block' : 'none';
                 }
                 
                 const targetW = this.core.doc.width * lHCount;
@@ -1542,9 +1553,9 @@ export default class UIManager {
             const btnContainer = addColumn.children[i];
             btnContainer.innerHTML = ''; // clear
             
-            // Check if this layer has any deleted frames
-            const hasDeleted = this.core.doc.frames.some(f => f.layers[i].isDeleted);
-            if (!hasDeleted) {
+            // Check if this layer has any empty space (not covered by a hold)
+            const hasEmptySpace = this.core.doc.frames.some((f, fIdx) => isIndexEmptySpace(i, fIdx));
+            if (!hasEmptySpace) {
                 const addBtn = document.createElement('button');
                 addBtn.className = 'add-frame-timeline-btn stop-propagation';
                 addBtn.title = 'Add Frame';
@@ -1882,3 +1893,5 @@ export default class UIManager {
         });
     }
 }
+
+
