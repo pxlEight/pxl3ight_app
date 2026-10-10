@@ -1,7 +1,7 @@
-import { CONSTANTS } from '../core/Constants.js?cb=109';
-import UIWidgetDragger from './UIWidgetDragger.js?cb=109';
-import UIDragInteraction from './UIDragInteraction.js?cb=109';
-import PaletteManager from './PaletteManager.js?cb=109';
+import { CONSTANTS } from '../core/Constants.js?cb=110';
+import UIWidgetDragger from './UIWidgetDragger.js?cb=110';
+import UIDragInteraction from './UIDragInteraction.js?cb=110';
+import PaletteManager from './PaletteManager.js?cb=110';
 
 export default class UIManager {
     constructor(core) {
@@ -1393,18 +1393,14 @@ export default class UIManager {
         if (!this.core.doc) return;
         const strip = document.getElementById('timelineStrip');
         
-        const getEndOfRangeIdx = (layerIdx) => {
-            let endIdx = 0;
-            for (let k = 0; k < this.core.doc.frames.length; k++) {
+        const isIndexCovered = (layerIdx, targetIdx) => {
+            for (let k = Math.min(targetIdx, this.core.doc.frames.length - 1); k >= 0; k--) {
                 const layer = this.core.doc.frames[k].layers[layerIdx];
                 if (!layer.isDeleted) {
-                    const hold = layer.holdCount || 1;
-                    if (k + hold > endIdx) {
-                        endIdx = k + hold;
-                    }
+                    return k + (layer.holdCount || 1) > targetIdx;
                 }
             }
-            return endIdx;
+            return false;
         };
         
         let labelsCol = strip.querySelector('.layer-labels-column');
@@ -1529,9 +1525,11 @@ export default class UIManager {
                     container.style.border = 'none';
                     container.style.pointerEvents = 'none';
                     
-                    // Is this the end of the frame range for this layer?
-                    const endOfRangeIdx = getEndOfRangeIdx(i);
-                    if (idx === endOfRangeIdx && idx < this.core.doc.frames.length) {
+                    // Is this the first empty cell after a hold?
+                    const currentlyCovered = isIndexCovered(i, idx);
+                    if (!currentlyCovered) {
+                        const prevCovered = idx > 0 ? isIndexCovered(i, idx - 1) : false;
+                        if (prevCovered || idx === 0) {
                         const addBtn = document.createElement('button');
                         addBtn.className = 'add-frame-timeline-btn stop-propagation';
                         addBtn.title = 'Add Frame';
@@ -1543,6 +1541,7 @@ export default class UIManager {
                             this.events.emit('core:addLayerFrame', i);
                         };
                         container.appendChild(addBtn);
+                        }
                     }
                     continue; // Skip the rest of the drawing for deleted layers
                 } else {
@@ -1641,25 +1640,20 @@ export default class UIManager {
                     holdHandle.style.display = (i === this.core.doc.activeLayerIndex && idx === this.core.doc.currentFrameIndex) ? 'block' : 'none';
                 }
                 
-                const targetW = this.core.doc.width * lHCount;
-                if (thumbCanvas.width !== targetW) thumbCanvas.width = targetW;
+                if (thumbCanvas.width !== this.core.doc.width) thumbCanvas.width = this.core.doc.width;
                 if (thumbCanvas.height !== this.core.doc.height) thumbCanvas.height = this.core.doc.height;
+                
+                thumbCanvas.style.width = '44px';
+                thumbCanvas.style.height = '100%';
+                thumbCanvas.style.objectFit = 'contain';
+                thumbCanvas.style.objectPosition = 'left';
                 
                 const thumbCtx = thumbCanvas.getContext('2d'); 
                 thumbCtx.clearRect(0, 0, thumbCanvas.width, thumbCanvas.height);
                 
                 if (layer && layer.visible) {
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = this.core.doc.width;
-                    tempCanvas.height = this.core.doc.height;
-                    const tCtx = tempCanvas.getContext('2d');
-                    
-                    tCtx.globalAlpha = layer.opacity;
-                    tCtx.drawImage(layer.canvas, 0, 0);
-                    
-                    for (let j = 0; j < lHCount; j++) {
-                        thumbCtx.drawImage(tempCanvas, j * this.core.doc.width, 0);
-                    }
+                    thumbCtx.globalAlpha = layer.opacity;
+                    thumbCtx.drawImage(layer.canvas, 0, 0);
                 }
             }
         });
@@ -1692,9 +1686,12 @@ export default class UIManager {
             const btnContainer = addColumn.children[i];
             btnContainer.innerHTML = ''; // clear
             
-            // Check if the end of the frame range is at or beyond the current document length
-            const endOfRangeIdx = getEndOfRangeIdx(i);
-            if (endOfRangeIdx >= this.core.doc.frames.length) {
+            const docLength = this.core.doc.frames.length;
+            const lastCovered = docLength > 0 ? isIndexCovered(i, docLength - 1) : false;
+            const nextCovered = isIndexCovered(i, docLength);
+            
+            // Show plus button at the end only if the last frame was part of a hold and the hold doesn't extend beyond it
+            if (!nextCovered && (lastCovered || docLength === 0)) {
                 const addBtn = document.createElement('button');
                 addBtn.className = 'add-frame-timeline-btn stop-propagation';
                 addBtn.title = 'Add Frame';

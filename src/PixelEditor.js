@@ -1,31 +1,31 @@
-import EventBus from './core/EventBus.js?cb=109';
-import AppConfig from './core/AppConfig.js?cb=109';
-import HistoryManager from './core/HistoryManager.js?cb=109';
-import StorageManager from './core/StorageManager.js?cb=109';
-import WorkerManager from './core/WorkerManager.js?cb=109';
-import ViewportManager from './rendering/ViewportManager.js?cb=109';
-import SelectionManager from './selection/SelectionManager.js?cb=109';
-import PlaybackController from './animation/PlaybackController.js?cb=109';
-import ToolManager from './tools/ToolManager.js?cb=109';
-import PaletteManager from './ui/PaletteManager.js?cb=109';
-import BrushManager from './ui/BrushManager.js?cb=109';
-import UIManager from './ui/UIManager.js?cb=109';
-import InputManager from './ui/InputManager.js?cb=109';
-import PixelDocument from './models/PixelDocument.js?cb=109';
-import PixelFrame from './models/PixelFrame.js?cb=109';
-import PixelLayer from './models/PixelLayer.js?cb=109';
-import Renderer from './rendering/Renderer.js?cb=109';
-import { CONSTANTS } from './core/Constants.js?cb=109';
-import DrawingTool from './tools/DrawingTool.js?cb=109';
-import ShapeTool from './tools/ShapeTool.js?cb=109';
-import FillTool from './tools/FillTool.js?cb=109';
-import DropperTool from './tools/DropperTool.js?cb=109';
-import WandTool from './tools/WandTool.js?cb=109';
-import MarqueeTool from './tools/MarqueeTool.js?cb=109';
-import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=109';
-import ColorSelectTool from './tools/ColorSelectTool.js?cb=109';
-import LassoSelectTool from './tools/LassoSelectTool.js?cb=109';
-import ZoomTool from './tools/ZoomTool.js?cb=109';
+import EventBus from './core/EventBus.js?cb=110';
+import AppConfig from './core/AppConfig.js?cb=110';
+import HistoryManager from './core/HistoryManager.js?cb=110';
+import StorageManager from './core/StorageManager.js?cb=110';
+import WorkerManager from './core/WorkerManager.js?cb=110';
+import ViewportManager from './rendering/ViewportManager.js?cb=110';
+import SelectionManager from './selection/SelectionManager.js?cb=110';
+import PlaybackController from './animation/PlaybackController.js?cb=110';
+import ToolManager from './tools/ToolManager.js?cb=110';
+import PaletteManager from './ui/PaletteManager.js?cb=110';
+import BrushManager from './ui/BrushManager.js?cb=110';
+import UIManager from './ui/UIManager.js?cb=110';
+import InputManager from './ui/InputManager.js?cb=110';
+import PixelDocument from './models/PixelDocument.js?cb=110';
+import PixelFrame from './models/PixelFrame.js?cb=110';
+import PixelLayer from './models/PixelLayer.js?cb=110';
+import Renderer from './rendering/Renderer.js?cb=110';
+import { CONSTANTS } from './core/Constants.js?cb=110';
+import DrawingTool from './tools/DrawingTool.js?cb=110';
+import ShapeTool from './tools/ShapeTool.js?cb=110';
+import FillTool from './tools/FillTool.js?cb=110';
+import DropperTool from './tools/DropperTool.js?cb=110';
+import WandTool from './tools/WandTool.js?cb=110';
+import MarqueeTool from './tools/MarqueeTool.js?cb=110';
+import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=110';
+import ColorSelectTool from './tools/ColorSelectTool.js?cb=110';
+import LassoSelectTool from './tools/LassoSelectTool.js?cb=110';
+import ZoomTool from './tools/ZoomTool.js?cb=110';
 
 export default class PixelEditor {
     constructor() {
@@ -316,7 +316,7 @@ export default class PixelEditor {
             const frame = new PixelFrame(0, 0, 0);
             frame.layers = f.layers.map(l => {
                 const layer = new PixelLayer(this.doc.width, this.doc.height); 
-                layer.ctx.drawImage(l.canvasData, 0, 0);
+                if (!l.isDeleted && l.canvasData) layer.ctx.drawImage(l.canvasData, 0, 0);
                 layer.visible = l.visible; 
                 layer.opacity = l.opacity; 
                 layer.locked = l.locked; 
@@ -421,8 +421,7 @@ export default class PixelEditor {
                 nl.isDeleted = layerData.isDeleted || false;
                 nl.holdCount = layerData.holdCount || 1;
                 
-                const imgData = new ImageData(new Uint8ClampedArray(layerData.buffer), resW, resH);
-                nl.ctx.putImageData(imgData, 0, 0);
+                if (!nl.isDeleted && layerData.buffer) { const imgData = new ImageData(new Uint8ClampedArray(layerData.buffer), resW, resH); nl.ctx.putImageData(imgData, 0, 0); }
                 
                 newFrame.layers.push(nl);
             });

@@ -41,15 +41,18 @@ export default class StorageManager {
             customSwatches: palette.customSwatches,
             frames: doc.frames.map(frame => ({
                 layers: frame.layers.map(layer => {
-                    const imgData = layer.ctx.getImageData(0, 0, doc.width, doc.height);
-                    return {
+                    const layerData = {
                         visible: layer.visible,
                         opacity: layer.opacity,
                         locked: layer.locked,
                         isDeleted: layer.isDeleted || false,
                         holdCount: layer.holdCount || 1,
-                        buffer: imgData.data.buffer
                     };
+                    if (!layer.isDeleted) {
+                        const imgData = layer.ctx.getImageData(0, 0, doc.width, doc.height);
+                        layerData.buffer = imgData.data.buffer;
+                    }
+                    return layerData;
                 })
             })),
             timestamp: Date.now()

@@ -1,5 +1,5 @@
-import PixelLayer from './PixelLayer.js?cb=109';
-import PixelFrame from './PixelFrame.js?cb=109';
+import PixelLayer from './PixelLayer.js?cb=110';
+import PixelFrame from './PixelFrame.js?cb=110';
 
 export default class PixelDocument {
     constructor(w, h, events) { 
@@ -70,11 +70,14 @@ export default class PixelDocument {
         this.events.emit('frameChanged');
     }
     addLayerFrame(layerIdx) {
-        let lastValid = -1;
+        let endIdx = 0;
         for (let i = 0; i < this.frames.length; i++) {
-            if (!this.frames[i].layers[layerIdx].isDeleted) lastValid = i;
+            if (!this.frames[i].layers[layerIdx].isDeleted) {
+                const hold = this.frames[i].layers[layerIdx].holdCount || 1;
+                if (i + hold > endIdx) endIdx = i + hold;
+            }
         }
-        if (lastValid === this.frames.length - 1) {
+        if (endIdx >= this.frames.length) {
             // Need a new global frame
             const frame = new PixelFrame(this.width, this.height, 0);
             frame.layers = this.activeFrame.layers.map((l, idx) => {
@@ -94,7 +97,7 @@ export default class PixelDocument {
             nl.visible = ref.visible;
             nl.locked = ref.locked;
             nl.isDeleted = false;
-            this.frames[lastValid + 1].layers[layerIdx] = nl;
+            this.frames[endIdx].layers[layerIdx] = nl;
         }
         this.events.emit('frameChanged');
     }
@@ -120,12 +123,17 @@ export default class PixelDocument {
         this.events.emit('frameChanged');
     }
     insertLayerFrameGap(layerIdx, frameIdx, count) {
-        // Make sure there are enough global frames to shift into
-        let lastValid = -1;
+        // Calculate the current absolute end index for this layer
+        let currentEndIdx = 0;
         for (let i = 0; i < this.frames.length; i++) {
-            if (!this.frames[i].layers[layerIdx].isDeleted) lastValid = i;
+            if (!this.frames[i].layers[layerIdx].isDeleted) {
+                const hold = this.frames[i].layers[layerIdx].holdCount || 1;
+                if (i + hold > currentEndIdx) currentEndIdx = i + hold;
+            }
         }
-        const needed = (lastValid + count) - (this.frames.length - 1);
+        
+        // Ensure the document can accommodate the new gap
+        const needed = (currentEndIdx + count) - this.frames.length;
         for (let step = 0; step < needed; step++) {
             const frame = new PixelFrame(this.width, this.height, 0);
             frame.layers = this.activeFrame.layers.map((l, idx) => {
@@ -163,12 +171,15 @@ export default class PixelDocument {
     copyLayerFrame(layerIdx, frameIdx) {
         if (frameIdx < 0 || frameIdx >= this.frames.length) return;
         
-        let lastValid = -1;
+        let endIdx = 0;
         for (let i = 0; i < this.frames.length; i++) {
-            if (!this.frames[i].layers[layerIdx].isDeleted) lastValid = i;
+            if (!this.frames[i].layers[layerIdx].isDeleted) {
+                const hold = this.frames[i].layers[layerIdx].holdCount || 1;
+                if (i + hold > endIdx) endIdx = i + hold;
+            }
         }
         
-        if (lastValid === this.frames.length - 1) {
+        if (endIdx >= this.frames.length) {
             // Need a new global frame
             const frame = new PixelFrame(this.width, this.height, 0);
             frame.layers = this.activeFrame.layers.map((l, idx) => {
