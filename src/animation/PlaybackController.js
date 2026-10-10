@@ -79,7 +79,7 @@ export default class PlaybackController {
         this.updateOnionSkin();
     }
     updateOnionSkin() {
-        if (!this.core.doc || !this.onionSkinEnabled || this.core.state.isSpriteSheetView) { 
+        if (!this.core.doc || !this.onionSkinEnabled || this.core.state.isSpriteSheetView || this.isPlaying) { 
             this.core.onionCanvas.style.display = 'none'; 
             return; 
         }
@@ -124,14 +124,29 @@ export default class PlaybackController {
         const getLayerToDraw = (i) => {
             let layerToDraw = frame.layers[i];
             if (layerToDraw.isDeleted) {
-                for (let k = frameIndex - 1; k >= 0; k--) {
-                    const prevLayer = this.core.doc.frames[k].layers[i];
-                    if (!prevLayer.isDeleted) {
-                        if (k + (prevLayer.holdCount || 1) > frameIndex) {
-                            layerToDraw = prevLayer;
-                        }
-                        break;
+                let found = null;
+                if (layerToDraw._cachedOriginIndex !== undefined) {
+                    const originLayer = this.core.doc.frames[layerToDraw._cachedOriginIndex].layers[i];
+                    if (originLayer && !originLayer.isDeleted && 
+                        (layerToDraw._cachedOriginIndex + (originLayer.holdCount || 1) > frameIndex)) {
+                        found = originLayer;
                     }
+                }
+
+                if (!found) {
+                    for (let k = frameIndex - 1; k >= 0; k--) {
+                        const prevLayer = this.core.doc.frames[k].layers[i];
+                        if (!prevLayer.isDeleted) {
+                            if (k + (prevLayer.holdCount || 1) > frameIndex) {
+                                found = prevLayer;
+                                layerToDraw._cachedOriginIndex = k;
+                            }
+                            break;
+                        }
+                    }
+                }
+                if (found) {
+                    layerToDraw = found;
                 }
             }
             return layerToDraw;

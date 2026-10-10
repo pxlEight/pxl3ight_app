@@ -28,14 +28,30 @@ export default class Renderer {
             
             if (layerToDraw.isDeleted) {
                 // Look backwards to see if a previous frame's hold covers this index
-                for (let k = frameIndex - 1; k >= 0; k--) {
-                    const prevLayer = this.doc.frames[k].layers[i];
-                    if (!prevLayer.isDeleted) {
-                        if (k + (prevLayer.holdCount || 1) > frameIndex) {
-                            layerToDraw = prevLayer;
-                        }
-                        break;
+                // Cache the extended frame's origin index to avoid looping on playback
+                let found = null;
+                if (layerToDraw._cachedOriginIndex !== undefined) {
+                    const originLayer = this.doc.frames[layerToDraw._cachedOriginIndex].layers[i];
+                    if (originLayer && !originLayer.isDeleted && 
+                        (layerToDraw._cachedOriginIndex + (originLayer.holdCount || 1) > frameIndex)) {
+                        found = originLayer;
                     }
+                }
+
+                if (!found) {
+                    for (let k = frameIndex - 1; k >= 0; k--) {
+                        const prevLayer = this.doc.frames[k].layers[i];
+                        if (!prevLayer.isDeleted) {
+                            if (k + (prevLayer.holdCount || 1) > frameIndex) {
+                                found = prevLayer;
+                                layerToDraw._cachedOriginIndex = k;
+                            }
+                            break;
+                        }
+                    }
+                }
+                if (found) {
+                    layerToDraw = found;
                 }
             }
             
