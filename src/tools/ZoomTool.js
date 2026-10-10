@@ -1,4 +1,4 @@
-import BaseTool from './BaseTool.js?cb=104';
+import BaseTool from './BaseTool.js?cb=108';
 
 export default class ZoomTool extends BaseTool {
     constructor(context) {

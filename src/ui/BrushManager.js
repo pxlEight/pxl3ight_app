@@ -1,4 +1,4 @@
-import { CONSTANTS } from '../core/Constants.js?cb=104';
+import { CONSTANTS } from '../core/Constants.js?cb=108';
 
 export default class BrushManager {
     constructor(core) {
