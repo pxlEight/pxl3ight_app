@@ -1152,6 +1152,27 @@ export default class UIManager {
         return square;
     }
 
+
+    getLayerName(layerObj, index) {
+        if (!this.layerNames) this.layerNames = {};
+        if (!this.layerCounter) this.layerCounter = 0;
+        
+        if (!this.layerNames[layerObj._id]) {
+            if (Object.keys(this.layerNames).length < this.core.doc.activeFrame.layers.length && !this._initialLayersNamed) {
+                this.layerCounter = Math.max(this.layerCounter, index + 1);
+                this.layerNames[layerObj._id] = L;
+            } else {
+                this.layerCounter++;
+                this.layerNames[layerObj._id] = L;
+            }
+        }
+        
+        if (Object.keys(this.layerNames).length >= this.core.doc.activeFrame.layers.length) {
+            this._initialLayersNamed = true;
+        }
+        
+        return this.layerNames[layerObj._id];
+    }
     updateLayerStackUI() {
         if (!this.core.doc) return;
         const stack = document.getElementById('layerStack');
@@ -1168,7 +1189,8 @@ export default class UIManager {
             square.dataset.index = i; 
             square.classList.toggle('active', i === this.core.doc.activeLayerIndex);
             square.classList.toggle('hidden-layer', !layerObj.visible); 
-            square.innerText = layerObj.locked ? `🔐${i + 1}` : `L${i + 1}`;
+            const lName = this.getLayerName(layerObj, i);
+            square.innerText = layerObj.locked ? `🔐${lName.substring(1)}` : lName;
         }
         
         const ind = document.getElementById('layerScrollIndicator'); 
@@ -1414,8 +1436,8 @@ export default class UIManager {
         
         for (let i = 0; i < layerCount; i++) {
             const layerObj = this.core.doc.activeFrame.layers[i];
-            const lockStr = layerObj.locked ? `🔐` : '';
-            labelsCol.children[i].innerText = layerObj.locked ? `${lockStr}${i + 1}` : `L${i + 1}`;
+            const lName = this.getLayerName(layerObj, i);
+            labelsCol.children[i].innerText = layerObj.locked ? `🔐${lName.substring(1)}` : lName;
         }
         
         let frameSquares = Array.from(strip.children).filter(el => el.classList.contains('frame-square'));
