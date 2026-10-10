@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js?cb=114';
-import { CONSTANTS } from '../core/Constants.js?cb=114';
+import BaseTool from './BaseTool.js?cb=115';
+import { CONSTANTS } from '../core/Constants.js?cb=115';
 
 export default class WandTool extends BaseTool {
     constructor(context) {

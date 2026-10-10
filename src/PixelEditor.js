@@ -1,31 +1,31 @@
-import EventBus from './core/EventBus.js?cb=114';
-import AppConfig from './core/AppConfig.js?cb=114';
-import HistoryManager from './core/HistoryManager.js?cb=114';
-import StorageManager from './core/StorageManager.js?cb=114';
-import WorkerManager from './core/WorkerManager.js?cb=114';
-import ViewportManager from './rendering/ViewportManager.js?cb=114';
-import SelectionManager from './selection/SelectionManager.js?cb=114';
-import PlaybackController from './animation/PlaybackController.js?cb=114';
-import ToolManager from './tools/ToolManager.js?cb=114';
-import PaletteManager from './ui/PaletteManager.js?cb=114';
-import BrushManager from './ui/BrushManager.js?cb=114';
-import UIManager from './ui/UIManager.js?cb=114';
-import InputManager from './ui/InputManager.js?cb=114';
-import PixelDocument from './models/PixelDocument.js?cb=114';
-import PixelFrame from './models/PixelFrame.js?cb=114';
-import PixelLayer from './models/PixelLayer.js?cb=114';
-import Renderer from './rendering/Renderer.js?cb=114';
-import { CONSTANTS } from './core/Constants.js?cb=114';
-import DrawingTool from './tools/DrawingTool.js?cb=114';
-import ShapeTool from './tools/ShapeTool.js?cb=114';
-import FillTool from './tools/FillTool.js?cb=114';
-import DropperTool from './tools/DropperTool.js?cb=114';
-import WandTool from './tools/WandTool.js?cb=114';
-import MarqueeTool from './tools/MarqueeTool.js?cb=114';
-import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=114';
-import ColorSelectTool from './tools/ColorSelectTool.js?cb=114';
-import LassoSelectTool from './tools/LassoSelectTool.js?cb=114';
-import ZoomTool from './tools/ZoomTool.js?cb=114';
+import EventBus from './core/EventBus.js?cb=115';
+import AppConfig from './core/AppConfig.js?cb=115';
+import HistoryManager from './core/HistoryManager.js?cb=115';
+import StorageManager from './core/StorageManager.js?cb=115';
+import WorkerManager from './core/WorkerManager.js?cb=115';
+import ViewportManager from './rendering/ViewportManager.js?cb=115';
+import SelectionManager from './selection/SelectionManager.js?cb=115';
+import PlaybackController from './animation/PlaybackController.js?cb=115';
+import ToolManager from './tools/ToolManager.js?cb=115';
+import PaletteManager from './ui/PaletteManager.js?cb=115';
+import BrushManager from './ui/BrushManager.js?cb=115';
+import UIManager from './ui/UIManager.js?cb=115';
+import InputManager from './ui/InputManager.js?cb=115';
+import PixelDocument from './models/PixelDocument.js?cb=115';
+import PixelFrame from './models/PixelFrame.js?cb=115';
+import PixelLayer from './models/PixelLayer.js?cb=115';
+import Renderer from './rendering/Renderer.js?cb=115';
+import { CONSTANTS } from './core/Constants.js?cb=115';
+import DrawingTool from './tools/DrawingTool.js?cb=115';
+import ShapeTool from './tools/ShapeTool.js?cb=115';
+import FillTool from './tools/FillTool.js?cb=115';
+import DropperTool from './tools/DropperTool.js?cb=115';
+import WandTool from './tools/WandTool.js?cb=115';
+import MarqueeTool from './tools/MarqueeTool.js?cb=115';
+import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=115';
+import ColorSelectTool from './tools/ColorSelectTool.js?cb=115';
+import LassoSelectTool from './tools/LassoSelectTool.js?cb=115';
+import ZoomTool from './tools/ZoomTool.js?cb=115';
 
 export default class PixelEditor {
     constructor() {
@@ -719,13 +719,17 @@ export default class PixelEditor {
         modal.style.cssText = 'position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; display:flex; justify-content:center; align-items:center;';
         
         const content = document.createElement('div');
-        content.style.cssText = 'background:var(--ui-bg, #333); padding:20px; border-radius:8px; display:flex; flex-direction:column; gap:15px; color:white; min-width: 250px; font-family: sans-serif;';
+        content.style.cssText = 'background:var(--ui-bg, #333); padding:20px; border-radius:8px; display:flex; flex-direction:column; gap:15px; color:white; min-width: 250px; font-family: sans-serif; max-height: 80vh; overflow-y: auto;';
         
         const step1 = document.createElement('div');
         step1.style.display = isSpriteSheet ? 'none' : 'flex';
         step1.style.flexDirection = 'column';
         step1.style.gap = '10px';
         step1.innerHTML = `
+            <div style="margin-bottom: 5px; padding-bottom: 15px; border-bottom: 1px solid #555; display: flex; flex-direction: column; gap: 10px;">
+                <h3 style="margin:0 0 5px 0;">Export Movie</h3>
+                <button id="expMovieBtn" class="startup-btn" style="background-color: var(--accent);">Export</button>
+            </div>
             <h3 style="margin:0 0 10px 0;">Export Frame Range</h3>
             <label style="display:flex; justify-content:space-between; align-items:center;">Start Frame: <input type="number" id="expStart" value="1" min="1" max="${totalFrames}" style="width:60px; padding:4px;"></label>
             <label style="display:flex; justify-content:space-between; align-items:center;">End Frame: <input type="number" id="expEnd" value="${totalFrames}" min="1" max="${totalFrames}" style="width:60px; padding:4px;"></label>
@@ -772,6 +776,82 @@ export default class PixelEditor {
             document.getElementById('expOkayBtn').onclick = () => {
                 step1.style.display = 'none';
                 step2.style.display = 'flex';
+            };
+            document.getElementById('expMovieBtn').onclick = async () => {
+                let start = Math.max(1, parseInt(document.getElementById('expStart').value, 10));
+                let end = Math.min(totalFrames, parseInt(document.getElementById('expEnd').value, 10));
+                if (start > end) { const temp = start; start = end; end = temp; }
+                
+                step1.style.display = 'none';
+                step3.style.display = 'flex';
+                document.getElementById('expStatus').innerText = "Recording Movie...";
+                
+                const baseName = this.projectName || 'Untitled01';
+                const fps = this.playback && this.playback.fps ? this.playback.fps : 12;
+                
+                const exportCanvas = document.createElement('canvas'); 
+                exportCanvas.width = this.doc.width; 
+                exportCanvas.height = this.doc.height;
+                const eCtx = exportCanvas.getContext('2d'); 
+                
+                let mimeType = 'video/mp4';
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = 'video/webm';
+                }
+                
+                const stream = exportCanvas.captureStream(fps);
+                const recorder = new MediaRecorder(stream, { mimeType });
+                const chunks = [];
+                recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+                recorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: mimeType });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${baseName}.${mimeType === 'video/mp4' ? 'mp4' : 'webm'}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    removeModal();
+                };
+                
+                recorder.start();
+                
+                let currentFrameIndex = start - 1;
+                
+                const drawNextFrame = () => {
+                    if (currentFrameIndex > end - 1) {
+                        recorder.stop();
+                        return;
+                    }
+                    
+                    const f = this.doc.frames[currentFrameIndex];
+                    eCtx.clearRect(0, 0, exportCanvas.width, exportCanvas.height);
+                    
+                    for (let li = 0; li < f.layers.length; li++) {
+                        let layerToDraw = f.layers[li];
+                        if (layerToDraw.isDeleted) {
+                            for (let k = currentFrameIndex - 1; k >= 0; k--) {
+                                const prevLayer = this.doc.frames[k].layers[li];
+                                if (!prevLayer.isDeleted) {
+                                    if (k + (prevLayer.holdCount || 1) > currentFrameIndex) {
+                                        layerToDraw = prevLayer;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        if (layerToDraw && layerToDraw.visible && !layerToDraw.isDeleted) { 
+                            eCtx.globalAlpha = layerToDraw.opacity; 
+                            eCtx.drawImage(layerToDraw.canvas, 0, 0); 
+                        }
+                    }
+                    currentFrameIndex++;
+                    setTimeout(drawNextFrame, 1000 / fps);
+                };
+                
+                drawNextFrame();
             };
         }
         

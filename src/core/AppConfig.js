@@ -1,4 +1,4 @@
-import { CONSTANTS } from './Constants.js?cb=114';
+import { CONSTANTS } from './Constants.js?cb=115';
 
 export default class AppConfig {
     constructor(events) {

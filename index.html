@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="icons/icon.svg">
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="css/style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js?cb=114"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js?cb=115"></script>
     <script>
         const setAppHeight = () => document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
         window.addEventListener('resize', setAppHeight);
@@ -132,7 +132,10 @@
             To install this app, tap <b>Share</b> <svg style="display:inline; vertical-align:sub;" viewBox="0 0 50 50" width="16" height="16"><path fill="#fff" d="M25 3L12 16h8v18h10V16h8z"/><path fill="#fff" d="M9 36v8h32v-8h4v12H5V36z"/></svg><br>and select <b>Add to Home Screen</b>.
             <button onclick="document.getElementById('iosInstallPrompt').style.display='none'" style="display: block; margin-top: 10px; width: 100%; background-color: #555; color: #fff; border: none; padding: 6px; border-radius: 4px; cursor: pointer;">Dismiss</button>
         </div>
-        <div class="startup-title">pxl3ight</div>
+        <div class="startup-title" style="position: relative;">
+            pxl3ight
+            <div style="position: absolute; bottom: -30px; left: 0; width: 100%; text-align: center; font-size: 13px; font-weight: normal; letter-spacing: 1px; color: #aaaaaa; text-shadow: none;">Testing Version Alpha</div>
+        </div>
         <div class="startup-controls" id="startupMenu">
             <button class="startup-btn" data-action="showResPicker">New Project</button>
             <button class="startup-btn" style="background-color: var(--ui-bg); border: 1px solid var(--accent);" data-action="openProjectPrompt">Open Project</button>
@@ -531,7 +534,7 @@
             <button id="btnUpdateReload" style="background-color: #555; padding: 8px 16px; font-size: 14px; font-weight: bold; border-radius: 4px; color: white; display: flex; justify-content: center; align-items: center; text-align: center;">Reload</button>
         </div>
     </div>
-    <script type="module" src="src/main.js?cb=114"></script>
+    <script type="module" src="src/main.js?cb=115"></script>
 </body>
 </html><script>
 window.addEventListener('load', () => {
