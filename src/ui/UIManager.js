@@ -1043,7 +1043,7 @@ export default class UIManager {
                 const currentLayers = this.core.doc.activeFrame.layers;
                 
                 let visualIndex = Math.floor((eu.clientY - stackRect.top + stack.scrollTop) / 42);
-                let dropIndex = (currentLayers.length - 1) - visualIndex; 
+                let dropIndex = visualIndex; 
                 dropIndex = Math.max(0, Math.min(currentLayers.length - 1, dropIndex));
                 
                 this.core.doc.frames.forEach(f => { 
