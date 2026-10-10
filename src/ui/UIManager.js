@@ -1937,7 +1937,7 @@ export default class UIManager {
                     } else {
                         this.events.emit('requestToolChange', currentToolName, true);
                     }
-                } else {
+                } else if (longPressed) {
                     if (currentToolName === CONSTANTS.TOOLS.PENCIL || currentToolName === CONSTANTS.TOOLS.ERASER) {
                         document.getElementById('brushSizeIndicator').style.display = 'none';
                         const sm = document.getElementById('brushShapeMenu');
