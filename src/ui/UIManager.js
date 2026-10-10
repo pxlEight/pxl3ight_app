@@ -1,7 +1,7 @@
-import { CONSTANTS } from '../core/Constants.js?cb=115';
-import UIWidgetDragger from './UIWidgetDragger.js?cb=115';
-import UIDragInteraction from './UIDragInteraction.js?cb=115';
-import PaletteManager from './PaletteManager.js?cb=115';
+import { CONSTANTS } from '../core/Constants.js?cb=116';
+import UIWidgetDragger from './UIWidgetDragger.js?cb=116';
+import UIDragInteraction from './UIDragInteraction.js?cb=116';
+import PaletteManager from './PaletteManager.js?cb=116';
 
 export default class UIManager {
     constructor(core) {
@@ -1460,7 +1460,9 @@ export default class UIManager {
         
         while (frameSquares.length < this.core.doc.frames.length) {
             const newNode = this.createFrameNode();
+            const addCol = strip.querySelector('.add-frame-column');
             if (addBtn) strip.insertBefore(newNode, addBtn);
+            else if (addCol) strip.insertBefore(newNode, addCol);
             else strip.appendChild(newNode);
             frameSquares.push(newNode);
         }

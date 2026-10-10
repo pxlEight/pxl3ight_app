@@ -1,31 +1,31 @@
-import EventBus from './core/EventBus.js?cb=115';
-import AppConfig from './core/AppConfig.js?cb=115';
-import HistoryManager from './core/HistoryManager.js?cb=115';
-import StorageManager from './core/StorageManager.js?cb=115';
-import WorkerManager from './core/WorkerManager.js?cb=115';
-import ViewportManager from './rendering/ViewportManager.js?cb=115';
-import SelectionManager from './selection/SelectionManager.js?cb=115';
-import PlaybackController from './animation/PlaybackController.js?cb=115';
-import ToolManager from './tools/ToolManager.js?cb=115';
-import PaletteManager from './ui/PaletteManager.js?cb=115';
-import BrushManager from './ui/BrushManager.js?cb=115';
-import UIManager from './ui/UIManager.js?cb=115';
-import InputManager from './ui/InputManager.js?cb=115';
-import PixelDocument from './models/PixelDocument.js?cb=115';
-import PixelFrame from './models/PixelFrame.js?cb=115';
-import PixelLayer from './models/PixelLayer.js?cb=115';
-import Renderer from './rendering/Renderer.js?cb=115';
-import { CONSTANTS } from './core/Constants.js?cb=115';
-import DrawingTool from './tools/DrawingTool.js?cb=115';
-import ShapeTool from './tools/ShapeTool.js?cb=115';
-import FillTool from './tools/FillTool.js?cb=115';
-import DropperTool from './tools/DropperTool.js?cb=115';
-import WandTool from './tools/WandTool.js?cb=115';
-import MarqueeTool from './tools/MarqueeTool.js?cb=115';
-import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=115';
-import ColorSelectTool from './tools/ColorSelectTool.js?cb=115';
-import LassoSelectTool from './tools/LassoSelectTool.js?cb=115';
-import ZoomTool from './tools/ZoomTool.js?cb=115';
+import EventBus from './core/EventBus.js?cb=116';
+import AppConfig from './core/AppConfig.js?cb=116';
+import HistoryManager from './core/HistoryManager.js?cb=116';
+import StorageManager from './core/StorageManager.js?cb=116';
+import WorkerManager from './core/WorkerManager.js?cb=116';
+import ViewportManager from './rendering/ViewportManager.js?cb=116';
+import SelectionManager from './selection/SelectionManager.js?cb=116';
+import PlaybackController from './animation/PlaybackController.js?cb=116';
+import ToolManager from './tools/ToolManager.js?cb=116';
+import PaletteManager from './ui/PaletteManager.js?cb=116';
+import BrushManager from './ui/BrushManager.js?cb=116';
+import UIManager from './ui/UIManager.js?cb=116';
+import InputManager from './ui/InputManager.js?cb=116';
+import PixelDocument from './models/PixelDocument.js?cb=116';
+import PixelFrame from './models/PixelFrame.js?cb=116';
+import PixelLayer from './models/PixelLayer.js?cb=116';
+import Renderer from './rendering/Renderer.js?cb=116';
+import { CONSTANTS } from './core/Constants.js?cb=116';
+import DrawingTool from './tools/DrawingTool.js?cb=116';
+import ShapeTool from './tools/ShapeTool.js?cb=116';
+import FillTool from './tools/FillTool.js?cb=116';
+import DropperTool from './tools/DropperTool.js?cb=116';
+import WandTool from './tools/WandTool.js?cb=116';
+import MarqueeTool from './tools/MarqueeTool.js?cb=116';
+import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=116';
+import ColorSelectTool from './tools/ColorSelectTool.js?cb=116';
+import LassoSelectTool from './tools/LassoSelectTool.js?cb=116';
+import ZoomTool from './tools/ZoomTool.js?cb=116';
 
 export default class PixelEditor {
     constructor() {
@@ -789,17 +789,20 @@ export default class PixelEditor {
                 const baseName = this.projectName || 'Untitled01';
                 const fps = this.playback && this.playback.fps ? this.playback.fps : 12;
                 
+                const scale = Math.max(1, Math.ceil(512 / Math.max(this.doc.width, this.doc.height)));
                 const exportCanvas = document.createElement('canvas'); 
-                exportCanvas.width = this.doc.width; 
-                exportCanvas.height = this.doc.height;
+                exportCanvas.width = this.doc.width * scale; 
+                exportCanvas.height = this.doc.height * scale;
                 const eCtx = exportCanvas.getContext('2d'); 
+                eCtx.imageSmoothingEnabled = false;
                 
                 let mimeType = 'video/mp4';
                 if (!MediaRecorder.isTypeSupported(mimeType)) {
                     mimeType = 'video/webm';
                 }
                 
-                const stream = exportCanvas.captureStream(fps);
+                const stream = exportCanvas.captureStream(0);
+                const track = stream.getVideoTracks()[0];
                 const recorder = new MediaRecorder(stream, { mimeType });
                 const chunks = [];
                 recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
@@ -844,9 +847,10 @@ export default class PixelEditor {
                         }
                         if (layerToDraw && layerToDraw.visible && !layerToDraw.isDeleted) { 
                             eCtx.globalAlpha = layerToDraw.opacity; 
-                            eCtx.drawImage(layerToDraw.canvas, 0, 0); 
+                            eCtx.drawImage(layerToDraw.canvas, 0, 0, exportCanvas.width, exportCanvas.height); 
                         }
                     }
+                    if (track && track.requestFrame) track.requestFrame();
                     currentFrameIndex++;
                     setTimeout(drawNextFrame, 1000 / fps);
                 };

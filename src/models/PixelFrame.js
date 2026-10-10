@@ -1,4 +1,4 @@
-import PixelLayer from './PixelLayer.js?cb=115';
+import PixelLayer from './PixelLayer.js?cb=116';
 
 export default class PixelFrame {
     constructor(w, h, initialLayers = 2) { 
