@@ -382,7 +382,7 @@ export default class UIManager {
         const scrollIndicator = document.getElementById('file-menu-scroll-indicator');
         if (fileMenu && scrollIndicator) {
             fileMenu.addEventListener('scroll', () => {
-                scrollIndicator.innerHTML = Math.abs((fileMenu.scrollTop + fileMenu.clientHeight) - fileMenu.scrollHeight) <= 5 ? '?' : '?';
+                scrollIndicator.innerHTML = Math.abs((fileMenu.scrollTop + fileMenu.clientHeight) - fileMenu.scrollHeight) <= 5 ? '▲' : '▼';
             });
         }
 
@@ -496,7 +496,7 @@ export default class UIManager {
                     if (!fmWasOpen) {
                         fm.style.display = 'flex'; 
                         const ind = document.getElementById('file-menu-scroll-indicator');
-                        if (ind) ind.innerHTML = Math.abs((fm.scrollTop + fm.clientHeight) - fm.scrollHeight) <= 5 ? '?' : '?';
+                        if (ind) ind.innerHTML = Math.abs((fm.scrollTop + fm.clientHeight) - fm.scrollHeight) <= 5 ? '▲' : '▼';
                     }
                     break;
                 case 'toggleSettingsMenu': 
@@ -587,7 +587,7 @@ export default class UIManager {
                 case 'togglePaletteSection': 
                     const grid = document.getElementById(target.getAttribute('data-target')); 
                     grid.classList.toggle('collapsed'); 
-                    document.getElementById(target.getAttribute('data-chevron')).innerText = grid.classList.contains('collapsed') ? '?' : '?'; 
+                    document.getElementById(target.getAttribute('data-chevron')).innerText = grid.classList.contains('collapsed') ? '▶' : '▼'; 
                     break;
                 case 'toggleHSVMenu': 
                     e.stopPropagation(); 
@@ -868,6 +868,7 @@ export default class UIManager {
     }
 
     setTool(tool) {
+        this.closeAllMenus();
         document.querySelectorAll('#toolStack .tool-btn').forEach(b => b.classList.remove('active'));
         
         if ([CONSTANTS.TOOLS.LINE, CONSTANTS.TOOLS.RECT, CONSTANTS.TOOLS.ELLIPSE].includes(tool)) {
@@ -1159,9 +1160,9 @@ export default class UIManager {
         while (stack.children.length < currentLayers.length) stack.appendChild(this.createLayerNode());
         while (stack.children.length > currentLayers.length) stack.removeChild(stack.lastChild);
         
-        for (let i = currentLayers.length - 1; i >= 0; i--) {
+        for (let i = 0; i < currentLayers.length; i++) {
             const layerObj = currentLayers[i];
-            const visualIndex = (currentLayers.length - 1) - i;
+            const visualIndex = i;
             const square = stack.children[visualIndex];
             
             square.dataset.index = i; 
@@ -1878,18 +1879,6 @@ export default class UIManager {
                     isDraggingSize = false; 
                     document.getElementById('brushSizeIndicator').style.display = 'none';
                     
-                    if (currentToolName === CONSTANTS.TOOLS.PENCIL || currentToolName === CONSTANTS.TOOLS.ERASER) {
-                        const sm = document.getElementById('brushShapeMenu');
-                        const rect = btn.getBoundingClientRect();
-                        sm.style.display = 'flex'; 
-                        const smRect = sm.getBoundingClientRect();
-                        let leftPos = rect.right + 10;
-                        if (leftPos + smRect.width > window.innerWidth - 10) leftPos = rect.left - smRect.width - 10;
-                        sm.style.left = leftPos + 'px'; 
-                        let topPos = rect.top;
-                        if (topPos + smRect.height > window.innerHeight - 10) topPos = window.innerHeight - smRect.height - 10;
-                        sm.style.top = Math.max(10, topPos) + 'px';
-                    }
                 } else if (isDraggingTool) {
                     isDraggingTool = false; 
                     if (dragGhost) { 
