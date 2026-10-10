@@ -1332,11 +1332,10 @@ export default class UIManager {
             } else if (!hasScrolled) {
                 if (!this.core.playback.isPlaying && !this.core.state.isSpriteSheetView) { 
                     this.events.emit('core:switchFrame', currentIndex); 
-                    document.getElementById('timelineStrip').scrollTo({ left: this.getFrameX(currentIndex), behavior: 'smooth' }); 
                 }
             } else {
                 if (this.core.doc && !this.core.playback.isPlaying && !this.core.state.isSpriteSheetView) {
-                    document.getElementById('timelineStrip').scrollTo({ left: this.getFrameX(this.core.doc.currentFrameIndex), behavior: 'smooth' });
+                    // Removed auto-scroll to allow handle selection on wide frames
                 }
             }
         };
