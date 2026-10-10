@@ -1,4 +1,4 @@
-﻿:root {
+:root {
     --bg-color: #1e1e24;
     --ui-bg: rgba(43, 43, 54, 0.85);
     --widget-bg: rgba(43, 43, 54, 0.75);
@@ -490,11 +490,12 @@ header {
     padding: 0 10px;
     gap: 10px;
     pointer-events: auto;
+    transition: height 0.15s ease-out;
 }
 
 .timeline-controls { display: flex; gap: 6px; }
 .timeline-controls.right-controls { margin-left: 4px; }
-.timeline-strip-container { position: relative; flex: 1; height: 58px; overflow-y: hidden; overflow-x: hidden; display: block; padding-top: 10px; padding-bottom: 10px; }
+.timeline-strip-container { position: relative; flex: 1; height: 58px; overflow-y: hidden; overflow-x: hidden; display: block; padding-top: 10px; padding-bottom: 10px; transition: height 0.15s ease-out; }
 
 .playhead-marker {
     position: absolute; left: 0; top: 0; bottom: 0; width: 4px;

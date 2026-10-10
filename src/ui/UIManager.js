@@ -1,4 +1,4 @@
-﻿import { CONSTANTS } from '../core/Constants.js';
+import { CONSTANTS } from '../core/Constants.js';
 import UIWidgetDragger from './UIWidgetDragger.js';
 import UIDragInteraction from './UIDragInteraction.js';
 import PaletteManager from './PaletteManager.js';
@@ -168,6 +168,69 @@ export default class UIManager {
         new UIWidgetDragger('widget-tools', 'handle-tools'); 
         new UIWidgetDragger('widget-brush', 'handle-brush'); 
         new UIWidgetDragger('widget-color', 'handle-color');
+        
+        const timelineHandle = document.querySelector('#widget-timeline .widget-handle');
+        if (timelineHandle) {
+            this.timelineLevel = parseInt(localStorage.getItem('timelineLevel') || '1', 10);
+            if (isNaN(this.timelineLevel) || this.timelineLevel < 1 || this.timelineLevel > 3) {
+                this.timelineLevel = 1;
+            }
+            // set initial expansion if not collapsed
+            const tw = document.getElementById('widget-timeline');
+            if (tw && !tw.classList.contains('collapsed')) {
+                // Defer to allow DOM to be ready
+                setTimeout(() => this.setTimelineExpansionLevel(this.timelineLevel, true), 10);
+            }
+
+            new UIDragInteraction(timelineHandle, {
+                stopPropagation: true,
+                preventDefaultOnMove: true,
+                onDown: (e, inst) => {
+                    window.isDraggingTimeline = false;
+                    inst.customData.startLevel = this.timelineLevel || 1;
+                    inst.customData.currentLevel = this.timelineLevel || 1;
+                },
+                onDragMove: (e, dx, dy, inst) => {
+                    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                        window.isDraggingTimeline = true;
+                    }
+                    if (window.isDraggingTimeline) {
+                        const widget = document.getElementById('widget-timeline');
+                        if (widget.classList.contains('collapsed')) {
+                            if (dy < -10) {
+                                widget.classList.remove('collapsed');
+                                document.getElementById('handle-timeline').innerText = 'TIMELINE ▼';
+                                inst.startY = e.clientY; // reset origin
+                                inst.customData.startLevel = 1;
+                                inst.customData.currentLevel = 1;
+                                this.setTimelineExpansionLevel(1);
+                            }
+                        } else {
+                            const threshold = 35;
+                            let levelDelta = Math.round(-dy / threshold);
+                            let newLevel = inst.customData.startLevel + levelDelta;
+                            
+                            if (newLevel < 1) {
+                                if (levelDelta <= -1) {
+                                    widget.classList.add('collapsed');
+                                    document.getElementById('handle-timeline').innerText = 'TIMELINE ▲';
+                                    inst.startY = e.clientY; // reset origin
+                                }
+                            } else {
+                                newLevel = Math.max(1, Math.min(3, newLevel));
+                                if (newLevel !== inst.customData.currentLevel) {
+                                    inst.customData.currentLevel = newLevel;
+                                    this.setTimelineExpansionLevel(newLevel);
+                                }
+                            }
+                        }
+                    }
+                },
+                onDragEnd: (e, inst) => {
+                    setTimeout(() => { window.isDraggingTimeline = false; }, 50);
+                }
+            });
+        }
         
         new UIDragInteraction(document.getElementById('opacityVal'), {
             stopPropagation: true, 
@@ -541,9 +604,13 @@ export default class UIManager {
                     this.events.emit('core:addCustomColor', nHex); 
                     break;
                 case 'toggleTimeline': 
+                    if (window.isDraggingTimeline) return;
                     const tw = document.getElementById('widget-timeline'); 
                     tw.classList.toggle('collapsed'); 
                     document.getElementById('handle-timeline').innerText = tw.classList.contains('collapsed') ? 'TIMELINE ▲' : 'TIMELINE ▼'; 
+                    if (!tw.classList.contains('collapsed')) {
+                        this.setTimelineExpansionLevel(this.timelineLevel || 1);
+                    }
                     break;
                 case 'toggleSpriteSheetView': 
                     this.events.emit('core:toggleSpriteSheetView'); 
@@ -1267,6 +1334,20 @@ export default class UIManager {
             square.addEventListener('pointercancel', onUp);
         });
         return square;
+    }
+
+    setTimelineExpansionLevel(level, init = false) {
+        this.timelineLevel = level;
+        if (!init) localStorage.setItem('timelineLevel', level);
+        
+        const footer = document.getElementById('timelineFooter');
+        const container = document.getElementById('timelineContainer');
+        
+        if (footer && container) {
+            const extra = (level - 1) * 48;
+            footer.style.height = `${76 + extra}px`;
+            container.style.height = `${58 + extra}px`;
+        }
     }
 
     updateTimelineUI() {
