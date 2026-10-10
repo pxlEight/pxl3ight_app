@@ -1111,8 +1111,7 @@ export default class UIManager {
         if (!this.core.doc) return 0;
         let x = 40; // offset for labels column
         for (let i = 0; i < index; i++) {
-            const hC = this.core.doc.frames[i].holdCount || 1;
-            x += (44 * hC + 8 * (hC - 1)) + 8;
+            x += 44 + 8;
         }
         return x;
     }
@@ -1122,8 +1121,7 @@ export default class UIManager {
         let currentX = 40; // offset for labels column
         let foundIndex = 0;
         for (let i = 0; i < this.core.doc.frames.length; i++) {
-            const hC = this.core.doc.frames[i].holdCount || 1;
-            const fw = (44 * hC + 8 * (hC - 1)) + 8;
+            const fw = 44 + 8;
             if (currentX + fw / 2 > targetX) {
                 foundIndex = i;
                 break;
@@ -1347,13 +1345,14 @@ export default class UIManager {
             square.dataset.frameIndex = idx; 
             square.classList.toggle('active', idx === this.core.doc.currentFrameIndex);
             
-            const hCount = frame.holdCount || 1;
-            square.style.width = (44 * hCount + 8 * (hCount - 1)) + 'px';
+            square.style.width = '44px';
+            square.style.height = (layerCount * 48 - 4) + 'px'; // 44px + 4px gap per layer
             
             let thumbContainers = Array.from(square.children).filter(el => el.classList.contains('layer-thumb-container'));
             while (thumbContainers.length < layerCount) {
                 const c = document.createElement('div');
                 c.className = 'layer-thumb-container';
+                c.style.position = 'absolute';
                 c.addEventListener('pointerdown', () => {
                     this.events.emit('core:selectLayer', parseInt(c.dataset.layerIndex, 10));
                 });
@@ -1377,6 +1376,10 @@ export default class UIManager {
                 
                 const targetWContainer = (44 * lHCount + 8 * (lHCount - 1));
                 container.style.width = targetWContainer + 'px';
+                container.style.position = 'absolute';
+                container.style.top = (i * 48) + 'px';
+                container.style.left = '0';
+                container.style.zIndex = lHCount > 1 ? '5' : '1';
                 
                 // Clear any existing plus buttons in this container
                 let existingPlus = container.querySelector('.add-frame-timeline-btn');
@@ -1419,7 +1422,7 @@ export default class UIManager {
                     holdHandle.className = 'layer-hold-handle';
                     container.appendChild(holdHandle);
                     
-                    let holdDragTimer, isDraggingHold = false, holdStartX, startHoldCount;
+                    let isDraggingHold = false, holdStartX, startHoldCount;
 
                     holdHandle.addEventListener('pointerdown', (e) => {
                         if (this.core.playback.isPlaying || this.core.state.isSpriteSheetView) return;
@@ -1428,34 +1431,23 @@ export default class UIManager {
                         holdStartX = e.clientX;
                         const currentIndex = parseInt(square.dataset.frameIndex, 10);
                         startHoldCount = this.core.doc.frames[currentIndex].layers[i].holdCount || 1;
-                        isDraggingHold = false;
+                        isDraggingHold = true;
                         
-                        holdDragTimer = setTimeout(() => {
-                            isDraggingHold = true;
-                            if (navigator.vibrate) navigator.vibrate(40);
-                            holdHandle.classList.add('dragging');
-                            try { holdHandle.setPointerCapture(e.pointerId); } catch(err) {}
-                        }, window.longPressTimer || 400);
+                        if (navigator.vibrate) navigator.vibrate(40);
+                        holdHandle.classList.add('dragging');
+                        try { holdHandle.setPointerCapture(e.pointerId); } catch(err) {}
                         
                         const onHoldMove = (em) => {
-                            if (!isDraggingHold) {
-                                if (Math.abs(em.clientX - holdStartX) > 5) {
-                                    clearTimeout(holdDragTimer);
-                                }
-                                return;
-                            }
+                            if (!isDraggingHold) return;
                             const dx = em.clientX - holdStartX;
                             const addedHolds = Math.round(dx / 52); 
                             let newHold = Math.max(1, startHoldCount + addedHolds);
                             
                             const lWidth = (44 * newHold + 8 * (newHold - 1));
                             container.style.width = lWidth + 'px';
-                            const tempMaxHold = Math.max(newHold, this.core.doc.frames[currentIndex].holdCount);
-                            square.style.width = (44 * tempMaxHold + 8 * (tempMaxHold - 1)) + 'px';
                         };
                         
                         const onHoldUp = (eu) => {
-                            clearTimeout(holdDragTimer);
                             holdHandle.classList.remove('dragging');
                             try { holdHandle.releasePointerCapture(eu.pointerId); } catch(err) {}
                             
@@ -1470,7 +1462,17 @@ export default class UIManager {
                                 let newHold = Math.max(1, startHoldCount + addedHolds);
                                 
                                 if (newHold !== this.core.doc.frames[currentIndex].layers[i].holdCount) {
+                                    const diff = newHold - this.core.doc.frames[currentIndex].layers[i].holdCount;
                                     this.core.doc.frames[currentIndex].layers[i].holdCount = newHold;
+                                    
+                                    if (diff > 0) {
+                                        this.core.doc.insertLayerFrameGap(i, currentIndex + 1, diff);
+                                    } else {
+                                        for (let step = 0; step < -diff; step++) {
+                                            this.core.doc.deleteLayerFrame(i, currentIndex + 1);
+                                        }
+                                    }
+                                    
                                     this.updateTimelineUI(); 
                                     this.events.emit('core:saveState');
                                 } else {

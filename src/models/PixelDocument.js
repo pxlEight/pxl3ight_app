@@ -118,6 +118,39 @@ export default class PixelDocument {
         }
         this.events.emit('frameChanged');
     }
+    insertLayerFrameGap(layerIdx, frameIdx, count) {
+        // Make sure there are enough global frames to shift into
+        let lastValid = -1;
+        for (let i = 0; i < this.frames.length; i++) {
+            if (!this.frames[i].layers[layerIdx].isDeleted) lastValid = i;
+        }
+        const needed = (lastValid + count) - (this.frames.length - 1);
+        for (let step = 0; step < needed; step++) {
+            const frame = new PixelFrame(this.width, this.height, 0);
+            frame.layers = this.activeFrame.layers.map((l, idx) => {
+                const nl = new PixelLayer(this.width, this.height);
+                nl.opacity = l.opacity;
+                nl.visible = l.visible;
+                nl.locked = l.locked;
+                nl.isDeleted = true; // all new frames are deleted by default
+                return nl;
+            });
+            this.frames.push(frame);
+        }
+        
+        // Shift all layer frames right from frameIdx to make a gap
+        for (let k = this.frames.length - 1; k >= frameIdx + count; k--) {
+            this.frames[k].layers[layerIdx] = this.frames[k - count].layers[layerIdx];
+        }
+        
+        // Mark the gap as deleted
+        for (let k = frameIdx; k < frameIdx + count; k++) {
+            const clone = this.frames[k].layers[layerIdx].clone();
+            clone.isDeleted = true;
+            this.frames[k].layers[layerIdx] = clone;
+        }
+        this.events.emit('frameChanged');
+    }
     deleteFrame(index) { 
         if (this.frames.length <= 1) return; 
         this.frames.splice(index, 1); 

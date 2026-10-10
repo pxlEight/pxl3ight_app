@@ -32,16 +32,6 @@ export default class PlaybackController {
     _startPlaybackLoop() {
         this._stopPlaybackLoop();
         this.playInterval = setInterval(() => {
-            const currentFrame = this.core.doc.frames[this.core.doc.currentFrameIndex];
-            const hCount = currentFrame.holdCount || 1;
-            
-            if (this.currentHoldTick < hCount - 1) {
-                this.currentHoldTick++;
-                return;
-            }
-            
-            this.currentHoldTick = 0;
-            
             let nextIndex = this.core.doc.currentFrameIndex + this.playDirection;
             const len = this.core.doc.frames.length;
             
@@ -116,37 +106,58 @@ export default class PlaybackController {
             let fIdx = curIdx - i;
             if (fIdx < 0) continue;
             let alpha = Math.max(0, 1.0 - 0.15 * (i - 1));
-            this._drawFrameToOnion(frames[fIdx], alpha, '#ff0000');
+            this._drawFrameToOnion(fIdx, alpha, '#ff0000');
         }
 
         for (let i = this.onionFramesAfter; i >= 1; i--) {
             let fIdx = curIdx + i;
             if (fIdx >= frames.length) continue;
             let alpha = Math.max(0, 1.0 - 0.15 * (i - 1));
-            this._drawFrameToOnion(frames[fIdx], alpha, '#00ff00');
+            this._drawFrameToOnion(fIdx, alpha, '#00ff00');
         }
     }
     
-    _drawFrameToOnion(frame, baseAlpha, tint = null) {
+    _drawFrameToOnion(frameIndex, baseAlpha, tint = null) {
+        const frame = this.core.doc.frames[frameIndex];
+        if (!frame) return;
+        
+        const getLayerToDraw = (i) => {
+            let layerToDraw = frame.layers[i];
+            if (layerToDraw.isDeleted) {
+                for (let k = frameIndex - 1; k >= 0; k--) {
+                    const prevLayer = this.core.doc.frames[k].layers[i];
+                    if (!prevLayer.isDeleted) {
+                        if (k + (prevLayer.holdCount || 1) > frameIndex) {
+                            layerToDraw = prevLayer;
+                        }
+                        break;
+                    }
+                }
+            }
+            return layerToDraw;
+        };
+        
         if (!tint) {
-            frame.layers.forEach(l => { 
-                if (l.visible && !l.isDeleted) { 
+            for (let i = 0; i < frame.layers.length; i++) {
+                const l = getLayerToDraw(i);
+                if (l && l.visible && !l.isDeleted) { 
                     this.core.onionCtx.globalAlpha = l.opacity * baseAlpha; 
                     this.core.onionCtx.drawImage(l.canvas, 0, 0); 
                 } 
-            }); 
+            }
         } else {
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = this.core.doc.width;
             tempCanvas.height = this.core.doc.height;
             const tCtx = tempCanvas.getContext('2d');
             
-            frame.layers.forEach(l => { 
-                if (l.visible && !l.isDeleted) { 
+            for (let i = 0; i < frame.layers.length; i++) {
+                const l = getLayerToDraw(i);
+                if (l && l.visible && !l.isDeleted) { 
                     tCtx.globalAlpha = l.opacity; 
                     tCtx.drawImage(l.canvas, 0, 0); 
                 } 
-            });
+            }
             
             tCtx.globalCompositeOperation = 'source-in';
             tCtx.fillStyle = tint;

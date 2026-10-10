@@ -47,6 +47,7 @@ export default class StorageManager {
                         opacity: layer.opacity,
                         locked: layer.locked,
                         isDeleted: layer.isDeleted || false,
+                        holdCount: layer.holdCount || 1,
                         buffer: imgData.data.buffer
                     };
                 })

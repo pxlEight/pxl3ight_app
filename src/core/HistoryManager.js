@@ -101,13 +101,13 @@ export default class HistoryManager {
                         } 
                     }
                     if (prevLayerState && prevLayerState._rev === l._rev) {
-                        return { _id: l._id, _rev: l._rev, canvasData: prevLayerState.canvasData, visible: l.visible, opacity: l.opacity, locked: l.locked, isDeleted: l.isDeleted || false };
+                        return { _id: l._id, _rev: l._rev, canvasData: prevLayerState.canvasData, visible: l.visible, opacity: l.opacity, locked: l.locked, isDeleted: l.isDeleted || false, holdCount: l.holdCount || 1 };
                     }
                     const cloneCanvas = document.createElement('canvas'); 
                     cloneCanvas.width = l.canvas.width; 
                     cloneCanvas.height = l.canvas.height; 
                     cloneCanvas.getContext('2d').drawImage(l.canvas, 0, 0);
-                    return { _id: l._id, _rev: l._rev, canvasData: cloneCanvas, visible: l.visible, opacity: l.opacity, locked: l.locked, isDeleted: l.isDeleted || false };
+                    return { _id: l._id, _rev: l._rev, canvasData: cloneCanvas, visible: l.visible, opacity: l.opacity, locked: l.locked, isDeleted: l.isDeleted || false, holdCount: l.holdCount || 1 };
                 })
             })),
             currentFrameIndex: doc.currentFrameIndex, 

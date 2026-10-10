@@ -321,6 +321,7 @@ export default class PixelEditor {
                 layer.opacity = l.opacity; 
                 layer.locked = l.locked; 
                 layer.isDeleted = l.isDeleted || false;
+                layer.holdCount = l.holdCount || 1;
                 layer._id = l._id; 
                 layer._rev = l._rev; 
                 return layer;
@@ -417,6 +418,7 @@ export default class PixelEditor {
                 nl.opacity = layerData.opacity; 
                 nl.locked = layerData.locked !== undefined ? layerData.locked : false; 
                 nl.isDeleted = layerData.isDeleted || false;
+                nl.holdCount = layerData.holdCount || 1;
                 
                 const imgData = new ImageData(new Uint8ClampedArray(layerData.buffer), resW, resH);
                 nl.ctx.putImageData(imgData, 0, 0);
@@ -538,6 +540,7 @@ export default class PixelEditor {
                         nl.opacity = layerData.opacity; 
                         nl.locked = layerData.locked !== undefined ? layerData.locked : false; 
                         nl.isDeleted = layerData.isDeleted || false;
+                        nl.holdCount = layerData.holdCount || 1;
                         newFrame.layers.push(nl);
                         
                         const promise = new Promise((resolve) => { 
@@ -588,6 +591,7 @@ export default class PixelEditor {
                     opacity: layer.opacity, 
                     locked: layer.locked, 
                     isDeleted: layer.isDeleted || false,
+                    holdCount: layer.holdCount || 1,
                     data: layer.canvas.toDataURL('image/png') 
                 })) 
             }))
@@ -805,14 +809,26 @@ export default class PixelEditor {
                     exportCanvas.width = this.doc.width; 
                     exportCanvas.height = this.doc.height;
                     const eCtx = exportCanvas.getContext('2d'); 
-                    f.layers.forEach(l => { 
-                        if (l.visible) { eCtx.globalAlpha = l.opacity; eCtx.drawImage(l.canvas, 0, 0); } 
-                    });
                     
-                    const hC = f.holdCount || 1;
-                    for (let h = 0; h < hC; h++) {
-                        framesToExport.push({ index: framesToExport.length + 1, canvas: exportCanvas });
+                    for (let li = 0; li < f.layers.length; li++) {
+                        let layerToDraw = f.layers[li];
+                        if (layerToDraw.isDeleted) {
+                            for (let k = i - 1; k >= 0; k--) {
+                                const prevLayer = this.doc.frames[k].layers[li];
+                                if (!prevLayer.isDeleted) {
+                                    if (k + (prevLayer.holdCount || 1) > i) {
+                                        layerToDraw = prevLayer;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        if (layerToDraw && layerToDraw.visible && !layerToDraw.isDeleted) { 
+                            eCtx.globalAlpha = layerToDraw.opacity; 
+                            eCtx.drawImage(layerToDraw.canvas, 0, 0); 
+                        }
                     }
+                    framesToExport.push({ index: framesToExport.length + 1, canvas: exportCanvas });
                 }
                 
                 const getBlobs = () => Promise.all(framesToExport.map(fd => new Promise(res => {
@@ -1020,12 +1036,25 @@ export default class PixelEditor {
                 if (idx >= 16) return; 
                 const col = idx % 4;
                 const row = Math.floor(idx / 4);
-                frame.layers.forEach(l => { 
-                    if (l.visible) { 
-                        this.spriteSheetCtx.globalAlpha = l.opacity; 
-                        this.spriteSheetCtx.drawImage(l.canvas, col * this.doc.width, row * this.doc.height); 
+                
+                for (let i = 0; i < frame.layers.length; i++) {
+                    let layerToDraw = frame.layers[i];
+                    if (layerToDraw.isDeleted) {
+                        for (let k = idx - 1; k >= 0; k--) {
+                            const prevLayer = this.doc.frames[k].layers[i];
+                            if (!prevLayer.isDeleted) {
+                                if (k + (prevLayer.holdCount || 1) > idx) {
+                                    layerToDraw = prevLayer;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    if (layerToDraw && layerToDraw.visible && !layerToDraw.isDeleted) {
+                        this.spriteSheetCtx.globalAlpha = layerToDraw.opacity; 
+                        this.spriteSheetCtx.drawImage(layerToDraw.canvas, col * this.doc.width, row * this.doc.height); 
                     } 
-                });
+                }
             });
             this.spriteSheetCtx.globalAlpha = 1.0;
             
