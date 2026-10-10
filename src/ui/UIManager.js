@@ -543,7 +543,7 @@ export default class UIManager {
                 case 'toggleTimeline': 
                     const tw = document.getElementById('widget-timeline'); 
                     tw.classList.toggle('collapsed'); 
-                    document.getElementById('handle-timeline').innerText = tw.classList.contains('collapsed') ? 'TIMELINE ?' : 'TIMELINE ?'; 
+                    document.getElementById('handle-timeline').innerText = tw.classList.contains('collapsed') ? 'TIMELINE ▲' : 'TIMELINE ▼'; 
                     break;
                 case 'toggleSpriteSheetView': 
                     this.events.emit('core:toggleSpriteSheetView'); 
