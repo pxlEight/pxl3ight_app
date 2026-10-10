@@ -23,7 +23,7 @@ export default class Renderer {
         if (!frame) return;
         
         frame.layers.forEach(layer => { 
-            if (layer.visible) { 
+            if (layer.visible && !layer.isDeleted) { 
                 this.targetCtx.globalAlpha = layer.opacity; 
                 this.targetCtx.drawImage(layer.canvas, 0, 0); 
             } 

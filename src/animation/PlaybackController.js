@@ -130,7 +130,7 @@ export default class PlaybackController {
     _drawFrameToOnion(frame, baseAlpha, tint = null) {
         if (!tint) {
             frame.layers.forEach(l => { 
-                if (l.visible) { 
+                if (l.visible && !l.isDeleted) { 
                     this.core.onionCtx.globalAlpha = l.opacity * baseAlpha; 
                     this.core.onionCtx.drawImage(l.canvas, 0, 0); 
                 } 
@@ -142,7 +142,7 @@ export default class PlaybackController {
             const tCtx = tempCanvas.getContext('2d');
             
             frame.layers.forEach(l => { 
-                if (l.visible) { 
+                if (l.visible && !l.isDeleted) { 
                     tCtx.globalAlpha = l.opacity; 
                     tCtx.drawImage(l.canvas, 0, 0); 
                 } 

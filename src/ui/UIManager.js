@@ -559,11 +559,11 @@ export default class UIManager {
                     break;
                 case 'copyContextFrame': 
                     this.closeAllMenus(); 
-                    this.events.emit('core:copyContextFrame'); 
+                    this.events.emit('core:copyLayerFrame', this.contextMenuLayerIndex, this.contextMenuFrameIndex); 
                     break;
                 case 'deleteContextFrame': 
                     this.closeAllMenus(); 
-                    this.events.emit('core:deleteContextFrame'); 
+                    this.events.emit('core:deleteLayerFrame', this.contextMenuLayerIndex, this.contextMenuFrameIndex); 
                     break;
                 case 'toggleActiveLayerVisibility': 
                     this.events.emit('core:toggleActiveLayerVisibility'); 
@@ -1225,6 +1225,7 @@ export default class UIManager {
             } else if (longPressed) {
                 this.closeAllMenus(); 
                 this.contextMenuFrameIndex = currentIndex;
+                this.contextMenuLayerIndex = this.core.doc.activeLayerIndex;
                 
                 const menu = document.getElementById('frameMenu'); 
                 menu.style.display = 'flex';
@@ -1377,7 +1378,42 @@ export default class UIManager {
                 const targetWContainer = (44 * lHCount + 8 * (lHCount - 1));
                 container.style.width = targetWContainer + 'px';
                 
+                // Clear any existing plus buttons in this container
+                let existingPlus = container.querySelector('.add-frame-timeline-btn');
+                if (existingPlus) container.removeChild(existingPlus);
+                
                 let holdHandle = container.querySelector('.layer-hold-handle');
+                const thumbCanvas = container.querySelector('canvas');
+                
+                if (layer && layer.isDeleted) {
+                    thumbCanvas.style.display = 'none';
+                    if (holdHandle) holdHandle.style.display = 'none';
+                    container.style.background = 'transparent';
+                    container.style.border = 'none';
+                    container.style.pointerEvents = 'none';
+                    
+                    // Is this the first deleted frame for this layer?
+                    const firstDeletedIdx = this.core.doc.frames.findIndex(f => f.layers[i].isDeleted);
+                    if (idx === firstDeletedIdx) {
+                        const addBtn = document.createElement('button');
+                        addBtn.className = 'add-frame-timeline-btn stop-propagation';
+                        addBtn.title = 'Add Frame';
+                        addBtn.innerText = '➕';
+                        addBtn.style.pointerEvents = 'auto';
+                        addBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            this.events.emit('core:addLayerFrame', i);
+                        };
+                        container.appendChild(addBtn);
+                    }
+                    continue; // Skip the rest of the drawing for deleted layers
+                } else {
+                    thumbCanvas.style.display = 'block';
+                    container.style.background = '';
+                    container.style.border = '';
+                    container.style.pointerEvents = 'auto';
+                }
+                
                 if (!holdHandle) {
                     holdHandle = document.createElement('div');
                     holdHandle.className = 'layer-hold-handle';
@@ -1453,7 +1489,6 @@ export default class UIManager {
                     holdHandle.style.display = (i === this.core.doc.activeLayerIndex) ? 'block' : 'none';
                 }
                 
-                const thumbCanvas = container.querySelector('canvas');
                 const targetW = this.core.doc.width * lHCount;
                 if (thumbCanvas.width !== targetW) thumbCanvas.width = targetW;
                 if (thumbCanvas.height !== this.core.doc.height) thumbCanvas.height = this.core.doc.height;
@@ -1476,6 +1511,49 @@ export default class UIManager {
                 }
             }
         });
+
+        // Add the end column for plus buttons
+        let addColumn = strip.querySelector('.add-frame-column');
+        if (!addColumn) {
+            addColumn = document.createElement('div');
+            addColumn.className = 'add-frame-column';
+            addColumn.style.display = 'flex';
+            addColumn.style.flexDirection = 'column';
+            addColumn.style.gap = '8px';
+            addColumn.style.marginLeft = '8px';
+            strip.appendChild(addColumn);
+        } else {
+            strip.appendChild(addColumn); // ensure it's at the end
+        }
+        
+        while (addColumn.children.length < layerCount) {
+            const btnContainer = document.createElement('div');
+            btnContainer.style.height = '44px';
+            btnContainer.style.width = '44px';
+            addColumn.appendChild(btnContainer);
+        }
+        while (addColumn.children.length > layerCount) {
+            addColumn.removeChild(addColumn.lastChild);
+        }
+        
+        for (let i = 0; i < layerCount; i++) {
+            const btnContainer = addColumn.children[i];
+            btnContainer.innerHTML = ''; // clear
+            
+            // Check if this layer has any deleted frames
+            const hasDeleted = this.core.doc.frames.some(f => f.layers[i].isDeleted);
+            if (!hasDeleted) {
+                const addBtn = document.createElement('button');
+                addBtn.className = 'add-frame-timeline-btn stop-propagation';
+                addBtn.title = 'Add Frame';
+                addBtn.innerText = '➕';
+                addBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.events.emit('core:addLayerFrame', i);
+                };
+                btnContainer.appendChild(addBtn);
+            }
+        }
     }
 
     // scrubber removed

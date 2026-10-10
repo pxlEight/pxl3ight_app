@@ -46,6 +46,7 @@ export default class StorageManager {
                         visible: layer.visible,
                         opacity: layer.opacity,
                         locked: layer.locked,
+                        isDeleted: layer.isDeleted || false,
                         buffer: imgData.data.buffer
                     };
                 })

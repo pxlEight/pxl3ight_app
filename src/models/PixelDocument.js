@@ -68,6 +68,56 @@ export default class PixelDocument {
         this.currentFrameIndex = this.frames.length - 1; 
         this.events.emit('frameChanged');
     }
+    addLayerFrame(layerIdx) {
+        let lastValid = -1;
+        for (let i = 0; i < this.frames.length; i++) {
+            if (!this.frames[i].layers[layerIdx].isDeleted) lastValid = i;
+        }
+        if (lastValid === this.frames.length - 1) {
+            // Need a new global frame
+            const frame = new PixelFrame(this.width, this.height, 0);
+            frame.layers = this.activeFrame.layers.map((l, idx) => {
+                const nl = new PixelLayer(this.width, this.height);
+                nl.opacity = l.opacity;
+                nl.visible = l.visible;
+                nl.locked = l.locked;
+                if (idx !== layerIdx) nl.isDeleted = true;
+                return nl;
+            });
+            this.frames.push(frame);
+        } else {
+            // Un-delete the next frame for this layer
+            const nl = new PixelLayer(this.width, this.height);
+            const ref = this.activeFrame.layers[layerIdx];
+            nl.opacity = ref.opacity;
+            nl.visible = ref.visible;
+            nl.locked = ref.locked;
+            nl.isDeleted = false;
+            this.frames[lastValid + 1].layers[layerIdx] = nl;
+        }
+        this.events.emit('frameChanged');
+    }
+    deleteLayerFrame(layerIdx, frameIdx) {
+        // Shift all subsequent layer frames left
+        for (let k = frameIdx; k < this.frames.length - 1; k++) {
+            this.frames[k].layers[layerIdx] = this.frames[k+1].layers[layerIdx];
+        }
+        this.frames[this.frames.length - 1].layers[layerIdx].isDeleted = true;
+        
+        // Trim empty global frames from the end
+        while (this.frames.length > 1) {
+            const lastFrame = this.frames[this.frames.length - 1];
+            if (lastFrame.layers.every(l => l.isDeleted)) {
+                this.frames.pop();
+            } else {
+                break;
+            }
+        }
+        if (this.currentFrameIndex >= this.frames.length) {
+            this.currentFrameIndex = this.frames.length - 1;
+        }
+        this.events.emit('frameChanged');
+    }
     deleteFrame(index) { 
         if (this.frames.length <= 1) return; 
         this.frames.splice(index, 1); 
@@ -75,6 +125,40 @@ export default class PixelDocument {
             this.currentFrameIndex = this.frames.length - 1; 
         }
         this.events.emit('frameChanged'); 
+    }
+    copyLayerFrame(layerIdx, frameIdx) {
+        if (frameIdx < 0 || frameIdx >= this.frames.length) return;
+        
+        let lastValid = -1;
+        for (let i = 0; i < this.frames.length; i++) {
+            if (!this.frames[i].layers[layerIdx].isDeleted) lastValid = i;
+        }
+        
+        if (lastValid === this.frames.length - 1) {
+            // Need a new global frame
+            const frame = new PixelFrame(this.width, this.height, 0);
+            frame.layers = this.activeFrame.layers.map((l, idx) => {
+                const nl = new PixelLayer(this.width, this.height);
+                nl.opacity = l.opacity;
+                nl.visible = l.visible;
+                nl.locked = l.locked;
+                if (idx !== layerIdx) nl.isDeleted = true;
+                return nl;
+            });
+            this.frames.push(frame);
+        }
+        
+        // Shift all frames right from frameIdx + 1
+        for (let k = this.frames.length - 1; k > frameIdx + 1; k--) {
+            this.frames[k].layers[layerIdx] = this.frames[k-1].layers[layerIdx];
+        }
+        
+        // Insert clone at frameIdx + 1
+        const clone = this.frames[frameIdx].layers[layerIdx].clone();
+        clone.isDeleted = false;
+        this.frames[frameIdx + 1].layers[layerIdx] = clone;
+        
+        this.events.emit('frameChanged');
     }
     copyFrame(index) { 
         const clone = this.frames[index].clone(); 

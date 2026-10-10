@@ -1,4 +1,4 @@
-﻿import EventBus from './core/EventBus.js';
+import EventBus from './core/EventBus.js';
 import AppConfig from './core/AppConfig.js';
 import HistoryManager from './core/HistoryManager.js';
 import StorageManager from './core/StorageManager.js';
@@ -141,10 +141,25 @@ export default class PixelEditor {
             this.doc.copyFrame(this.ui.contextMenuFrameIndex); 
             this.saveState(); 
         });
+        this.events.on('core:copyLayerFrame', (layerIdx, frameIdx) => {
+            this.selection.anchor();
+            this.doc.copyLayerFrame(layerIdx, frameIdx);
+            this.saveState();
+        });
         this.events.on('core:deleteContextFrame', () => { 
             this.selection.anchor(); 
             this.doc.deleteFrame(this.ui.contextMenuFrameIndex); 
             this.saveState(); 
+        });
+        this.events.on('core:addLayerFrame', (layerIdx) => {
+            this.selection.anchor();
+            this.doc.addLayerFrame(layerIdx);
+            this.saveState();
+        });
+        this.events.on('core:deleteLayerFrame', (layerIdx, frameIdx) => {
+            this.selection.anchor();
+            this.doc.deleteLayerFrame(layerIdx, frameIdx);
+            this.saveState();
         });
         this.events.on('core:switchFrame', (index) => this.switchFrame(index));
         
@@ -305,6 +320,7 @@ export default class PixelEditor {
                 layer.visible = l.visible; 
                 layer.opacity = l.opacity; 
                 layer.locked = l.locked; 
+                layer.isDeleted = l.isDeleted || false;
                 layer._id = l._id; 
                 layer._rev = l._rev; 
                 return layer;
@@ -400,6 +416,7 @@ export default class PixelEditor {
                 nl.visible = layerData.visible; 
                 nl.opacity = layerData.opacity; 
                 nl.locked = layerData.locked !== undefined ? layerData.locked : false; 
+                nl.isDeleted = layerData.isDeleted || false;
                 
                 const imgData = new ImageData(new Uint8ClampedArray(layerData.buffer), resW, resH);
                 nl.ctx.putImageData(imgData, 0, 0);
@@ -520,6 +537,7 @@ export default class PixelEditor {
                         nl.visible = layerData.visible; 
                         nl.opacity = layerData.opacity; 
                         nl.locked = layerData.locked !== undefined ? layerData.locked : false; 
+                        nl.isDeleted = layerData.isDeleted || false;
                         newFrame.layers.push(nl);
                         
                         const promise = new Promise((resolve) => { 
@@ -569,6 +587,7 @@ export default class PixelEditor {
                     visible: layer.visible, 
                     opacity: layer.opacity, 
                     locked: layer.locked, 
+                    isDeleted: layer.isDeleted || false,
                     data: layer.canvas.toDataURL('image/png') 
                 })) 
             }))
