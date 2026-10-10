@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js?cb=103';
-import { CONSTANTS } from '../core/Constants.js?cb=103';
+import BaseTool from './BaseTool.js?cb=104';
+import { CONSTANTS } from '../core/Constants.js?cb=104';
 
 export default class DropperTool extends BaseTool {
     constructor(context) { super(context); this.isDrawing = false; }

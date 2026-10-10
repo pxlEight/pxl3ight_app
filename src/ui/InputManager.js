@@ -1,4 +1,4 @@
-import { CONSTANTS } from '../core/Constants.js?cb=103';
+import { CONSTANTS } from '../core/Constants.js?cb=104';
 
 export default class InputManager {
     constructor(containerElement, core) {

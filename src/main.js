@@ -1,4 +1,4 @@
-import PixelEditor from './PixelEditor.js?cb=103';
+import PixelEditor from './PixelEditor.js?cb=104';
 
 document.addEventListener('DOMContentLoaded', () => {
     window.defaultLongPressTimer = 450;
