@@ -1,5 +1,5 @@
-import PixelLayer from './PixelLayer.js?cb=111';
-import PixelFrame from './PixelFrame.js?cb=111';
+import PixelLayer from './PixelLayer.js?cb=114';
+import PixelFrame from './PixelFrame.js?cb=114';
 
 export default class PixelDocument {
     constructor(w, h, events) { 
@@ -23,7 +23,10 @@ export default class PixelDocument {
     }
     deleteLayer() { 
         if (this.activeFrame.layers.length <= 1) return; 
-        this.frames.forEach(f => f.layers.splice(this.activeLayerIndex, 1)); 
+        this.frames.forEach(f => {
+            const removed = f.layers.splice(this.activeLayerIndex, 1)[0];
+            if (removed && typeof removed.destroy === 'function') removed.destroy();
+        }); 
         this.activeLayerIndex = Math.min(this.activeLayerIndex, this.activeFrame.layers.length - 1); 
         this.events.emit('layerChanged'); 
     }
@@ -46,7 +49,8 @@ export default class PixelDocument {
                 bottom.ctx.globalAlpha = 1.0; 
                 bottom.markModified(); 
             }
-            f.layers.splice(this.activeLayerIndex, 1);
+            const removed = f.layers.splice(this.activeLayerIndex, 1)[0];
+            if (removed && typeof removed.destroy === 'function') removed.destroy();
         });
         this.events.emit('layerChanged'); 
         this.events.emit('frameChanged'); 
@@ -112,7 +116,12 @@ export default class PixelDocument {
         while (this.frames.length > 1) {
             const lastFrame = this.frames[this.frames.length - 1];
             if (lastFrame.layers.every(l => l.isDeleted)) {
-                this.frames.pop();
+                const removedFrame = this.frames.pop();
+                if (removedFrame && removedFrame.layers) {
+                    removedFrame.layers.forEach(l => {
+                        if (l && typeof l.destroy === 'function') l.destroy();
+                    });
+                }
             } else {
                 break;
             }
@@ -162,7 +171,12 @@ export default class PixelDocument {
     }
     deleteFrame(index) { 
         if (this.frames.length <= 1) return; 
-        this.frames.splice(index, 1); 
+        const removedFrame = this.frames.splice(index, 1)[0]; 
+        if (removedFrame && removedFrame.layers) {
+            removedFrame.layers.forEach(l => {
+                if (l && typeof l.destroy === 'function') l.destroy();
+            });
+        }
         if (this.currentFrameIndex >= this.frames.length) {
             this.currentFrameIndex = this.frames.length - 1; 
         }

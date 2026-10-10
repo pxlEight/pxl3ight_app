@@ -6,6 +6,10 @@
     --accent: #4a90e2;
 }
 
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
 html {
     overscroll-behavior: none;
 }
@@ -197,6 +201,7 @@ main {
     top: 0;
     left: 0;
     display: none;
+    transform: translateZ(0);
 }
 
 #bgCanvas {

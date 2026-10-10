@@ -51,4 +51,13 @@ export default class PixelLayer {
     markModified() { 
         this._rev++; 
     }
+
+    destroy() {
+        if (this._canvas) {
+            this._canvas.width = 0;
+            this._canvas.height = 0;
+            this._canvas = null;
+            this._ctx = null;
+        }
+    }
 }

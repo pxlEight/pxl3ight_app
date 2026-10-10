@@ -1,4 +1,4 @@
-import { CONSTANTS } from '../core/Constants.js?cb=111';
+import { CONSTANTS } from '../core/Constants.js?cb=114';
 
 export default class SelectionManager {
     constructor(core) {
