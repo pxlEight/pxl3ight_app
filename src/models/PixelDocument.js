@@ -1,5 +1,5 @@
-import PixelLayer from './PixelLayer.js?cb=118';
-import PixelFrame from './PixelFrame.js?cb=118';
+import PixelLayer from './PixelLayer.js?cb=119';
+import PixelFrame from './PixelFrame.js?cb=119';
 
 export default class PixelDocument {
     constructor(w, h, events) { 
@@ -114,8 +114,27 @@ export default class PixelDocument {
         
         // Trim empty global frames from the end
         while (this.frames.length > 1) {
-            const lastFrame = this.frames[this.frames.length - 1];
-            if (lastFrame.layers.every(l => l.isDeleted)) {
+            const lastIdx = this.frames.length - 1;
+            const lastFrame = this.frames[lastIdx];
+            
+            let isCovered = false;
+            for (let i = 0; i < lastFrame.layers.length; i++) {
+                if (!lastFrame.layers[i].isDeleted) {
+                    isCovered = true;
+                    break;
+                }
+                for (let k = lastIdx - 1; k >= 0; k--) {
+                    if (!this.frames[k].layers[i].isDeleted) {
+                        if (k + (this.frames[k].layers[i].holdCount || 1) > lastIdx) {
+                            isCovered = true;
+                        }
+                        break;
+                    }
+                }
+                if (isCovered) break;
+            }
+            
+            if (!isCovered) {
                 const removedFrame = this.frames.pop();
                 if (removedFrame && removedFrame.layers) {
                     removedFrame.layers.forEach(l => {
@@ -132,17 +151,23 @@ export default class PixelDocument {
         this.events.emit('frameChanged');
     }
     insertLayerFrameGap(layerIdx, frameIdx, count) {
-        // Calculate the current absolute end index for this layer
-        let currentEndIdx = 0;
+        // Calculate the exact new maximum length required after shifting
+        let maxNeededIdx = 0;
         for (let i = 0; i < this.frames.length; i++) {
             if (!this.frames[i].layers[layerIdx].isDeleted) {
                 const hold = this.frames[i].layers[layerIdx].holdCount || 1;
-                if (i + hold > currentEndIdx) currentEndIdx = i + hold;
+                let newStart = i;
+                if (i >= frameIdx) {
+                    newStart = i + count;
+                }
+                if (newStart + hold > maxNeededIdx) {
+                    maxNeededIdx = newStart + hold;
+                }
             }
         }
         
-        // Ensure the document can accommodate the new gap
-        const needed = (currentEndIdx + count) - this.frames.length;
+        // Ensure the document can accommodate the new size
+        const needed = maxNeededIdx - this.frames.length;
         for (let step = 0; step < needed; step++) {
             const frame = new PixelFrame(this.width, this.height, 0);
             frame.layers = this.activeFrame.layers.map((l, idx) => {
