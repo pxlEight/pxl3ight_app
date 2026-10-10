@@ -1,4 +1,4 @@
-﻿import { CONSTANTS } from '../core/Constants.js';
+import { CONSTANTS } from '../core/Constants.js';
 import UIWidgetDragger from './UIWidgetDragger.js';
 import UIDragInteraction from './UIDragInteraction.js';
 import PaletteManager from './PaletteManager.js';
@@ -1278,7 +1278,35 @@ export default class UIManager {
         if (!labelsCol) {
             labelsCol = document.createElement('div');
             labelsCol.className = 'layer-labels-column';
+            labelsCol.style.touchAction = 'none';
             strip.insertBefore(labelsCol, strip.firstChild);
+
+            let isDraggingLabels = false;
+            let startY = 0;
+            let startScroll = 0;
+            const container = document.getElementById('timelineContainer');
+            labelsCol.addEventListener('pointerdown', (e) => {
+                isDraggingLabels = true;
+                startY = e.clientY;
+                startScroll = container.scrollTop;
+                try { labelsCol.setPointerCapture(e.pointerId); } catch(err) {}
+                e.preventDefault();
+            });
+            labelsCol.addEventListener('pointermove', (e) => {
+                if (!isDraggingLabels) return;
+                const dy = e.clientY - startY;
+                container.scrollTop = startScroll - dy;
+            });
+            const onUp = (e) => {
+                isDraggingLabels = false;
+                try { labelsCol.releasePointerCapture(e.pointerId); } catch(err) {}
+            };
+            labelsCol.addEventListener('pointerup', onUp);
+            labelsCol.addEventListener('pointercancel', onUp);
+            labelsCol.addEventListener('wheel', (e) => {
+                container.scrollTop += e.deltaY;
+                e.preventDefault();
+            }, { passive: false });
         }
         
         const layerCount = this.core.doc.activeFrame.layers.length;
@@ -1325,6 +1353,9 @@ export default class UIManager {
             while (thumbContainers.length < layerCount) {
                 const c = document.createElement('div');
                 c.className = 'layer-thumb-container';
+                c.addEventListener('pointerdown', () => {
+                    this.events.emit('core:selectLayer', parseInt(c.dataset.layerIndex, 10));
+                });
                 const cnv = document.createElement('canvas');
                 c.appendChild(cnv);
                 square.appendChild(c);
@@ -1337,6 +1368,7 @@ export default class UIManager {
             
             for (let i = 0; i < layerCount; i++) {
                 const container = thumbContainers[i];
+                container.dataset.layerIndex = i;
                 square.appendChild(container); // order correctly
                 
                 const layer = frame.layers[i];
@@ -1415,6 +1447,10 @@ export default class UIManager {
                         holdHandle.addEventListener('pointerup', onHoldUp);
                         holdHandle.addEventListener('pointercancel', onHoldUp);
                     });
+                }
+                
+                if (holdHandle) {
+                    holdHandle.style.display = (i === this.core.doc.activeLayerIndex) ? 'block' : 'none';
                 }
                 
                 const thumbCanvas = container.querySelector('canvas');

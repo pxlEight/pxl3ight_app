@@ -494,7 +494,7 @@ header {
 
 .timeline-controls { display: flex; gap: 6px; }
 .timeline-controls.right-controls { margin-left: 4px; }
-.timeline-strip-container { position: relative; flex: 1; height: 58px; overflow-y: auto; overflow-x: hidden; display: flex; align-items: flex-start; padding-top: 10px; padding-bottom: 10px; }
+.timeline-strip-container { position: relative; flex: 1; height: 58px; overflow-y: hidden; overflow-x: hidden; display: block; padding-top: 10px; padding-bottom: 10px; }
 
 .playhead-marker {
     position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
@@ -519,7 +519,7 @@ header {
 
 .frame-square { -webkit-user-select: none; -webkit-touch-callout: none; user-select: none;
     width: 44px; display: flex; flex-direction: column; gap: 4px;
-    cursor: pointer; flex-shrink: 0; align-items: center;
+    cursor: pointer; flex-shrink: 0; align-items: flex-start;
     justify-content: flex-start; position: relative;
     transition: transform 0.1s; touch-action: none;
 }
