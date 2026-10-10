@@ -1393,15 +1393,18 @@ export default class UIManager {
         if (!this.core.doc) return;
         const strip = document.getElementById('timelineStrip');
         
-        const isIndexEmptySpace = (layerIdx, frameIdx) => {
-            if (!this.core.doc.frames[frameIdx].layers[layerIdx].isDeleted) return false;
-            for (let k = frameIdx - 1; k >= 0; k--) {
-                const prevLayer = this.core.doc.frames[k].layers[layerIdx];
-                if (!prevLayer.isDeleted) {
-                    return (k + (prevLayer.holdCount || 1) <= frameIdx);
+        const getEndOfRangeIdx = (layerIdx) => {
+            let endIdx = 0;
+            for (let k = 0; k < this.core.doc.frames.length; k++) {
+                const layer = this.core.doc.frames[k].layers[layerIdx];
+                if (!layer.isDeleted) {
+                    const hold = layer.holdCount || 1;
+                    if (k + hold > endIdx) {
+                        endIdx = k + hold;
+                    }
                 }
             }
-            return true;
+            return endIdx;
         };
         
         let labelsCol = strip.querySelector('.layer-labels-column');
@@ -1526,9 +1529,9 @@ export default class UIManager {
                     container.style.border = 'none';
                     container.style.pointerEvents = 'none';
                     
-                    // Is this the first deleted frame for this layer?
-                    const firstEmptyIdx = this.core.doc.frames.findIndex((f, checkIdx) => isIndexEmptySpace(i, checkIdx));
-                    if (idx === firstEmptyIdx) {
+                    // Is this the end of the frame range for this layer?
+                    const endOfRangeIdx = getEndOfRangeIdx(i);
+                    if (idx === endOfRangeIdx && idx < this.core.doc.frames.length) {
                         const addBtn = document.createElement('button');
                         addBtn.className = 'add-frame-timeline-btn stop-propagation';
                         addBtn.title = 'Add Frame';
@@ -1689,9 +1692,9 @@ export default class UIManager {
             const btnContainer = addColumn.children[i];
             btnContainer.innerHTML = ''; // clear
             
-            // Check if this layer has any empty space (not covered by a hold)
-            const hasEmptySpace = this.core.doc.frames.some((f, fIdx) => isIndexEmptySpace(i, fIdx));
-            if (!hasEmptySpace) {
+            // Check if the end of the frame range is at or beyond the current document length
+            const endOfRangeIdx = getEndOfRangeIdx(i);
+            if (endOfRangeIdx >= this.core.doc.frames.length) {
                 const addBtn = document.createElement('button');
                 addBtn.className = 'add-frame-timeline-btn stop-propagation';
                 addBtn.title = 'Add Frame';
