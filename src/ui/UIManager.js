@@ -543,7 +543,7 @@ export default class UIManager {
                 case 'toggleTimeline': 
                     const tw = document.getElementById('widget-timeline'); 
                     tw.classList.toggle('collapsed'); 
-                    document.getElementById('handle-timeline').innerText = tw.classList.contains('collapsed') ? 'TIMELINE Ã¢â€“Â²' : 'TIMELINE Ã¢â€“Â¼'; 
+                    document.getElementById('handle-timeline').innerText = tw.classList.contains('collapsed') ? 'TIMELINE ▲' : 'TIMELINE ▼'; 
                     break;
                 case 'toggleSpriteSheetView': 
                     this.events.emit('core:toggleSpriteSheetView'); 
@@ -1454,6 +1454,7 @@ export default class UIManager {
                             const dx = em.clientX - holdStartX;
                             const addedHolds = Math.round(dx / 52); 
                             let newHold = Math.max(1, startHoldCount + addedHolds);
+                            if (isNaN(newHold) || newHold < 1) newHold = 1;
                             
                             const lWidth = (44 * newHold + 8 * (newHold - 1));
                             container.style.width = lWidth + 'px';
@@ -1479,20 +1480,28 @@ export default class UIManager {
                                 const addedHolds = Math.round(dx / 52); 
                                 let newHold = Math.max(1, startHoldCount + addedHolds);
                                 
-                                if (newHold !== this.core.doc.frames[currentIndex].layers[i].holdCount) {
-                                    const diff = newHold - this.core.doc.frames[currentIndex].layers[i].holdCount;
-                                    this.core.doc.frames[currentIndex].layers[i].holdCount = newHold;
-                                    
-                                    if (diff > 0) {
-                                        this.core.doc.insertLayerFrameGap(i, currentIndex + 1, diff);
-                                    } else {
-                                        for (let step = 0; step < -diff; step++) {
-                                            this.core.doc.deleteLayerFrame(i, currentIndex + 1);
-                                        }
+                                if (isNaN(newHold) || newHold < 1) newHold = 1;
+                                
+                                const currentHold = this.core.doc.frames[currentIndex].layers[i].holdCount || 1;
+                                if (newHold !== currentHold) {
+                                    const diff = newHold - currentHold;
+                                    let safeDiff = diff;
+                                    if (safeDiff < 0 && Math.abs(safeDiff) >= currentHold) {
+                                        safeDiff = -(currentHold - 1);
                                     }
                                     
+                                    if (safeDiff !== 0) {
+                                        this.core.doc.frames[currentIndex].layers[i].holdCount = currentHold + safeDiff;
+                                        if (safeDiff > 0) {
+                                            this.core.doc.insertLayerFrameGap(i, currentIndex + 1, safeDiff);
+                                        } else {
+                                            for (let step = 0; step < -safeDiff; step++) {
+                                                this.core.doc.deleteLayerFrame(i, currentIndex + 1);
+                                            }
+                                        }
+                                        this.events.emit('core:saveState');
+                                    }
                                     this.updateTimelineUI(); 
-                                    this.events.emit('core:saveState');
                                 } else {
                                     this.updateTimelineUI(); // reset visual width
                                 }
@@ -1901,6 +1910,7 @@ export default class UIManager {
         });
     }
 }
+
 
 
 
