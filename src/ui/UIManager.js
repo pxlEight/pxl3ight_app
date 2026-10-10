@@ -798,36 +798,6 @@ export default class UIManager {
                 });
             }
         });
-
-        const tlHandle = document.querySelector('#widget-timeline .widget-handle');
-        if (tlHandle) {
-            let isDraggingTL = false, startTL_Y = 0, startHeight = 0;
-            tlHandle.addEventListener('pointerdown', e => {
-                isDraggingTL = true;
-                startTL_Y = e.clientY;
-                const container = document.getElementById('timelineContainer');
-                startHeight = container.clientHeight;
-                try { tlHandle.setPointerCapture(e.pointerId); } catch(err) {}
-            });
-            tlHandle.addEventListener('pointermove', e => {
-                if (!isDraggingTL) return;
-                const dy = startTL_Y - e.clientY; 
-                const newHeight = startHeight + dy;
-                const raw_n = 1 + (newHeight - 58) / 48;
-                const n = Math.max(1, Math.round(raw_n));
-                
-                if (Math.abs(raw_n - n) < 0.3) {
-                    const snappedHeight = 58 + (n - 1) * 48;
-                    document.getElementById('timelineContainer').style.height = snappedHeight + 'px';
-                }
-            });
-            const onTLUp = e => {
-                isDraggingTL = false;
-                try { tlHandle.releasePointerCapture(e.pointerId); } catch(err) {}
-            };
-            tlHandle.addEventListener('pointerup', onTLUp);
-            tlHandle.addEventListener('pointercancel', onTLUp);
-        }
     }
 
     setTool(tool) {
@@ -1344,34 +1314,6 @@ export default class UIManager {
         while (labelsCol.children.length < layerCount) {
             const lbl = document.createElement('div');
             lbl.className = 'layer-label';
-            lbl.style.display = 'flex';
-            lbl.style.justifyContent = 'space-between';
-            lbl.style.alignItems = 'center';
-            lbl.style.padding = '0 4px';
-            
-            const txt = document.createElement('span');
-            lbl.appendChild(txt);
-            
-            const btn = document.createElement('button');
-            btn.innerText = '+';
-            btn.style.padding = '0 4px';
-            btn.style.fontSize = '12px';
-            btn.style.background = 'rgba(255,255,255,0.2)';
-            btn.style.border = 'none';
-            btn.style.color = 'white';
-            btn.style.borderRadius = '2px';
-            btn.style.cursor = 'pointer';
-            btn.addEventListener('pointerdown', e => e.stopPropagation());
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const idx = Array.from(labelsCol.children).indexOf(lbl);
-                const layer = this.core.doc.activeFrame.layers[idx];
-                layer.holdCount = (layer.holdCount || 1) + 1;
-                this.updateTimelineUI();
-                this.events.emit('core:saveState');
-            });
-            lbl.appendChild(btn);
-            
             labelsCol.appendChild(lbl);
         }
         while (labelsCol.children.length > layerCount) {
@@ -1380,13 +1322,8 @@ export default class UIManager {
         
         for (let i = 0; i < layerCount; i++) {
             const layerObj = this.core.doc.activeFrame.layers[i];
-            const lockStr = layerObj.locked ? `🔒` : '';
-            const txtSpan = labelsCol.children[i].querySelector('span');
-            if (txtSpan) {
-                txtSpan.innerText = layerObj.locked ? `${lockStr}${i + 1}` : `L${i + 1}`;
-            } else {
-                labelsCol.children[i].innerText = layerObj.locked ? `${lockStr}${i + 1}` : `L${i + 1}`;
-            }
+            const lockStr = layerObj.locked ? `??` : '';
+            labelsCol.children[i].innerText = layerObj.locked ? `${lockStr}${i + 1}` : `L${i + 1}`;
         }
         
         let frameSquares = Array.from(strip.children).filter(el => el.classList.contains('frame-square'));
@@ -1455,25 +1392,34 @@ export default class UIManager {
                         holdStartX = e.clientX;
                         const currentIndex = parseInt(square.dataset.frameIndex, 10);
                         startHoldCount = this.core.doc.frames[currentIndex].layers[i].holdCount || 1;
-                        isDraggingHold = true;
+                        isDraggingHold = false;
                         
-                        if (navigator.vibrate) navigator.vibrate(40);
-                        holdHandle.classList.add('dragging');
-                        try { holdHandle.setPointerCapture(e.pointerId); } catch(err) {}
+                        holdDragTimer = setTimeout(() => {
+                            isDraggingHold = true;
+                            if (navigator.vibrate) navigator.vibrate(40);
+                            holdHandle.classList.add('dragging');
+                            try { holdHandle.setPointerCapture(e.pointerId); } catch(err) {}
+                        }, window.longPressTimer || 400);
                         
                         const onHoldMove = (em) => {
-                            if (!isDraggingHold) return;
+                            if (!isDraggingHold) {
+                                if (Math.abs(em.clientX - holdStartX) > 5) {
+                                    clearTimeout(holdDragTimer);
+                                }
+                                return;
+                            }
                             const dx = em.clientX - holdStartX;
                             const addedHolds = Math.round(dx / 52); 
                             let newHold = Math.max(1, startHoldCount + addedHolds);
                             
                             const lWidth = (44 * newHold + 8 * (newHold - 1));
                             container.style.width = lWidth + 'px';
-                            const tempMaxHold = Math.max(newHold, this.core.doc.frames[currentIndex].holdCount || 1);
+                            const tempMaxHold = Math.max(newHold, this.core.doc.frames[currentIndex].holdCount);
                             square.style.width = (44 * tempMaxHold + 8 * (tempMaxHold - 1)) + 'px';
                         };
                         
                         const onHoldUp = (eu) => {
+                            clearTimeout(holdDragTimer);
                             holdHandle.classList.remove('dragging');
                             try { holdHandle.releasePointerCapture(eu.pointerId); } catch(err) {}
                             
@@ -1504,8 +1450,7 @@ export default class UIManager {
                 }
                 
                 if (holdHandle) {
-                    const currentIdx = parseInt(square.dataset.frameIndex, 10);
-                    holdHandle.style.display = (i === this.core.doc.activeLayerIndex && currentIdx === this.core.doc.currentFrameIndex) ? 'block' : 'none';
+                    holdHandle.style.display = (i === this.core.doc.activeLayerIndex) ? 'block' : 'none';
                 }
                 
                 const thumbCanvas = container.querySelector('canvas');
