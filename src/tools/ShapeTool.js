@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js';
-import { CONSTANTS } from '../core/Constants.js';
+import BaseTool from './BaseTool.js?cb=103';
+import { CONSTANTS } from '../core/Constants.js?cb=103';
 
 export default class ShapeTool extends BaseTool {
     constructor(context) {

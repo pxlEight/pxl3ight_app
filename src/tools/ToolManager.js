@@ -1,6 +1,6 @@
-import ToolContext from './ToolContext.js';
-import { CONSTANTS } from '../core/Constants.js';
-import PolygonSelectTool from './PolygonSelectTool.js';
+import ToolContext from './ToolContext.js?cb=103';
+import { CONSTANTS } from '../core/Constants.js?cb=103';
+import PolygonSelectTool from './PolygonSelectTool.js?cb=103';
 
 export default class ToolManager {
     constructor(core) { 
