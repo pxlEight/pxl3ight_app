@@ -1160,10 +1160,10 @@ export default class UIManager {
         if (!this.layerNames[layerObj._id]) {
             if (Object.keys(this.layerNames).length < this.core.doc.activeFrame.layers.length && !this._initialLayersNamed) {
                 this.layerCounter = Math.max(this.layerCounter, index + 1);
-                this.layerNames[layerObj._id] = L;
+                this.layerNames[layerObj._id] = `L${index + 1}`;
             } else {
                 this.layerCounter++;
-                this.layerNames[layerObj._id] = L;
+                this.layerNames[layerObj._id] = `L${this.layerCounter}`;
             }
         }
         
