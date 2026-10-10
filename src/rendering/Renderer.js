@@ -23,7 +23,7 @@ export default class Renderer {
         const frame = this.doc.frames[frameIndex]; 
         if (!frame) return;
         
-        for (let i = 0; i < frame.layers.length; i++) {
+        for (let i = frame.layers.length - 1; i >= 0; i--) {
             let layerToDraw = frame.layers[i];
             
             if (layerToDraw.isDeleted) {

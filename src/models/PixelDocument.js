@@ -8,15 +8,17 @@ export default class PixelDocument {
         this.height = h; 
         this.frames = [new PixelFrame(w, h, 2)]; 
         this.currentFrameIndex = 0; 
-        this.activeLayerIndex = 1; 
+        this.activeLayerIndex = 0; 
     }
     get activeFrame() { return this.frames[this.currentFrameIndex]; } 
     get activeLayer() { return this.activeFrame.layers[this.activeLayerIndex]; } 
     get activeCtx() { return this.activeLayer.ctx; }
     
     addLayer() { 
-        this.frames.forEach(f => f.layers.push(new PixelLayer(this.width, this.height))); 
-        this.activeLayerIndex = this.activeFrame.layers.length - 1; 
+        // Index 0 is the top-most layer; insert directly above the active layer
+        const insertAt = Math.max(0, Math.min(this.activeLayerIndex, this.activeFrame.layers.length));
+        this.frames.forEach(f => f.layers.splice(insertAt, 0, new PixelLayer(this.width, this.height))); 
+        this.activeLayerIndex = insertAt; 
         this.events.emit('layerChanged'); 
     }
     deleteLayer() { 
@@ -26,18 +28,18 @@ export default class PixelDocument {
         this.events.emit('layerChanged'); 
     }
     duplicateActiveLayer() { 
+        // Insert the clone above the original (lower index = higher in stack); active index now points at the clone
         this.frames.forEach(f => { 
             const clone = f.layers[this.activeLayerIndex].clone(); 
-            f.layers.splice(this.activeLayerIndex + 1, 0, clone); 
+            f.layers.splice(this.activeLayerIndex, 0, clone); 
         }); 
-        this.activeLayerIndex++; 
         this.events.emit('layerChanged'); 
     }
     mergeLayerDown() {
-        if (this.activeLayerIndex <= 0) return false;
+        if (this.activeLayerIndex >= this.activeFrame.layers.length - 1) return false;
         this.frames.forEach(f => {
             const top = f.layers[this.activeLayerIndex];
-            const bottom = f.layers[this.activeLayerIndex - 1];
+            const bottom = f.layers[this.activeLayerIndex + 1];
             if (top.visible) { 
                 bottom.ctx.globalAlpha = top.opacity; 
                 bottom.ctx.drawImage(top.canvas, 0, 0); 
@@ -46,7 +48,6 @@ export default class PixelDocument {
             }
             f.layers.splice(this.activeLayerIndex, 1);
         });
-        this.activeLayerIndex--; 
         this.events.emit('layerChanged'); 
         this.events.emit('frameChanged'); 
         return true;

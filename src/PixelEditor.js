@@ -322,7 +322,8 @@ export default class PixelEditor {
                 layer.locked = l.locked; 
                 layer.isDeleted = l.isDeleted || false;
                 layer.holdCount = l.holdCount || 1;
-                layer._id = l._id; 
+                layer._id = l._id;
+                layer._name = l._name; 
                 layer._rev = l._rev; 
                 return layer;
             });
@@ -1037,7 +1038,7 @@ export default class PixelEditor {
                 const col = idx % 4;
                 const row = Math.floor(idx / 4);
                 
-                for (let i = 0; i < frame.layers.length; i++) {
+                for (let i = frame.layers.length - 1; i >= 0; i--) {
                     let layerToDraw = frame.layers[i];
                     if (layerToDraw.isDeleted) {
                         for (let k = idx - 1; k >= 0; k--) {

@@ -138,7 +138,7 @@ export default class PlaybackController {
         };
         
         if (!tint) {
-            for (let i = 0; i < frame.layers.length; i++) {
+            for (let i = frame.layers.length - 1; i >= 0; i--) {
                 const l = getLayerToDraw(i);
                 if (l && l.visible && !l.isDeleted) { 
                     this.core.onionCtx.globalAlpha = l.opacity * baseAlpha; 
@@ -151,7 +151,7 @@ export default class PlaybackController {
             tempCanvas.height = this.core.doc.height;
             const tCtx = tempCanvas.getContext('2d');
             
-            for (let i = 0; i < frame.layers.length; i++) {
+            for (let i = frame.layers.length - 1; i >= 0; i--) {
                 const l = getLayerToDraw(i);
                 if (l && l.visible && !l.isDeleted) { 
                     tCtx.globalAlpha = l.opacity; 

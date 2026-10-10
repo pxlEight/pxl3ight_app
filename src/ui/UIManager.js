@@ -1154,24 +1154,31 @@ export default class UIManager {
 
 
     getLayerName(layerObj, index) {
-        if (!this.layerNames) this.layerNames = {};
-        if (!this.layerCounter) this.layerCounter = 0;
-        
-        if (!this.layerNames[layerObj._id]) {
-            if (Object.keys(this.layerNames).length < this.core.doc.activeFrame.layers.length && !this._initialLayersNamed) {
-                this.layerCounter = Math.max(this.layerCounter, index + 1);
-                this.layerNames[layerObj._id] = `L${index + 1}`;
+        if (layerObj._name) return layerObj._name;
+        const doc = this.core.doc;
+
+        // Each frame has its own layer objects; reuse a name already assigned to this layer slot
+        let name = null;
+        for (const f of doc.frames) {
+            const l = f.layers[index];
+            if (l && l._name) { name = l._name; break; }
+        }
+
+        if (!name) {
+            const used = doc.activeFrame.layers.map(l => l._name).filter(Boolean);
+            if (used.length === 0) {
+                // Fresh/unnamed document: name by position (top = L1)
+                this.layerCounter = 0;
+                name = `L${index + 1}`;
             } else {
-                this.layerCounter++;
-                this.layerNames[layerObj._id] = `L${this.layerCounter}`;
+                const maxNum = Math.max(this.layerCounter || 0, ...used.map(n => parseInt(n.slice(1), 10) || 0));
+                name = `L${maxNum + 1}`;
             }
         }
-        
-        if (Object.keys(this.layerNames).length >= this.core.doc.activeFrame.layers.length) {
-            this._initialLayersNamed = true;
-        }
-        
-        return this.layerNames[layerObj._id];
+
+        this.layerCounter = Math.max(this.layerCounter || 0, parseInt(name.slice(1), 10) || 0);
+        doc.frames.forEach(f => { if (f.layers[index]) f.layers[index]._name = name; });
+        return name;
     }
     updateLayerStackUI() {
         if (!this.core.doc) return;
