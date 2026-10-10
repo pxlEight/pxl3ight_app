@@ -125,16 +125,16 @@ export default class UIManager {
             const playBtn = document.getElementById('btn-play');
             if (isPlaying) { 
                 playBtn.classList.add('active'); 
-                playBtn.innerText = '??'; 
+                playBtn.innerText = '⏸️'; 
             } else { 
                 playBtn.classList.remove('active'); 
-                playBtn.innerText = '??'; 
+                playBtn.innerText = '▶️'; 
             }
         });
         
         this.events.on('ui:onionSkinToggled', (isEnabled) => {
             const btn = document.getElementById('onionToggleBtn'); 
-            btn.innerText = '??'; 
+            btn.innerText = '🧅'; 
             btn.classList.toggle('active', isEnabled);
             btn.style.opacity = isEnabled ? '1' : '0.5';
         });
@@ -1119,8 +1119,8 @@ export default class UIManager {
                     menu.style.top = Math.max(10, topPos) + 'px';
                     
                     const l = this.core.doc.activeFrame.layers[currentIndex];
-                    document.getElementById('lm-vis').innerText = l.visible ? '???' : '??'; 
-                    document.getElementById('lm-lock').innerText = l.locked ? '??' : '??';
+                    document.getElementById('lm-vis').innerText = l.visible ? '👁️' : '🙈'; 
+                    document.getElementById('lm-lock').innerText = l.locked ? '🔐' : '🔓';
                     document.getElementById('lm-opacity').innerText = Math.round(l.opacity * 100); 
                     document.getElementById('lm-merge').style.display = currentIndex === 0 ? 'none' : 'block';
                 }
@@ -1167,7 +1167,7 @@ export default class UIManager {
             square.dataset.index = i; 
             square.classList.toggle('active', i === this.core.doc.activeLayerIndex);
             square.classList.toggle('hidden-layer', !layerObj.visible); 
-            square.innerText = layerObj.locked ? `??${i + 1}` : `L${i + 1}`;
+            square.innerText = layerObj.locked ? `🔐${i + 1}` : `L${i + 1}`;
         }
         
         const ind = document.getElementById('layerScrollIndicator'); 
@@ -1413,7 +1413,7 @@ export default class UIManager {
         
         for (let i = 0; i < layerCount; i++) {
             const layerObj = this.core.doc.activeFrame.layers[i];
-            const lockStr = layerObj.locked ? `??` : '';
+            const lockStr = layerObj.locked ? `🔐` : '';
             labelsCol.children[i].innerText = layerObj.locked ? `${lockStr}${i + 1}` : `L${i + 1}`;
         }
         
