@@ -9,7 +9,7 @@ import PlaybackController from './animation/PlaybackController.js';
 import ToolManager from './tools/ToolManager.js';
 import PaletteManager from './ui/PaletteManager.js';
 import BrushManager from './ui/BrushManager.js';
-import UIManager from './ui/UIManager.js';
+import UIManager from './ui/UIManager.js?cb=99b';
 import InputManager from './ui/InputManager.js';
 import PixelDocument from './models/PixelDocument.js';
 import PixelFrame from './models/PixelFrame.js';
