@@ -8,6 +8,7 @@ export default class PixelLayer {
         this.visible = true; 
         this.opacity = 1.0; 
         this.locked = false; 
+        this.holdCount = 1; 
         this._id = Math.random().toString(36).substr(2, 9); 
         this._rev = 0;
     }
@@ -17,6 +18,7 @@ export default class PixelLayer {
         clone.visible = this.visible; 
         clone.opacity = this.opacity; 
         clone.locked = this.locked; 
+        clone.holdCount = this.holdCount; 
         return clone; 
     }
     clear() { 

@@ -1,4 +1,4 @@
-import EventBus from './core/EventBus.js';
+﻿import EventBus from './core/EventBus.js';
 import AppConfig from './core/AppConfig.js';
 import HistoryManager from './core/HistoryManager.js';
 import StorageManager from './core/StorageManager.js';
