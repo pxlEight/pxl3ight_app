@@ -1202,6 +1202,16 @@ export default class UIManager {
         
         const ind = document.getElementById('layerScrollIndicator'); 
         ind.style.display = (stack && stack.scrollHeight > stack.clientHeight && Math.ceil(stack.scrollTop + stack.clientHeight) < stack.scrollHeight) ? 'block' : 'none';
+
+        const layerMenu = document.getElementById('layerMenu');
+        if (layerMenu && layerMenu.style.display === 'flex') {
+            const activeLayer = this.core.doc.activeFrame.layers[this.core.doc.activeLayerIndex];
+            if (activeLayer) {
+                document.getElementById('lm-vis').innerText = activeLayer.visible ? '👁️' : '🙈'; 
+                document.getElementById('lm-lock').innerText = activeLayer.locked ? '🔐' : '🔓';
+                document.getElementById('lm-opacity').innerText = Math.round(activeLayer.opacity * 100);
+            }
+        }
     }
 
     getFrameX(index) {
