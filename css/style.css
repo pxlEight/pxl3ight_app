@@ -614,3 +614,9 @@ header {
 
 
 
+
+body.is-playing .add-frame-timeline-btn,
+body.is-playing .add-frame-column {
+    opacity: 0;
+    pointer-events: none;
+}

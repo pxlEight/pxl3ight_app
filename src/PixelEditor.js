@@ -1,31 +1,31 @@
-import EventBus from './core/EventBus.js?cb=116';
-import AppConfig from './core/AppConfig.js?cb=116';
-import HistoryManager from './core/HistoryManager.js?cb=116';
-import StorageManager from './core/StorageManager.js?cb=116';
-import WorkerManager from './core/WorkerManager.js?cb=116';
-import ViewportManager from './rendering/ViewportManager.js?cb=116';
-import SelectionManager from './selection/SelectionManager.js?cb=116';
-import PlaybackController from './animation/PlaybackController.js?cb=116';
-import ToolManager from './tools/ToolManager.js?cb=116';
-import PaletteManager from './ui/PaletteManager.js?cb=116';
-import BrushManager from './ui/BrushManager.js?cb=116';
-import UIManager from './ui/UIManager.js?cb=116';
-import InputManager from './ui/InputManager.js?cb=116';
-import PixelDocument from './models/PixelDocument.js?cb=116';
-import PixelFrame from './models/PixelFrame.js?cb=116';
-import PixelLayer from './models/PixelLayer.js?cb=116';
-import Renderer from './rendering/Renderer.js?cb=116';
-import { CONSTANTS } from './core/Constants.js?cb=116';
-import DrawingTool from './tools/DrawingTool.js?cb=116';
-import ShapeTool from './tools/ShapeTool.js?cb=116';
-import FillTool from './tools/FillTool.js?cb=116';
-import DropperTool from './tools/DropperTool.js?cb=116';
-import WandTool from './tools/WandTool.js?cb=116';
-import MarqueeTool from './tools/MarqueeTool.js?cb=116';
-import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=116';
-import ColorSelectTool from './tools/ColorSelectTool.js?cb=116';
-import LassoSelectTool from './tools/LassoSelectTool.js?cb=116';
-import ZoomTool from './tools/ZoomTool.js?cb=116';
+import EventBus from './core/EventBus.js?cb=118';
+import AppConfig from './core/AppConfig.js?cb=118';
+import HistoryManager from './core/HistoryManager.js?cb=118';
+import StorageManager from './core/StorageManager.js?cb=118';
+import WorkerManager from './core/WorkerManager.js?cb=118';
+import ViewportManager from './rendering/ViewportManager.js?cb=118';
+import SelectionManager from './selection/SelectionManager.js?cb=118';
+import PlaybackController from './animation/PlaybackController.js?cb=118';
+import ToolManager from './tools/ToolManager.js?cb=118';
+import PaletteManager from './ui/PaletteManager.js?cb=118';
+import BrushManager from './ui/BrushManager.js?cb=118';
+import UIManager from './ui/UIManager.js?cb=118';
+import InputManager from './ui/InputManager.js?cb=118';
+import PixelDocument from './models/PixelDocument.js?cb=118';
+import PixelFrame from './models/PixelFrame.js?cb=118';
+import PixelLayer from './models/PixelLayer.js?cb=118';
+import Renderer from './rendering/Renderer.js?cb=118';
+import { CONSTANTS } from './core/Constants.js?cb=118';
+import DrawingTool from './tools/DrawingTool.js?cb=118';
+import ShapeTool from './tools/ShapeTool.js?cb=118';
+import FillTool from './tools/FillTool.js?cb=118';
+import DropperTool from './tools/DropperTool.js?cb=118';
+import WandTool from './tools/WandTool.js?cb=118';
+import MarqueeTool from './tools/MarqueeTool.js?cb=118';
+import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=118';
+import ColorSelectTool from './tools/ColorSelectTool.js?cb=118';
+import LassoSelectTool from './tools/LassoSelectTool.js?cb=118';
+import ZoomTool from './tools/ZoomTool.js?cb=118';
 
 export default class PixelEditor {
     constructor() {
@@ -832,7 +832,7 @@ export default class PixelEditor {
                     const f = this.doc.frames[currentFrameIndex];
                     eCtx.clearRect(0, 0, exportCanvas.width, exportCanvas.height);
                     
-                    for (let li = 0; li < f.layers.length; li++) {
+                    for (let li = f.layers.length - 1; li >= 0; li--) {
                         let layerToDraw = f.layers[li];
                         if (layerToDraw.isDeleted) {
                             for (let k = currentFrameIndex - 1; k >= 0; k--) {
@@ -894,7 +894,7 @@ export default class PixelEditor {
                     exportCanvas.height = this.doc.height;
                     const eCtx = exportCanvas.getContext('2d'); 
                     
-                    for (let li = 0; li < f.layers.length; li++) {
+                    for (let li = f.layers.length - 1; li >= 0; li--) {
                         let layerToDraw = f.layers[li];
                         if (layerToDraw.isDeleted) {
                             for (let k = i - 1; k >= 0; k--) {

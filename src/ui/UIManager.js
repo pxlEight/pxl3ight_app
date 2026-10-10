@@ -1,7 +1,7 @@
-import { CONSTANTS } from '../core/Constants.js?cb=116';
-import UIWidgetDragger from './UIWidgetDragger.js?cb=116';
-import UIDragInteraction from './UIDragInteraction.js?cb=116';
-import PaletteManager from './PaletteManager.js?cb=116';
+import { CONSTANTS } from '../core/Constants.js?cb=118';
+import UIWidgetDragger from './UIWidgetDragger.js?cb=118';
+import UIDragInteraction from './UIDragInteraction.js?cb=118';
+import PaletteManager from './PaletteManager.js?cb=118';
 
 export default class UIManager {
     constructor(core) {
@@ -126,9 +126,11 @@ export default class UIManager {
             if (isPlaying) { 
                 playBtn.classList.add('active'); 
                 playBtn.innerText = '⏸️'; 
+                document.body.classList.add('is-playing');
             } else { 
                 playBtn.classList.remove('active'); 
                 playBtn.innerText = '▶️'; 
+                document.body.classList.remove('is-playing');
             }
         });
         

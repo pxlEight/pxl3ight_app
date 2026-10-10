@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js?cb=116';
-import { CONSTANTS } from '../core/Constants.js?cb=116';
+import BaseTool from './BaseTool.js?cb=118';
+import { CONSTANTS } from '../core/Constants.js?cb=118';
 
 export default class MarqueeTool extends BaseTool {
     constructor(context) { 
