@@ -1,5 +1,5 @@
-import PixelLayer from './PixelLayer.js?cb=121';
-import PixelFrame from './PixelFrame.js?cb=121';
+import PixelLayer from './PixelLayer.js?cb=122';
+import PixelFrame from './PixelFrame.js?cb=122';
 
 export default class PixelDocument {
     constructor(w, h, events) { 
@@ -43,15 +43,21 @@ export default class PixelDocument {
         this.frames.forEach(f => {
             const top = f.layers[this.activeLayerIndex];
             const bottom = f.layers[this.activeLayerIndex + 1];
-            if (top.visible) { 
+            if (top.visible && !top.isDeleted) { 
                 bottom.ctx.globalAlpha = top.opacity; 
                 bottom.ctx.drawImage(top.canvas, 0, 0); 
                 bottom.ctx.globalAlpha = 1.0; 
                 bottom.markModified(); 
+                bottom.isDeleted = false;
             }
+            if (top.holdCount) {
+                bottom.holdCount = Math.max(bottom.holdCount || 1, top.holdCount || 1);
+            }
+            delete bottom._cachedOriginIndex;
             const removed = f.layers.splice(this.activeLayerIndex, 1)[0];
             if (removed && typeof removed.destroy === 'function') removed.destroy();
         });
+        this.activeLayerIndex = Math.min(this.activeLayerIndex, this.activeFrame.layers.length - 1);
         this.events.emit('layerChanged'); 
         this.events.emit('frameChanged'); 
         return true;

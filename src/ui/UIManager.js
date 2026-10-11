@@ -1,7 +1,7 @@
-import { CONSTANTS } from '../core/Constants.js?cb=121';
-import UIWidgetDragger from './UIWidgetDragger.js?cb=121';
-import UIDragInteraction from './UIDragInteraction.js?cb=121';
-import PaletteManager from './PaletteManager.js?cb=121';
+import { CONSTANTS } from '../core/Constants.js?cb=122';
+import UIWidgetDragger from './UIWidgetDragger.js?cb=122';
+import UIDragInteraction from './UIDragInteraction.js?cb=122';
+import PaletteManager from './PaletteManager.js?cb=122';
 
 export default class UIManager {
     constructor(core) {
@@ -1125,7 +1125,8 @@ export default class UIManager {
                     document.getElementById('lm-vis').innerText = l.visible ? '👁️' : '🙈'; 
                     document.getElementById('lm-lock').innerText = l.locked ? '🔐' : '🔓';
                     document.getElementById('lm-opacity').innerText = Math.round(l.opacity * 100); 
-                    document.getElementById('lm-merge').style.display = currentIndex === 0 ? 'none' : 'block';
+                    const canMergeDown = currentIndex < this.core.doc.activeFrame.layers.length - 1;
+                    document.getElementById('lm-merge').style.display = canMergeDown ? 'block' : 'none';
                 }
             }
         };
@@ -1207,11 +1208,14 @@ export default class UIManager {
 
         const layerMenu = document.getElementById('layerMenu');
         if (layerMenu && layerMenu.style.display === 'flex') {
-            const activeLayer = this.core.doc.activeFrame.layers[this.core.doc.activeLayerIndex];
+            const activeIdx = this.core.doc.activeLayerIndex;
+            const activeLayer = this.core.doc.activeFrame.layers[activeIdx];
             if (activeLayer) {
                 document.getElementById('lm-vis').innerText = activeLayer.visible ? '👁️' : '🙈'; 
                 document.getElementById('lm-lock').innerText = activeLayer.locked ? '🔐' : '🔓';
                 document.getElementById('lm-opacity').innerText = Math.round(activeLayer.opacity * 100);
+                const canMergeDown = activeIdx < this.core.doc.activeFrame.layers.length - 1;
+                document.getElementById('lm-merge').style.display = canMergeDown ? 'block' : 'none';
             }
         }
     }
