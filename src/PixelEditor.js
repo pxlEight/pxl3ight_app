@@ -1,31 +1,32 @@
-import EventBus from './core/EventBus.js?cb=122';
-import AppConfig from './core/AppConfig.js?cb=122';
-import HistoryManager from './core/HistoryManager.js?cb=122';
-import StorageManager from './core/StorageManager.js?cb=122';
-import WorkerManager from './core/WorkerManager.js?cb=122';
-import ViewportManager from './rendering/ViewportManager.js?cb=122';
-import SelectionManager from './selection/SelectionManager.js?cb=122';
-import PlaybackController from './animation/PlaybackController.js?cb=122';
-import ToolManager from './tools/ToolManager.js?cb=122';
-import PaletteManager from './ui/PaletteManager.js?cb=122';
-import BrushManager from './ui/BrushManager.js?cb=122';
-import UIManager from './ui/UIManager.js?cb=122';
-import InputManager from './ui/InputManager.js?cb=122';
-import PixelDocument from './models/PixelDocument.js?cb=122';
-import PixelFrame from './models/PixelFrame.js?cb=122';
-import PixelLayer from './models/PixelLayer.js?cb=122';
-import Renderer from './rendering/Renderer.js?cb=122';
-import { CONSTANTS } from './core/Constants.js?cb=122';
-import DrawingTool from './tools/DrawingTool.js?cb=122';
-import ShapeTool from './tools/ShapeTool.js?cb=122';
-import FillTool from './tools/FillTool.js?cb=122';
-import DropperTool from './tools/DropperTool.js?cb=122';
-import WandTool from './tools/WandTool.js?cb=122';
-import MarqueeTool from './tools/MarqueeTool.js?cb=122';
-import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=122';
-import ColorSelectTool from './tools/ColorSelectTool.js?cb=122';
-import LassoSelectTool from './tools/LassoSelectTool.js?cb=122';
-import ZoomTool from './tools/ZoomTool.js?cb=122';
+import EventBus from './core/EventBus.js?cb=158';
+import AppConfig from './core/AppConfig.js?cb=158';
+import HistoryManager from './core/HistoryManager.js?cb=158';
+import StorageManager from './core/StorageManager.js?cb=158';
+import WorkerManager from './core/WorkerManager.js?cb=158';
+import ViewportManager from './rendering/ViewportManager.js?cb=158';
+import SelectionManager from './selection/SelectionManager.js?cb=158';
+import PlaybackController from './animation/PlaybackController.js?cb=158';
+import ToolManager from './tools/ToolManager.js?cb=158';
+import PaletteManager from './ui/PaletteManager.js?cb=158';
+import BrushManager from './ui/BrushManager.js?cb=158';
+import UIManager from './ui/UIManager.js?cb=158';
+import InputManager from './ui/InputManager.js?cb=158';
+import PixelDocument from './models/PixelDocument.js?cb=158';
+import PixelFrame from './models/PixelFrame.js?cb=158';
+import PixelLayer, { bumpVerCounter } from './models/PixelLayer.js?cb=158';
+import Renderer from './rendering/Renderer.js?cb=158';
+import GpuLayerAdjust from './rendering/GpuLayerAdjust.js?cb=158';
+import { CONSTANTS, canvas2DOptions } from './core/Constants.js?cb=158';
+import DrawingTool from './tools/DrawingTool.js?cb=158';
+import ShapeTool from './tools/ShapeTool.js?cb=158';
+import FillTool from './tools/FillTool.js?cb=158';
+import DropperTool from './tools/DropperTool.js?cb=158';
+import WandTool from './tools/WandTool.js?cb=158';
+import MarqueeTool from './tools/MarqueeTool.js?cb=158';
+import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=158';
+import ColorSelectTool from './tools/ColorSelectTool.js?cb=158';
+import LassoSelectTool from './tools/LassoSelectTool.js?cb=158';
+import ZoomTool from './tools/ZoomTool.js?cb=158';
 
 export default class PixelEditor {
     constructor() {
@@ -37,18 +38,18 @@ export default class PixelEditor {
         this.bgCanvas = document.getElementById('bgCanvas'); 
         this.mainArtCanvas = document.getElementById('mainArtCanvas'); 
         this.onionCanvas = document.getElementById('onionCanvas');
-        this.onionCtx = this.onionCanvas.getContext('2d', { willReadFrequently: true }); 
+        this.onionCtx = this.onionCanvas.getContext('2d', canvas2DOptions()); 
         
         this.spriteSheetViewCanvas = document.getElementById('spriteSheetViewCanvas');
         this.spriteSheetCtx = this.spriteSheetViewCanvas.getContext('2d', { willReadFrequently: true });
         
         this.scratchCanvas = document.createElement('canvas'); 
-        this.scratchCtx = this.scratchCanvas.getContext('2d', { willReadFrequently: true });
+        this.scratchCtx = this.scratchCanvas.getContext('2d', canvas2DOptions());
         
         this.backupCanvas = document.createElement('canvas'); 
-        this.backupCtx = this.backupCanvas.getContext('2d', { willReadFrequently: true });
+        this.backupCtx = this.backupCanvas.getContext('2d', canvas2DOptions());
         
-        this.viewport = new ViewportManager(document.getElementById('viewport'), this.bgCanvas, this.events);
+        this.viewport = new ViewportManager(document.getElementById('viewport'), this.bgCanvas, this.events, this);
         this.selection = new SelectionManager(this); 
         this.playback = new PlaybackController(this); 
         this.tools = new ToolManager(this);
@@ -101,6 +102,7 @@ export default class PixelEditor {
             this.history.clear(); 
             this.saveState(); 
         });
+        this.events.on('core:saveState', () => this.saveState());
         this.events.on('core:exportPNG', () => this.exportPNG());
         this.events.on('core:resampleProject', (res) => this.resampleProject(res));
         this.events.on('core:undo', () => this.undo());
@@ -130,6 +132,7 @@ export default class PixelEditor {
         this.events.on('core:toggleSpriteSheetView', () => this.toggleSpriteSheetView());
         this.events.on('core:toggleOnionSkin', () => this.playback.toggleOnionSkin());
         this.events.on('core:togglePlay', () => this.playback.togglePlay());
+        this.events.on('subpixelSmoothingChanged', () => this.updateCanvasSmoothing());
         
         this.events.on('core:addFrame', () => { 
             this.selection.anchor(); 
@@ -162,6 +165,8 @@ export default class PixelEditor {
             this.saveState();
         });
         this.events.on('core:switchFrame', (index) => this.switchFrame(index));
+        this.events.on('core:startScrubbing', () => this.startScrubbing());
+        this.events.on('core:finishScrubbing', () => this.finishScrubbing());
         
         this.events.on('core:toggleActiveLayerVisibility', () => { 
             this.selection.anchor(); 
@@ -171,6 +176,7 @@ export default class PixelEditor {
                     f.layers[this.doc.activeLayerIndex].visible = isVis; 
                 }
             }); 
+            this.saveState();
             this.events.emit('layerChanged'); 
             this.events.emit('frameChanged'); 
             this.playback.updateOnionSkin(); 
@@ -184,7 +190,21 @@ export default class PixelEditor {
                     f.layers[this.doc.activeLayerIndex].locked = isLocked; 
                 }
             }); 
+            this.saveState();
             this.events.emit('layerChanged'); 
+        });
+
+        this.events.on('core:setLayerOpacity', ({ index, opacity }) => {
+            if (!this.doc) return;
+            const targetIdx = index !== undefined ? index : this.doc.activeLayerIndex;
+            if (targetIdx < 0 || targetIdx >= this.doc.activeFrame.layers.length) return;
+            this.doc.frames.forEach(f => {
+                if (f.layers[targetIdx]) {
+                    f.layers[targetIdx].opacity = opacity;
+                }
+            });
+            this.playback.updateOnionSkin();
+            if (this.renderer) this.renderer.render();
         });
         
         this.events.on('core:duplicateActiveLayer', () => { 
@@ -228,6 +248,11 @@ export default class PixelEditor {
             if (this.doc.activeLayer.locked) return;
             this.selection.anchor();
             this.layerAdjustOriginalBuffer = this.doc.activeLayer.ctx.getImageData(0, 0, this.doc.width, this.doc.height);
+            
+            // Upload the original pixels to the GPU once; each slider tick then only re-runs the shader.
+            if (!this.gpuAdjust) this.gpuAdjust = new GpuLayerAdjust();
+            this.gpuAdjustReady = this.gpuAdjust.setSource(this.layerAdjustOriginalBuffer);
+            
             document.getElementById('la-hsv-h').value = 0;
             document.getElementById('la-hsv-s').value = 0;
             document.getElementById('la-hsv-v').value = 0;
@@ -242,6 +267,18 @@ export default class PixelEditor {
             const sOff = parseInt(document.getElementById('la-hsv-s').value);
             const vOff = parseInt(document.getElementById('la-hsv-v').value);
             const contrast = parseInt(document.getElementById('la-contrast').value);
+            
+            if (this.gpuAdjustReady) {
+                const gpuResult = this.gpuAdjust.process({ hOff, sOff, vOff, contrast });
+                if (gpuResult) {
+                    this.doc.activeLayer.ctx.putImageData(gpuResult, 0, 0);
+                    this.doc.activeLayer.markModified();
+                    this.renderer.render();
+                    return;
+                }
+                // GPU failed (e.g. context lost): permanently use the worker for this session.
+                this.gpuAdjustReady = false;
+            }
             
             if (this.isAdjustingLayer) return;
             this.isAdjustingLayer = true;
@@ -270,6 +307,8 @@ export default class PixelEditor {
                 this.doc.activeLayer.markModified();
                 this.renderer.render();
             }
+            if (this.gpuAdjust) this.gpuAdjust.release();
+            this.gpuAdjustReady = false;
             document.getElementById('layerAdjustMenu').style.display = 'none';
         });
 
@@ -278,6 +317,8 @@ export default class PixelEditor {
                 this.layerAdjustOriginalBuffer = null;
                 this.saveState();
             }
+            if (this.gpuAdjust) this.gpuAdjust.release();
+            this.gpuAdjustReady = false;
             document.getElementById('layerAdjustMenu').style.display = 'none';
         });
 
@@ -307,39 +348,129 @@ export default class PixelEditor {
             this.doc.height = state.docHeight;
             this.bgCanvas.width = state.docWidth;
             this.bgCanvas.height = state.docHeight;
-            this.generateCheckerboard(state.docWidth, state.docHeight);
-            this.history.updateMaxSteps(state.docWidth, state.docHeight);
+            this.renderCheckerboard(state.docWidth, state.docHeight);
+            this.history.updateMaxSteps(state.docWidth, state.docHeight, this.doc.frames ? this.doc.frames.length : 1, (this.doc.activeFrame ? this.doc.activeFrame.layers.length : 1));
             sizeChanged = true;
         }
 
-        this.doc.frames = state.frames.map(f => {
-            const frame = new PixelFrame(0, 0, 0);
-            frame.layers = f.layers.map(l => {
-                const layer = new PixelLayer(this.doc.width, this.doc.height); 
-                if (!l.isDeleted && l.canvasData) layer.ctx.drawImage(l.canvasData, 0, 0);
-                layer.visible = l.visible; 
-                layer.opacity = l.opacity; 
-                layer.locked = l.locked; 
-                layer.isDeleted = l.isDeleted || false;
-                layer.holdCount = l.holdCount || 1;
-                layer._id = l._id;
-                layer._name = l._name; 
-                layer._rev = l._rev; 
-                return layer;
+        const canMutateInPlace = this.doc.frames && this.doc.frames.length === state.frames.length &&
+            this.doc.frames.every((f, fi) => f.layers.length === state.frames[fi].layers.length);
+
+        if (canMutateInPlace) {
+            for (let fi = 0; fi < state.frames.length; fi++) {
+                const sFrame = state.frames[fi];
+                const dFrame = this.doc.frames[fi];
+                for (let li = 0; li < sFrame.layers.length; li++) {
+                    const sLayer = sFrame.layers[li];
+                    const dLayer = dFrame.layers[li];
+                    const wasDeleted = dLayer.isDeleted || false;
+                    const nextDeleted = sLayer.isDeleted || false;
+                    dLayer.visible = sLayer.visible;
+                    dLayer.opacity = sLayer.opacity;
+                    dLayer.locked = sLayer.locked;
+                    dLayer.isDeleted = nextDeleted;
+                    dLayer.holdCount = sLayer.holdCount || 1;
+                    dLayer._name = sLayer._name;
+                    delete dLayer._cachedOriginIndex;
+
+                    if (dLayer._id !== sLayer._id || dLayer._rev !== sLayer._rev || wasDeleted !== nextDeleted) {
+                        dLayer._rev = sLayer._rev;
+                        dLayer._id = sLayer._id;
+                        if (!sLayer.isDeleted && sLayer.canvasData) {
+                            if (dLayer._canvas) {
+                                dLayer.ctx.clearRect(0, 0, this.doc.width, this.doc.height);
+                                if (sLayer.canvasData instanceof ImageData) {
+                                    dLayer.ctx.putImageData(sLayer.canvasData, 0, 0);
+                                    dLayer._snapshot = sLayer.canvasData;
+                                    dLayer._snapshotRev = sLayer._rev;
+                                } else {
+                                    dLayer.ctx.drawImage(sLayer.canvasData, 0, 0);
+                                    dLayer._snapshot = null;
+                                    dLayer._snapshotRev = -1;
+                                }
+                                dLayer._buffer = null;
+                            } else {
+                                if (sLayer.canvasData instanceof ImageData) {
+                                    dLayer._buffer = sLayer.canvasData;
+                                    dLayer._snapshot = sLayer.canvasData;
+                                    dLayer._snapshotRev = sLayer._rev;
+                                } else {
+                                    dLayer.ctx.clearRect(0, 0, this.doc.width, this.doc.height);
+                                    dLayer.ctx.drawImage(sLayer.canvasData, 0, 0);
+                                    dLayer._buffer = null;
+                                    dLayer._snapshot = null;
+                                    dLayer._snapshotRev = -1;
+                                }
+                            }
+                        } else {
+                            if (typeof dLayer.destroy === 'function') {
+                                dLayer.destroy();
+                            } else {
+                                if (dLayer._canvas) {
+                                    dLayer.ctx.clearRect(0, 0, this.doc.width, this.doc.height);
+                                }
+                                dLayer._buffer = null;
+                                dLayer._snapshot = null;
+                            }
+                            dLayer._snapshotRev = sLayer._rev;
+                        }
+                        dLayer._ver = bumpVerCounter(sLayer._rev);
+                    }
+                }
+            }
+        } else {
+            this.doc.frames = state.frames.map((f, fi) => {
+                const frame = new PixelFrame(0, 0, 0);
+                frame.layers = f.layers.map(l => {
+                    const layer = new PixelLayer(this.doc.width, this.doc.height); 
+                    if (!l.isDeleted && l.canvasData) {
+                        const isDormant = Math.abs(fi - state.currentFrameIndex) > 2;
+                        if (isDormant && (l.canvasData instanceof ImageData)) {
+                            layer._buffer = l.canvasData;
+                            layer._snapshot = l.canvasData;
+                            layer._snapshotRev = l._rev;
+                        } else {
+                            if (l.canvasData instanceof ImageData) {
+                                layer.ctx.putImageData(l.canvasData, 0, 0);
+                                layer._snapshot = l.canvasData;
+                                layer._snapshotRev = l._rev;
+                            } else {
+                                layer.ctx.drawImage(l.canvasData, 0, 0);
+                            }
+                        }
+                    } else if (!l.isDeleted) {
+                        layer._snapshot = null;
+                        layer._snapshotRev = l._rev;
+                    }
+                    layer.visible = l.visible; 
+                    layer.opacity = l.opacity; 
+                    layer.locked = l.locked; 
+                    layer.isDeleted = l.isDeleted || false;
+                    layer.holdCount = l.holdCount || 1;
+                    layer._id = l._id;
+                    layer._name = l._name; 
+                    layer._rev = l._rev; 
+                    layer._ver = bumpVerCounter(l._rev);
+                    return layer;
+                });
+                return frame;
             });
-            return frame;
-        });
+        }
         this.doc.currentFrameIndex = state.currentFrameIndex; 
         this.doc.activeLayerIndex = state.activeLayerIndex;
+        this.doc.virtualizeFrames(this.playback?.onionFramesBefore ?? 2, this.playback?.onionFramesAfter ?? 2);
         
         if (state.selectionMask) {
             this.selection.mask = new Uint8Array(state.selectionMask);
             this.selection.rebuildPath();
-            this.selection.isActive = this.selection.mask.some(v => v > 0);
         } else {
-            this.selection.mask.fill(0);
+            if (this.selection.isActive && this.selection.mask) {
+                this.selection.mask.fill(0);
+            }
             this.selection.isActive = false;
-            this.selection.rebuildPath();
+            this.selection.path = new Path2D();
+            this.selection.bounds = { minX: 9999, minY: 9999, maxX: -1, maxY: -1 };
+            this.selection.updateDragHandle();
         }
 
         if (state.isFloating) {
@@ -347,7 +478,11 @@ export default class PixelEditor {
             this.selection.floatingCanvas.width = this.doc.width;
             this.selection.floatingCanvas.height = this.doc.height;
             this.selection.floatingCanvas.getContext('2d').clearRect(0,0,this.doc.width,this.doc.height);
-            this.selection.floatingCanvas.getContext('2d').drawImage(state.floatingCanvasData, 0, 0);
+            if (state.floatingCanvasData instanceof ImageData) {
+                this.selection.floatingCanvas.getContext('2d').putImageData(state.floatingCanvasData, 0, 0);
+            } else if (state.floatingCanvasData) {
+                this.selection.floatingCanvas.getContext('2d').drawImage(state.floatingCanvasData, 0, 0);
+            }
             this.selection.floatingCanvas.style.display = 'block';
             
             if (state.origFloatingCanvasData) {
@@ -357,7 +492,11 @@ export default class PixelEditor {
                 this.selection.origFloatingCanvas.width = this.doc.width;
                 this.selection.origFloatingCanvas.height = this.doc.height;
                 this.selection.origFloatingCanvas.getContext('2d').clearRect(0,0,this.doc.width,this.doc.height);
-                this.selection.origFloatingCanvas.getContext('2d').drawImage(state.origFloatingCanvasData, 0, 0);
+                if (state.origFloatingCanvasData instanceof ImageData) {
+                    this.selection.origFloatingCanvas.getContext('2d').putImageData(state.origFloatingCanvasData, 0, 0);
+                } else if (state.origFloatingCanvasData) {
+                    this.selection.origFloatingCanvas.getContext('2d').drawImage(state.origFloatingCanvasData, 0, 0);
+                }
             }
             
             this.selection.transformMatrix = state.transformMatrix ? DOMMatrix.fromMatrix(state.transformMatrix) : new DOMMatrix();
@@ -379,8 +518,13 @@ export default class PixelEditor {
         
         if (sizeChanged) {
             this.viewport.reframe();
+            this.updateCanvasSmoothing();
+            this.events.emit('ui:updateSubpixelUI');
         }
         
+        if (this.renderer && typeof this.renderer.clearFrameCache === 'function') {
+            this.renderer.clearFrameCache();
+        }
         this.renderer.render(); 
         this.events.emit('updateOnionSkin');
         if (this.storage) this.storage.scheduleAutoSave(this.doc, this.state, this.palette);
@@ -398,11 +542,11 @@ export default class PixelEditor {
         
         this.bgCanvas.width = resW; 
         this.bgCanvas.height = resH; 
-        this.bgCanvas.style.backgroundImage = `url(${this.generateCheckerboard(resW, resH)})`;
+        this.renderCheckerboard(resW, resH);
         
         this.selection.init(resW, resH); 
         this.doc = new PixelDocument(resW, resH, this.events); 
-        this.renderer = new Renderer(this.doc, this.mainArtCanvas); 
+        this.renderer = new Renderer(this.doc, this.mainArtCanvas, this); 
         this.doc.frames = [];
         
         if (session.customSwatches) {
@@ -411,7 +555,9 @@ export default class PixelEditor {
             session.customSwatches.forEach(colorStr => this.events.emit('core:addCustomColor', colorStr));
         }
         
-        session.frames.forEach((frameData) => {
+        const shouldVirtualizeOnLoad = (resW * resH >= 500000) || (session.frames.length > 15 && resW * resH >= 65536);
+        const loadPromises = [];
+        session.frames.forEach((frameData, fi) => {
             const newFrame = new PixelFrame(0, 0, 0);
             frameData.layers.forEach((layerData) => {
                 const nl = new PixelLayer(resW, resH); 
@@ -420,23 +566,63 @@ export default class PixelEditor {
                 nl.locked = layerData.locked !== undefined ? layerData.locked : false; 
                 nl.isDeleted = layerData.isDeleted || false;
                 nl.holdCount = layerData.holdCount || 1;
+                if (layerData._id) nl._id = layerData._id;
+                if (layerData._rev) {
+                    nl._rev = layerData._rev;
+                    nl._ver = bumpVerCounter(layerData._rev);
+                }
                 
-                if (!nl.isDeleted && layerData.buffer) { const imgData = new ImageData(new Uint8ClampedArray(layerData.buffer), resW, resH); nl.ctx.putImageData(imgData, 0, 0); }
+                if (!nl.isDeleted) {
+                    if (layerData.blob) {
+                        const p = new Promise(resolve => {
+                            const img = new Image();
+                            const url = URL.createObjectURL(layerData.blob);
+                            img.onload = () => {
+                                nl.ctx.drawImage(img, 0, 0);
+                                if (shouldVirtualizeOnLoad && fi > 2) nl.dehydrate();
+                                URL.revokeObjectURL(url);
+                                resolve();
+                            };
+                            img.onerror = () => {
+                                URL.revokeObjectURL(url);
+                                resolve();
+                            };
+                            img.src = url;
+                        });
+                        loadPromises.push(p);
+                    } else if (layerData.buffer) {
+                        const imgData = new ImageData(new Uint8ClampedArray(layerData.buffer), resW, resH);
+                        if (shouldVirtualizeOnLoad && fi > 2) {
+                            nl._buffer = imgData;
+                            nl._snapshot = imgData;
+                            nl._snapshotRev = nl._rev;
+                        } else {
+                            nl.ctx.putImageData(imgData, 0, 0);
+                        }
+                    }
+                }
                 
                 newFrame.layers.push(nl);
             });
             this.doc.frames.push(newFrame);
         });
         
+        if (loadPromises.length > 0) {
+            await Promise.all(loadPromises);
+        }
+        this.doc.virtualizeFrames();
+        
         this.doc.activeLayerIndex = 0; 
         this.doc.currentFrameIndex = 0; 
         this.history.clear(); 
-        this.history.updateMaxSteps(resW, resH);
+        this.history.updateMaxSteps(resW, resH, session.frames.length, (session.frames[0]?.layers?.length || 1));
         this.saveState();
         this.events.emit('frameChanged'); 
         this.events.emit('layerChanged'); 
         this.viewport.reframe(); 
         this.renderer.render(); 
+        this.updateCanvasSmoothing();
+        this.events.emit('ui:updateSubpixelUI');
         this.events.emit('ui:closeAllMenus');
     }
 
@@ -452,50 +638,90 @@ export default class PixelEditor {
         if(st) this.restoreState(st); 
     }
 
-    generateCheckerboard(w, h) {
-        const tempCanvas = document.createElement('canvas'); 
-        tempCanvas.width = w; 
-        tempCanvas.height = h;
-        const tempCtx = tempCanvas.getContext('2d');
-        const imgData = tempCtx.createImageData(w, h);
-        const data = imgData.data;
-        
-        for (let y = 0; y < h; y++) { 
-            for (let x = 0; x < w; x++) { 
-                const i = (y * w + x) * 4;
-                const isLight = (x % 2 === 0) === (y % 2 === 0);
-                const c = isLight ? 255 : 220; 
-                data[i] = c; 
-                data[i+1] = c; 
-                data[i+2] = c; 
-                data[i+3] = 255; 
-            } 
+    updateCanvasSmoothing() {
+        const docW = this.doc ? this.doc.width : (this.bgCanvas ? this.bgCanvas.width : 0);
+        const docH = this.doc ? this.doc.height : (this.bgCanvas ? this.bgCanvas.height : 0);
+        const isSmoothing = !!this.state.subpixelSmoothing && (Math.max(docW, docH) >= 720);
+        const canvases = [this.mainArtCanvas, this.bgCanvas, this.onionCanvas, this.floatingCanvas];
+        canvases.forEach(cvs => {
+            if (cvs) cvs.style.imageRendering = isSmoothing ? 'auto' : 'pixelated';
+        });
+        if (this.renderer) {
+            this.renderer.targetCtx.imageSmoothingEnabled = isSmoothing;
+            this.renderer.render();
         }
-        tempCtx.putImageData(imgData, 0, 0); 
-        return tempCanvas.toDataURL();
+        if (this.onionCtx) {
+            this.onionCtx.imageSmoothingEnabled = isSmoothing;
+        }
+    }
+
+    renderCheckerboard(width, height) {
+        if (!this.bgCanvas) return;
+        const w = width || this.bgCanvas.width || (this.doc ? this.doc.width : 64);
+        const h = height || this.bgCanvas.height || (this.doc ? this.doc.height : 64);
+        if (this.bgCanvas.width !== w) this.bgCanvas.width = w;
+        if (this.bgCanvas.height !== h) this.bgCanvas.height = h;
+
+        this.bgCanvas.style.backgroundImage = 'none';
+
+        const ctx = this.bgCanvas.getContext('2d');
+        if (!ctx) return;
+
+        let checkSize = 8;
+        const minDim = Math.min(w, h);
+        if (minDim <= 16) checkSize = 2;
+        else if (minDim <= 32) checkSize = 4;
+        else if (minDim >= 640) checkSize = 16;
+        else checkSize = 8;
+
+        if (!this._checkerCanvasCache) this._checkerCanvasCache = {};
+        if (!this._checkerCanvasCache[checkSize]) {
+            const pSize = checkSize * 2;
+            const pCanvas = document.createElement('canvas');
+            pCanvas.width = pSize;
+            pCanvas.height = pSize;
+            const pCtx = pCanvas.getContext('2d');
+            pCtx.fillStyle = '#ffffff';
+            pCtx.fillRect(0, 0, pSize, pSize);
+            pCtx.fillStyle = '#dcdcdc';
+            pCtx.fillRect(0, 0, checkSize, checkSize);
+            pCtx.fillRect(checkSize, checkSize, checkSize, checkSize);
+            this._checkerCanvasCache[checkSize] = pCanvas;
+        }
+
+        const pattern = ctx.createPattern(this._checkerCanvasCache[checkSize], 'repeat');
+        ctx.fillStyle = pattern;
+        ctx.fillRect(0, 0, w, h);
+    }
+
+    generateCheckerboard(w, h) {
+        this.renderCheckerboard(w, h);
+        return '';
     }
 
     startProject(res) {
         this.events.emit('ui:hideStartupScreen');
         this.state.setResolution(res); 
         
-        const [w, h] = res.split('x').map(Number);
+        const [w, h] = this.state.resolution.split('x').map(Number);
         this.bgCanvas.width = w; 
         this.bgCanvas.height = h; 
-        this.bgCanvas.style.backgroundImage = `url(${this.generateCheckerboard(w, h)})`;
+        this.renderCheckerboard(w, h);
         
         this.selection.init(w, h); 
         this.doc = new PixelDocument(w, h, this.events); 
-        this.renderer = new Renderer(this.doc, this.mainArtCanvas);
+        this.renderer = new Renderer(this.doc, this.mainArtCanvas, this);
         
         this.history.clear(); 
-        this.history.updateMaxSteps(w, h);
+        this.history.updateMaxSteps(w, h, this.doc.frames ? this.doc.frames.length : 1, (this.doc.activeFrame ? this.doc.activeFrame.layers.length : 1));
         this.storage.clearSession();
         this.saveState(); 
         this.events.emit('frameChanged'); 
         this.events.emit('layerChanged'); 
         this.viewport.reframe(); 
         this.renderer.render();
+        this.updateCanvasSmoothing();
+        this.events.emit('ui:updateSubpixelUI');
     }
 
     loadProjectFile(event) {
@@ -518,11 +744,11 @@ export default class PixelEditor {
                 
                 this.bgCanvas.width = resW; 
                 this.bgCanvas.height = resH; 
-                this.bgCanvas.style.backgroundImage = `url(${this.generateCheckerboard(resW, resH)})`;
+                this.renderCheckerboard(resW, resH);
                 
                 this.selection.init(resW, resH); 
                 this.doc = new PixelDocument(resW, resH, this.events); 
-                this.renderer = new Renderer(this.doc, this.mainArtCanvas); 
+                this.renderer = new Renderer(this.doc, this.mainArtCanvas, this); 
                 this.doc.frames = [];
                 
                 if (data.customSwatches) {
@@ -531,8 +757,9 @@ export default class PixelEditor {
                     data.customSwatches.forEach(colorStr => this.events.emit('core:addCustomColor', PaletteManager.rgbStrToHex(colorStr)));
                 }
                 
+                const shouldVirtualizeOnLoad = (resW * resH >= 500000) || (data.frames.length > 15 && resW * resH >= 65536);
                 const imageLoadPromises = [];
-                data.frames.forEach((frameData) => {
+                data.frames.forEach((frameData, fi) => {
                     const newFrame = new PixelFrame(0, 0, 0);
                     frameData.layers.forEach((layerData) => {
                         const nl = new PixelLayer(resW, resH); 
@@ -543,30 +770,39 @@ export default class PixelEditor {
                         nl.holdCount = layerData.holdCount || 1;
                         newFrame.layers.push(nl);
                         
-                        const promise = new Promise((resolve) => { 
-                            const img = new Image(); 
-                            img.onload = () => { 
-                                nl.ctx.drawImage(img, 0, 0); 
-                                resolve(); 
-                            }; 
-                            img.src = layerData.data; 
-                        });
-                        imageLoadPromises.push(promise);
+                        if (!nl.isDeleted && layerData.data) {
+                            const promise = new Promise((resolve) => { 
+                                const img = new Image(); 
+                                img.onload = () => { 
+                                    nl.ctx.drawImage(img, 0, 0); 
+                                    if (shouldVirtualizeOnLoad && fi > 2) nl.dehydrate();
+                                    resolve(); 
+                                }; 
+                                img.onerror = () => resolve();
+                                img.src = layerData.data; 
+                            });
+                            imageLoadPromises.push(promise);
+                        }
                     });
                     this.doc.frames.push(newFrame);
                 });
                 
-                await Promise.all(imageLoadPromises);
+                if (imageLoadPromises.length > 0) {
+                    await Promise.all(imageLoadPromises);
+                }
+                this.doc.virtualizeFrames();
                 this.doc.activeLayerIndex = 0; 
                 this.doc.currentFrameIndex = 0; 
                 this.history.clear(); 
-                this.history.updateMaxSteps(resW, resH);
+                this.history.updateMaxSteps(resW, resH, data.frames.length, (data.frames[0]?.layers?.length || 1));
                 this.storage.clearSession();
                 this.saveState();
                 this.events.emit('frameChanged'); 
                 this.events.emit('layerChanged'); 
                 this.viewport.reframe(); 
                 this.renderer.render(); 
+                this.updateCanvasSmoothing();
+                this.events.emit('ui:updateSubpixelUI');
                 this.events.emit('ui:closeAllMenus');
             } catch (err) { 
                 alert("Could not load pxl3ight project file."); 
@@ -586,16 +822,24 @@ export default class PixelEditor {
             resolution: this.state.resolution, 
             customSwatches: this.palette.customSwatches,
             frames: this.doc.frames.map(frame => ({ 
-                layers: frame.layers.map(layer => ({ 
-                    visible: layer.visible, 
-                    opacity: layer.opacity, 
-                    locked: layer.locked, 
-                    isDeleted: layer.isDeleted || false,
-                    holdCount: layer.holdCount || 1,
-                    data: layer.canvas.toDataURL('image/png') 
-                })) 
+                layers: frame.layers.map(layer => {
+                    let dataUrl = null;
+                    if (!layer.isDeleted && layer.hasContent) {
+                        const src = layer._canvas || (layer.isDehydrated && this.renderer ? this.renderer.getDehydratedLayerCanvas(layer) : layer.canvas);
+                        if (src) dataUrl = src.toDataURL('image/png');
+                    }
+                    return { 
+                        visible: layer.visible, 
+                        opacity: layer.opacity, 
+                        locked: layer.locked, 
+                        isDeleted: layer.isDeleted || false,
+                        holdCount: layer.holdCount || 1,
+                        data: dataUrl
+                    };
+                }) 
             }))
         };
+        this.doc.virtualizeFrames();
         
         let defaultName = this.projectName ? this.projectName : `project_${Date.now()}`;
         let fileName = prompt("Name your project file:", defaultName); 
@@ -668,7 +912,8 @@ export default class PixelEditor {
                     }
                     
                     this.history.clear();
-                    this.history.updateMaxSteps(frameW, frameH);
+                    this.history.updateMaxSteps(frameW, frameH, this.doc.frames ? this.doc.frames.length : 1, (this.doc.activeFrame ? this.doc.activeFrame.layers.length : 1));
+                    this.doc.virtualizeFrames();
                     this.saveState(); 
                     this.events.emit('frameChanged'); 
                     this.events.emit('layerChanged'); 
@@ -826,6 +1071,7 @@ export default class PixelEditor {
                 const drawNextFrame = () => {
                     if (currentFrameIndex > end - 1) {
                         recorder.stop();
+                        this.doc.virtualizeFrames();
                         return;
                     }
                     
@@ -845,9 +1091,14 @@ export default class PixelEditor {
                                 }
                             }
                         }
-                        if (layerToDraw && layerToDraw.visible && !layerToDraw.isDeleted) { 
+                        if (layerToDraw && layerToDraw.visible && !layerToDraw.isDeleted && layerToDraw.hasContent) { 
                             eCtx.globalAlpha = layerToDraw.opacity; 
-                            eCtx.drawImage(layerToDraw.canvas, 0, 0, exportCanvas.width, exportCanvas.height); 
+                            if (layerToDraw._canvas) {
+                                eCtx.drawImage(layerToDraw._canvas, 0, 0, exportCanvas.width, exportCanvas.height); 
+                            } else if (layerToDraw.isDehydrated) {
+                                const src = this.renderer.getDehydratedLayerCanvas(layerToDraw);
+                                if (src) eCtx.drawImage(src, 0, 0, exportCanvas.width, exportCanvas.height);
+                            }
                         }
                     }
                     if (track && track.requestFrame) track.requestFrame();
@@ -886,13 +1137,15 @@ export default class PixelEditor {
                 const blob = await new Promise(r => exportCanvas.toBlob(r, 'image/png'));
                 finalFiles = [new File([blob], `${baseName}.png`, { type: 'image/png' })];
             } else {
+                const exportCanvas = document.createElement('canvas'); 
+                exportCanvas.width = this.doc.width; 
+                exportCanvas.height = this.doc.height;
+                const eCtx = exportCanvas.getContext('2d'); 
+                
                 const framesToExport = [];
                 for (let i = start - 1; i <= end - 1; i++) {
                     const f = this.doc.frames[i];
-                    const exportCanvas = document.createElement('canvas'); 
-                    exportCanvas.width = this.doc.width; 
-                    exportCanvas.height = this.doc.height;
-                    const eCtx = exportCanvas.getContext('2d'); 
+                    eCtx.clearRect(0, 0, this.doc.width, this.doc.height);
                     
                     for (let li = f.layers.length - 1; li >= 0; li--) {
                         let layerToDraw = f.layers[li];
@@ -907,17 +1160,24 @@ export default class PixelEditor {
                                 }
                             }
                         }
-                        if (layerToDraw && layerToDraw.visible && !layerToDraw.isDeleted) { 
+                        if (layerToDraw && layerToDraw.visible && !layerToDraw.isDeleted && layerToDraw.hasContent) { 
                             eCtx.globalAlpha = layerToDraw.opacity; 
-                            eCtx.drawImage(layerToDraw.canvas, 0, 0); 
+                            if (layerToDraw._canvas) {
+                                eCtx.drawImage(layerToDraw._canvas, 0, 0); 
+                            } else if (layerToDraw.isDehydrated) {
+                                const src = this.renderer.getDehydratedLayerCanvas(layerToDraw);
+                                if (src) eCtx.drawImage(src, 0, 0);
+                            }
                         }
                     }
-                    framesToExport.push({ index: framesToExport.length + 1, canvas: exportCanvas });
+                    const blob = await new Promise(res => exportCanvas.toBlob(res, 'image/png'));
+                    framesToExport.push({ index: framesToExport.length + 1, blob });
                 }
+                exportCanvas.width = 0;
+                exportCanvas.height = 0;
+                this.doc.virtualizeFrames();
                 
-                const getBlobs = () => Promise.all(framesToExport.map(fd => new Promise(res => {
-                    fd.canvas.toBlob(blob => res({ index: fd.index, blob }), 'image/png');
-                })));
+                const getBlobs = () => Promise.resolve(framesToExport);
                 
                 if (doZip) {
                     document.getElementById('expStatus').innerText = "Loading zip engine...";
@@ -1015,83 +1275,163 @@ export default class PixelEditor {
         this.selection.anchor();
         
         this.state.setResolution(newRes); 
-        const [newW, newH] = newRes.split('x').map(Number);
+        const [newW, newH] = this.state.resolution.split('x').map(Number);
         const oldW = this.doc.width;
         const oldH = this.doc.height;
         
         this.bgCanvas.width = newW; 
         this.bgCanvas.height = newH; 
-        this.bgCanvas.style.backgroundImage = `url(${this.generateCheckerboard(newW, newH)})`;
+        this.renderCheckerboard(newW, newH);
         
         this.selection.init(newW, newH); 
-        this.doc.width = newW; 
-        this.doc.height = newH;
         
-        this.doc.frames.forEach(f => {
+        let drawWidth = newW;
+        let drawHeight = newH;
+        let offsetX = 0;
+        let offsetY = 0;
+        
+        if (oldH > oldW && newH === newW) { 
+            drawWidth = newW; 
+            drawHeight = newW * (oldH / oldW); 
+            offsetY = -(drawHeight - newH) / 2; 
+        } else if (oldW === oldH && newH > newW) { 
+            drawHeight = newH; 
+            drawWidth = newH * (oldW / oldH); 
+            offsetX = -(drawWidth - newW) / 2; 
+        } else { 
+            const canvasRatio = newW / newH;
+            const imgRatio = oldW / oldH; 
+            if (imgRatio > canvasRatio) { 
+                drawHeight = newW / imgRatio; 
+                offsetY = (newH - drawHeight) / 2; 
+            } else { 
+                drawWidth = newH * imgRatio; 
+                offsetX = (newW - drawWidth) / 2; 
+            } 
+        }
+
+        const tempC = document.createElement('canvas'); 
+        tempC.width = oldW; 
+        tempC.height = oldH; 
+        const tempCtx = tempC.getContext('2d');
+        const shouldVirtualize = (newW * newH >= 500000) || (this.doc.frames.length > 15 && newW * newH >= 65536);
+        const curIdx = this.doc.currentFrameIndex;
+
+        this.doc.frames.forEach((f, fi) => {
             f.layers.forEach(l => {
-                const tempC = document.createElement('canvas'); 
-                tempC.width = oldW; 
-                tempC.height = oldH; 
-                tempC.getContext('2d').drawImage(l.canvas, 0, 0);
+                const wasDeleted = l.isDeleted;
+                if (wasDeleted || !l.hasContent) {
+                    l.width = newW;
+                    l.height = newH;
+                    if (l._canvas) {
+                        l._canvas.width = newW;
+                        l._canvas.height = newH;
+                        l.ctx.imageSmoothingEnabled = false;
+                        l.ctx.clearRect(0, 0, newW, newH);
+                    }
+                    l._buffer = null;
+                    l.markModified();
+                    l._snapshot = null;
+                    l._snapshotRev = l._rev;
+                    if (wasDeleted) l.isDeleted = true;
+                    return;
+                }
+
+                tempCtx.clearRect(0, 0, oldW, oldH);
+                const src = l._canvas || (l.isDehydrated && this.renderer ? this.renderer.getDehydratedLayerCanvas(l) : l.canvas);
+                if (src) tempCtx.drawImage(src, 0, 0);
                 
+                l._buffer = null;
+                l.width = newW;
+                l.height = newH;
                 l.canvas.width = newW; 
                 l.canvas.height = newH; 
                 l.ctx.imageSmoothingEnabled = false; 
                 l.ctx.clearRect(0, 0, newW, newH);
-                
-                let drawWidth = newW;
-                let drawHeight = newH;
-                let offsetX = 0;
-                let offsetY = 0;
-                
-                if (oldH > oldW && newH === newW) { 
-                    drawWidth = newW; 
-                    drawHeight = newW * (oldH / oldW); 
-                    offsetY = -(drawHeight - newH) / 2; 
-                } else if (oldW === oldH && newH > newW) { 
-                    drawHeight = newH; 
-                    drawWidth = newH * (oldW / oldH); 
-                    offsetX = -(drawWidth - newW) / 2; 
-                } else { 
-                    const canvasRatio = newW / newH;
-                    const imgRatio = oldW / oldH; 
-                    if (imgRatio > canvasRatio) { 
-                        drawHeight = newW / imgRatio; 
-                        offsetY = (newH - drawHeight) / 2; 
-                    } else { 
-                        drawWidth = newH * imgRatio; 
-                        offsetX = (newW - drawWidth) / 2; 
-                    } 
-                }
-                
                 l.ctx.drawImage(tempC, offsetX, offsetY, drawWidth, drawHeight); 
                 l.markModified();
+
+                if (shouldVirtualize && Math.abs(fi - curIdx) > 2) {
+                    l.dehydrate();
+                }
             });
         });
+        tempC.width = 0;
+        tempC.height = 0;
         
-        this.history.updateMaxSteps(newW, newH);
+        this.doc.width = newW; 
+        this.doc.height = newH;
+        if (this.renderer && typeof this.renderer.clearFrameCache === 'function') {
+            this.renderer.clearFrameCache();
+        }
+        this.history.updateMaxSteps(newW, newH, this.doc.frames ? this.doc.frames.length : 1, (this.doc.activeFrame ? this.doc.activeFrame.layers.length : 1));
+        this.doc.virtualizeFrames();
         this.saveState(); 
         this.events.emit('frameChanged'); 
         this.events.emit('layerChanged'); 
         this.viewport.reframe(); 
+        this.updateCanvasSmoothing();
         if (this.renderer) this.renderer.render(); 
+        this.events.emit('ui:updateSubpixelUI');
         this.events.emit('ui:closeAllMenus');
+    }
+
+    startScrubbing() {
+        if (!this.state) return;
+        if (!this.state.isScrubbing) {
+            this.selection.anchor();
+            this.state.isScrubbing = true;
+            if (this.onionCanvas) this.onionCanvas.style.display = 'none';
+        }
+    }
+
+    finishScrubbing() {
+        if (!this.state || !this.state.isScrubbing) return;
+        this.state.isScrubbing = false;
+        if (this.renderer && typeof this.renderer.clearFrameCache === 'function') {
+            this.renderer.clearFrameCache();
+        }
+        if (!this.doc) return;
+        const before = this.playback?.onionFramesBefore ?? 2;
+        const after = this.playback?.onionFramesAfter ?? 2;
+        this.doc.virtualizeFrames(before, after);
+        this.events.emit('frameChanged');
+        this.events.emit('layerChanged');
+        if (this.playback) this.playback.updateOnionSkin();
+        if (this.renderer) this.renderer.render();
     }
 
     switchFrame(index) {
         if (!this.doc || index < 0 || index >= this.doc.frames.length || this.state.isSpriteSheetView) return;
         
-        this.selection.anchor(); 
+        const isPlaying = this.playback && this.playback.isPlaying;
+        const isScrubbing = !!(this.state && this.state.isScrubbing);
+        const isFastPath = isPlaying || isScrubbing;
+        if (!isFastPath) {
+            this.selection.anchor(); 
+        }
         this.doc.currentFrameIndex = index;
         
         if (this.doc.activeLayerIndex >= this.doc.activeFrame.layers.length) {
             this.doc.activeLayerIndex = this.doc.activeFrame.layers.length - 1;
         }
         
-        this.events.emit('frameChanged'); 
-        this.events.emit('layerChanged'); 
-        this.playback.updateOnionSkin(); 
-        if (this.renderer) this.renderer.render();
+        if (isFastPath) {
+            if (this.ui && typeof this.ui.updateActiveFrameOnly === 'function') {
+                this.ui.updateActiveFrameOnly();
+            }
+            if (this.renderer) {
+                this.renderer.renderImmediate();
+            }
+        } else {
+            const before = this.playback?.onionFramesBefore ?? 2;
+            const after = this.playback?.onionFramesAfter ?? 2;
+            this.doc.virtualizeFrames(before, after);
+            this.events.emit('frameChanged'); 
+            this.events.emit('layerChanged'); 
+            this.playback.updateOnionSkin(); 
+            if (this.renderer) this.renderer.render();
+        }
     }
 
     selectLayer(index) {
@@ -1111,9 +1451,18 @@ export default class PixelEditor {
             this.selection.anchor(); 
             this.events.emit('ui:closeAllMenus');
             
-            this.spriteSheetViewCanvas.width = this.doc.width * 4; 
-            this.spriteSheetViewCanvas.height = this.doc.height * 4;
-            this.spriteSheetCtx.clearRect(0, 0, this.spriteSheetViewCanvas.width, this.spriteSheetViewCanvas.height); 
+            const maxDim = 4096;
+            const rawW = this.doc.width * 4;
+            const rawH = this.doc.height * 4;
+            const scale = Math.min(1, maxDim / rawW, maxDim / rawH);
+            const targetW = Math.round(rawW * scale);
+            const targetH = Math.round(rawH * scale);
+            const cellW = Math.round(this.doc.width * scale);
+            const cellH = Math.round(this.doc.height * scale);
+
+            this.spriteSheetViewCanvas.width = targetW; 
+            this.spriteSheetViewCanvas.height = targetH;
+            this.spriteSheetCtx.clearRect(0, 0, targetW, targetH); 
             this.spriteSheetCtx.imageSmoothingEnabled = false;
             
             this.doc.frames.forEach((frame, idx) => {
@@ -1134,22 +1483,31 @@ export default class PixelEditor {
                             }
                         }
                     }
-                    if (layerToDraw && layerToDraw.visible && !layerToDraw.isDeleted) {
+                    if (layerToDraw && layerToDraw.visible && !layerToDraw.isDeleted && layerToDraw.hasContent) {
                         this.spriteSheetCtx.globalAlpha = layerToDraw.opacity; 
-                        this.spriteSheetCtx.drawImage(layerToDraw.canvas, col * this.doc.width, row * this.doc.height); 
+                        if (layerToDraw._canvas) {
+                            this.spriteSheetCtx.drawImage(layerToDraw._canvas, col * cellW, row * cellH, cellW, cellH); 
+                        } else if (layerToDraw.isDehydrated) {
+                            const src = this.renderer.getDehydratedLayerCanvas(layerToDraw);
+                            if (src) this.spriteSheetCtx.drawImage(src, col * cellW, row * cellH, cellW, cellH);
+                        }
                     } 
                 }
             });
             this.spriteSheetCtx.globalAlpha = 1.0;
+            this.doc.virtualizeFrames();
             
-            this.bgCanvas.width = this.doc.width * 4; 
-            this.bgCanvas.height = this.doc.height * 4; 
-            this.bgCanvas.style.backgroundImage = `url(${this.generateCheckerboard(this.doc.width * 4, this.doc.height * 4)})`;
+            this.bgCanvas.width = targetW; 
+            this.bgCanvas.height = targetH; 
+            this.renderCheckerboard(targetW, targetH);
             this.viewport.reframe();
         } else {
+            this.spriteSheetViewCanvas.width = 0;
+            this.spriteSheetViewCanvas.height = 0;
+            this.doc.virtualizeFrames();
             this.bgCanvas.width = this.doc.width; 
             this.bgCanvas.height = this.doc.height; 
-            this.bgCanvas.style.backgroundImage = `url(${this.generateCheckerboard(this.doc.width, this.doc.height)})`;
+            this.renderCheckerboard(this.doc.width, this.doc.height);
             if (this.renderer) this.renderer.render(); 
             this.viewport.reframe();
         }

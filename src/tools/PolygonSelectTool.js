@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js?cb=121';
-import { CONSTANTS } from '../core/Constants.js?cb=121';
+import BaseTool from './BaseTool.js?cb=158';
+import { CONSTANTS } from '../core/Constants.js?cb=158';
 
 export default class PolygonSelectTool extends BaseTool {
     constructor(context) { 
@@ -144,6 +144,7 @@ export default class PolygonSelectTool extends BaseTool {
         
         if (this.isMovingMask && this.hasMoved) {
             this.updateMovingMask(pos);
+            this.context.core.saveState();
             this.isMovingMask = false;
             return;
         }

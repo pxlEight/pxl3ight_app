@@ -22,16 +22,23 @@ export default class WorkerManager {
                 }
             };
 
+            const IS_LITTLE_ENDIAN = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
+            function pack32(r, g, b, a) {
+                return (IS_LITTLE_ENDIAN
+                    ? ((a << 24) | (b << 16) | (g << 8) | r)
+                    : ((r << 24) | (g << 16) | (b << 8) | a)) >>> 0;
+            }
+
             function doColorSelect({ buffer, w, h, mode, startColor, currentMask }) {
-                const data = new Uint8ClampedArray(buffer);
-                const { r: startR, g: startG, b: startB, a: startA } = startColor;
+                const data32 = new Uint32Array(buffer);
+                const start32 = pack32(startColor.r, startColor.g, startColor.b, startColor.a);
                 
                 const mask = new Uint8Array(currentMask);
                 const fillValue = mode === 'subtract' ? 0 : 1;
+                const total = w * h;
                 
-                for (let i = 0; i < w * h; i++) {
-                    const pos = i * 4;
-                    if (data[pos] === startR && data[pos+1] === startG && data[pos+2] === startB && data[pos+3] === startA) {
+                for (let i = 0; i < total; i++) {
+                    if (data32[i] === start32) {
                         mask[i] = fillValue;
                     }
                 }
@@ -115,15 +122,17 @@ export default class WorkerManager {
 
             function doFloodFill({ buffer, w, h, startX, startY, fillR, fillG, fillB, fillA, alpha, isSelectionActive, selectionMask, startColor }) {
                 const data = new Uint8ClampedArray(buffer);
+                const data32 = new Uint32Array(buffer);
                 const invAlpha = 1 - alpha;
-                const { r: startR, g: startG, b: startB, a: startA } = startColor;
+                const start32 = pack32(startColor.r, startColor.g, startColor.b, startColor.a);
 
-                const matchStartColor = (pos, cx, cy) => {
-                    if (isSelectionActive && !selectionMask[cy * w + cx]) return false;
-                    return data[pos] === startR && data[pos+1] === startG && data[pos+2] === startB && data[pos+3] === startA;
+                const matchStartColor = (idx) => {
+                    if (isSelectionActive && !selectionMask[idx]) return false;
+                    return data32[idx] === start32;
                 };
 
-                const colorPixel = (pos) => {
+                const colorPixel = (idx) => {
+                    const pos = idx * 4;
                     if (alpha === 1.0) {
                         data[pos] = fillR; data[pos+1] = fillG; data[pos+2] = fillB; data[pos+3] = fillA;
                     } else {
@@ -139,79 +148,77 @@ export default class WorkerManager {
                     }
                 };
 
-                const pixelStack = [[startX, startY]];
-                while (pixelStack.length) {
-                    const pt = pixelStack.pop();
-                    const x = pt[0];
-                    let y = pt[1];
-                    let pixelPos = (y * w + x) * 4;
+                // Flat stack of (x, y) pairs: avoids allocating a small array per span.
+                const stack = [startX, startY];
+                while (stack.length) {
+                    let y = stack.pop();
+                    const x = stack.pop();
+                    let idx = y * w + x;
 
-                    while (y >= 0 && matchStartColor(pixelPos, x, y)) {
-                        y--; pixelPos -= w * 4;
+                    while (y >= 0 && matchStartColor(idx)) {
+                        y--; idx -= w;
                     }
 
-                    pixelPos += w * 4; y++;
+                    idx += w; y++;
                     let reachLeft = false, reachRight = false;
 
-                    while (y < h && matchStartColor(pixelPos, x, y)) {
-                        colorPixel(pixelPos);
+                    while (y < h && matchStartColor(idx)) {
+                        colorPixel(idx);
 
                         if (x > 0) {
-                            if (matchStartColor(pixelPos - 4, x - 1, y)) {
-                                if (!reachLeft) { pixelStack.push([x - 1, y]); reachLeft = true; }
+                            if (matchStartColor(idx - 1)) {
+                                if (!reachLeft) { stack.push(x - 1, y); reachLeft = true; }
                             } else if (reachLeft) { reachLeft = false; }
                         }
 
                         if (x < w - 1) {
-                            if (matchStartColor(pixelPos + 4, x + 1, y)) {
-                                if (!reachRight) { pixelStack.push([x + 1, y]); reachRight = true; }
+                            if (matchStartColor(idx + 1)) {
+                                if (!reachRight) { stack.push(x + 1, y); reachRight = true; }
                             } else if (reachRight) { reachRight = false; }
                         }
-                        y++; pixelPos += w * 4;
+                        y++; idx += w;
                     }
                 }
                 return { data };
             }
 
             function doWandSelect({ buffer, w, h, startX, startY, mode, startColor, currentMask }) {
-                const data = new Uint8ClampedArray(buffer);
-                const { r: startR, g: startG, b: startB, a: startA } = startColor;
-                const matchStartColor = (pos) => data[pos] === startR && data[pos+1] === startG && data[pos+2] === startB && data[pos+3] === startA;
+                const data32 = new Uint32Array(buffer);
+                const start32 = pack32(startColor.r, startColor.g, startColor.b, startColor.a);
 
                 const mask = new Uint8Array(currentMask);
                 const visited = new Uint8Array(w * h);
-                const pixelStack = [[startX, startY]];
+                const stack = [startX, startY];
                 const fillValue = mode === 'subtract' ? 0 : 1;
 
-                while (pixelStack.length) {
-                    const pt = pixelStack.pop();
-                    const x = pt[0];
-                    let y = pt[1];
-                    let pixelPos = (y * w + x) * 4;
+                while (stack.length) {
+                    let y = stack.pop();
+                    const x = stack.pop();
+                    let idx = y * w + x;
 
-                    while (y >= 0 && matchStartColor(pixelPos) && !visited[y*w+x]) {
-                        y--; pixelPos -= w * 4;
+                    while (y >= 0 && data32[idx] === start32 && !visited[idx]) {
+                        y--; idx -= w;
                     }
 
-                    pixelPos += w * 4; y++;
+                    idx += w; y++;
                     let reachLeft = false, reachRight = false;
 
-                    while (y < h && matchStartColor(pixelPos) && !visited[y*w+x]) {
-                        visited[y*w+x] = 1;
-                        mask[y*w+x] = fillValue;
+                    while (y < h && data32[idx] === start32 && !visited[idx]) {
+                        visited[idx] = 1;
+                        mask[idx] = fillValue;
 
                         if (x > 0) {
-                            if (matchStartColor(pixelPos - 4) && !visited[y*w+(x-1)]) {
-                                if (!reachLeft) { pixelStack.push([x - 1, y]); reachLeft = true; }
+                            if (data32[idx - 1] === start32 && !visited[idx - 1]) {
+                                if (!reachLeft) { stack.push(x - 1, y); reachLeft = true; }
                             } else if (reachLeft) { reachLeft = false; }
                         }
 
                         if (x < w - 1) {
-                            if (matchStartColor(pixelPos + 4) && !visited[y*w+(x+1)]) {
-                                if (!reachRight) { pixelStack.push([x + 1, y]); reachRight = true; }
+                            if (data32[idx + 1] === start32 && !visited[idx + 1]) {
+                                if (!reachRight) { stack.push(x + 1, y); reachRight = true; }
                             } else if (reachRight) { reachRight = false; }
                         }
-                        y++; pixelPos += w * 4;
+                        y++; idx += w;
                     }
                 }
                 return { mask };

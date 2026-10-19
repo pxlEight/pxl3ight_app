@@ -1,9 +1,25 @@
-import PixelEditor from './PixelEditor.js?cb=122';
+import PixelEditor from './PixelEditor.js?cb=158';
 
 document.addEventListener('DOMContentLoaded', () => {
-    window.defaultLongPressTimer = 450;
-    const storedTimer = localStorage.getItem("longPressTimer_v2");
-    let p = parseInt(storedTimer, 10); window.longPressTimer = (storedTimer && !isNaN(p) && p >= 150 && p <= 750) ? p : window.defaultLongPressTimer; localStorage.setItem("longPressTimer_v2", window.longPressTimer);
+    window.defaultLongPressTimer = 500;
+    const storedTimerV3 = localStorage.getItem("longPressTimer_v3");
+    const storedTimerV2 = localStorage.getItem("longPressTimer_v2");
+    let timerMs = window.defaultLongPressTimer;
+    if (storedTimerV3 !== null) {
+        let sec = parseFloat(storedTimerV3);
+        if (!isNaN(sec) && sec >= 0.25 && sec <= 3.0) {
+            timerMs = Math.round(Math.round(sec / 0.25) * 0.25 * 1000);
+        }
+    } else if (storedTimerV2 !== null) {
+        let p = parseInt(storedTimerV2, 10);
+        if (!isNaN(p)) {
+            let sec = Math.max(0.25, Math.min(3.0, Math.round((p / 1000) / 0.25) * 0.25));
+            timerMs = Math.round(sec * 1000);
+        }
+    }
+    window.longPressTimer = timerMs;
+    localStorage.setItem("longPressTimer_v3", (window.longPressTimer / 1000).toString());
+    localStorage.setItem("longPressTimer_v2", window.longPressTimer);
     
     try {
         window.drawOffset = JSON.parse(localStorage.getItem('drawOffset_v1') || '{"x":0, "y":0}');

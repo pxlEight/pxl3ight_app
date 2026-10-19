@@ -9,10 +9,20 @@ export default class BaseTool {
     cancel() {}
     
     drawPixel(cx, cy) { 
+        if (this.context.isSubpixelSmoothing) {
+            this.context.executeWithMirror(cx, cy, (x, y) => this.context.drawVectorPointToScratch(x, y));
+            return;
+        }
         this.context.executeWithMirror(Math.round(cx), Math.round(cy), (x, y) => this.context.drawPixelToScratch(x, y)); 
     }
     
     drawLine(x0, y0, x1, y1) {
+        if (this.context.isSubpixelSmoothing) {
+            this.context.executeLineWithMirror(x0, y0, x1, y1, (lx0, ly0, lx1, ly1) => {
+                this.context.drawVectorLineToScratch(lx0, ly0, lx1, ly1);
+            });
+            return;
+        }
         x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
         let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
         let dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
@@ -28,6 +38,12 @@ export default class BaseTool {
     }
     
     drawEllipse(x0, y0, x1, y1) {
+        if (this.context.isSubpixelSmoothing) {
+            this.context.executeEllipseWithMirror(x0, y0, x1, y1, (ex0, ey0, ex1, ey1) => {
+                this.context.drawVectorEllipseToScratch(ex0, ey0, ex1, ey1);
+            });
+            return;
+        }
         x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
         let a = Math.abs(x1 - x0), b = Math.abs(y1 - y0), b1 = b & 1;
         let dx = 4 * (1 - a) * b * b, dy = 4 * (b1 + 1) * a * a;

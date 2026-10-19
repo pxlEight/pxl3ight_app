@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js?cb=121';
-import { CONSTANTS } from '../core/Constants.js?cb=121';
+import BaseTool from './BaseTool.js?cb=158';
+import { CONSTANTS } from '../core/Constants.js?cb=158';
 
 export default class ColorSelectTool extends BaseTool {
     constructor(context) {
@@ -13,6 +13,8 @@ export default class ColorSelectTool extends BaseTool {
 
     async doColorSelect(startX, startY, mode) {
         if (this.isProcessing) return;
+        startX = Math.floor(startX);
+        startY = Math.floor(startY);
         
         const imgData = this.context.getImageData();
         if (!imgData) return;

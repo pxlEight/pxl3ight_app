@@ -5,16 +5,18 @@ export default class HistoryManager {
         this.maxSteps = 20; 
     }
     
-    updateMaxSteps(w, h) {
-        const pixels = w * h;
-        if (pixels <= 4096) { 
+    updateMaxSteps(w, h, frameCount = 1, layerCount = 1) {
+        const totalPixels = (w * h) * Math.max(1, (frameCount * layerCount) / 4);
+        if (totalPixels <= 16384) { 
             this.maxSteps = 60;
-        } else if (pixels <= 16384) { 
+        } else if (totalPixels <= 65536) { 
             this.maxSteps = 40;
-        } else if (pixels <= 57600) { 
+        } else if (totalPixels <= 500000) { 
             this.maxSteps = 20;
-        } else { 
+        } else if (totalPixels <= 5000000) { 
             this.maxSteps = 10;
+        } else { 
+            this.maxSteps = 6;
         }
         this.trim();
     }
@@ -41,11 +43,28 @@ export default class HistoryManager {
                             if (isReferenced) break;
                         }
                         if (!isReferenced && l.canvasData) {
-                            l.canvasData.width = 0;
-                            l.canvasData.height = 0;
+                            if (l.canvasData instanceof HTMLCanvasElement) {
+                                l.canvasData.width = 0;
+                                l.canvasData.height = 0;
+                            }
+                            l.canvasData = null;
                         }
                     });
                 });
+                if (droppedState.floatingCanvasData) {
+                    if (droppedState.floatingCanvasData instanceof HTMLCanvasElement) {
+                        droppedState.floatingCanvasData.width = 0;
+                        droppedState.floatingCanvasData.height = 0;
+                    }
+                    droppedState.floatingCanvasData = null;
+                }
+                if (droppedState.origFloatingCanvasData) {
+                    if (droppedState.origFloatingCanvasData instanceof HTMLCanvasElement) {
+                        droppedState.origFloatingCanvasData.width = 0;
+                        droppedState.origFloatingCanvasData.height = 0;
+                    }
+                    droppedState.origFloatingCanvasData = null;
+                }
             }
         }
         if (this.step < -1) this.step = -1;
@@ -53,10 +72,49 @@ export default class HistoryManager {
 
     saveState(doc, selection) {
         if (!doc) return;
+
+        if (doc.frames) {
+            this.updateMaxSteps(doc.width, doc.height, doc.frames.length, (doc.activeFrame ? doc.activeFrame.layers.length : 1));
+        }
         
         if (this.step < this.history.length - 1) {
-            this.discardedRedo = this.history.slice(this.step + 1);
+            const discarded = this.history.slice(this.step + 1);
             this.history.length = this.step + 1;
+            discarded.forEach(state => {
+                state.frames.forEach(f => {
+                    f.layers.forEach(l => {
+                        let isReferenced = false;
+                        for (let i = 0; i < this.history.length; i++) {
+                            for (let sf of this.history[i].frames) {
+                                for (let sl of sf.layers) {
+                                    if (sl.canvasData === l.canvasData) {
+                                        isReferenced = true;
+                                        break;
+                                    }
+                                }
+                                if (isReferenced) break;
+                            }
+                            if (isReferenced) break;
+                        }
+                        if (!isReferenced && l.canvasData) {
+                            if (l.canvasData instanceof HTMLCanvasElement) {
+                                l.canvasData.width = 0;
+                                l.canvasData.height = 0;
+                            }
+                            l.canvasData = null;
+                        }
+                    });
+                });
+                if (state.floatingCanvasData && state.floatingCanvasData instanceof HTMLCanvasElement) {
+                    state.floatingCanvasData.width = 0;
+                    state.floatingCanvasData.height = 0;
+                }
+                if (state.origFloatingCanvasData && state.origFloatingCanvasData instanceof HTMLCanvasElement) {
+                    state.origFloatingCanvasData.width = 0;
+                    state.origFloatingCanvasData.height = 0;
+                }
+            });
+            this.discardedRedo = null;
         } else {
             this.discardedRedo = null;
         }
@@ -66,51 +124,53 @@ export default class HistoryManager {
         let floatingData = null;
         let origFloatingData = null;
         if (selection && selection.isFloating) {
-            const fCanvas = document.createElement('canvas');
-            fCanvas.width = selection.floatingCanvas.width;
-            fCanvas.height = selection.floatingCanvas.height;
-            fCanvas.getContext('2d').drawImage(selection.floatingCanvas, 0, 0);
-            floatingData = fCanvas;
+            if (selection.floatingCanvas && selection.floatingCanvas.width > 0 && selection.floatingCanvas.height > 0) {
+                floatingData = selection.floatingCanvas.getContext('2d').getImageData(0, 0, selection.floatingCanvas.width, selection.floatingCanvas.height);
+            }
             
-            if (selection.origFloatingCanvas) {
-                const oCanvas = document.createElement('canvas');
-                oCanvas.width = selection.origFloatingCanvas.width;
-                oCanvas.height = selection.origFloatingCanvas.height;
-                oCanvas.getContext('2d').drawImage(selection.origFloatingCanvas, 0, 0);
-                origFloatingData = oCanvas;
+            if (selection.origFloatingCanvas && selection.origFloatingCanvas.width > 0 && selection.origFloatingCanvas.height > 0) {
+                origFloatingData = selection.origFloatingCanvas.getContext('2d').getImageData(0, 0, selection.origFloatingCanvas.width, selection.origFloatingCanvas.height);
             }
         }
 
         const snapshot = {
             docWidth: doc.width,
             docHeight: doc.height,
-            selectionMask: selection && selection.mask ? new Uint8Array(selection.mask) : null,
+            selectionMask: (selection && selection.isActive && selection.mask) ? new Uint8Array(selection.mask) : null,
             isFloating: selection ? selection.isFloating : false,
             floatingCanvasData: floatingData,
             origFloatingCanvasData: origFloatingData,
             transformMatrix: selection && selection.transformMatrix ? DOMMatrix.fromMatrix(selection.transformMatrix) : null,
             bounds: selection ? { ...selection.bounds } : null,
             origBounds: selection && selection.origBounds ? { ...selection.origBounds } : null,
-            frames: doc.frames.map((f) => ({
+            frames: doc.frames.map((f, fi) => ({
                 layers: f.layers.map((l) => {
                     let prevLayerState = null;
                     if (prevState) { 
-                        for (let pf of prevState.frames) { 
-                            const match = pf.layers.find(pl => pl._id === l._id); 
-                            if (match) { prevLayerState = match; break; } 
-                        } 
+                        if (prevState.frames[fi]) {
+                            prevLayerState = prevState.frames[fi].layers.find(pl => pl._id === l._id) || null;
+                        }
+                        if (!prevLayerState) {
+                            for (let pf of prevState.frames) { 
+                                const match = pf.layers.find(pl => pl._id === l._id); 
+                                if (match) { prevLayerState = match; break; } 
+                            } 
+                        }
                     }
-                    if (prevLayerState && prevLayerState._rev === l._rev) {
+                    if (prevLayerState && prevLayerState._rev === l._rev && (prevLayerState.isDeleted || false) === (l.isDeleted || false)) {
                         return { _id: l._id, _rev: l._rev, canvasData: prevLayerState.canvasData, visible: l.visible, opacity: l.opacity, locked: l.locked, isDeleted: l.isDeleted || false, holdCount: l.holdCount || 1, _name: l._name };
                     }
-                    let cloneCanvas = null;
+                    let cloneData = null;
                     if (!l.isDeleted) {
-                        cloneCanvas = document.createElement('canvas'); 
-                        cloneCanvas.width = l.canvas.width; 
-                        cloneCanvas.height = l.canvas.height; 
-                        cloneCanvas.getContext('2d').drawImage(l.canvas, 0, 0);
+                        if (typeof l.getSnapshotImageData === 'function') {
+                            cloneData = l.getSnapshotImageData();
+                        } else if (l._buffer) {
+                            cloneData = l._buffer;
+                        } else if (l._canvas) {
+                            cloneData = l.ctx.getImageData(0, 0, l.width, l.height);
+                        }
                     }
-                    return { _id: l._id, _rev: l._rev, canvasData: cloneCanvas, visible: l.visible, opacity: l.opacity, locked: l.locked, isDeleted: l.isDeleted || false, holdCount: l.holdCount || 1, _name: l._name };
+                    return { _id: l._id, _rev: l._rev, canvasData: cloneData, visible: l.visible, opacity: l.opacity, locked: l.locked, isDeleted: l.isDeleted || false, holdCount: l.holdCount || 1, _name: l._name };
                 })
             })),
             currentFrameIndex: doc.currentFrameIndex, 
@@ -143,11 +203,28 @@ export default class HistoryManager {
             state.frames.forEach(f => {
                 f.layers.forEach(l => {
                     if (l.canvasData) {
-                        l.canvasData.width = 0;
-                        l.canvasData.height = 0;
+                        if (l.canvasData instanceof HTMLCanvasElement) {
+                            l.canvasData.width = 0;
+                            l.canvasData.height = 0;
+                        }
+                        l.canvasData = null;
                     }
                 });
             });
+            if (state.floatingCanvasData) {
+                if (state.floatingCanvasData instanceof HTMLCanvasElement) {
+                    state.floatingCanvasData.width = 0;
+                    state.floatingCanvasData.height = 0;
+                }
+                state.floatingCanvasData = null;
+            }
+            if (state.origFloatingCanvasData) {
+                if (state.origFloatingCanvasData instanceof HTMLCanvasElement) {
+                    state.origFloatingCanvasData.width = 0;
+                    state.origFloatingCanvasData.height = 0;
+                }
+                state.origFloatingCanvasData = null;
+            }
         });
         this.history = []; 
         this.step = -1; 

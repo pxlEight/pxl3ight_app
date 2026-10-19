@@ -1,4 +1,4 @@
-import { CONSTANTS } from '../core/Constants.js?cb=121';
+import { CONSTANTS } from '../core/Constants.js?cb=158';
 
 export default class ToolContext {
     constructor(core) {
@@ -19,6 +19,9 @@ export default class ToolContext {
     get shape() { return this.core.state.tool.shape; }
     get brushShape() { return this.core.state.tool.brushShape; }
     get smooth() { return this.core.state.tool.smooth; }
+    get isSubpixelSmoothing() { 
+        return !!this.core.state.subpixelSmoothing && (Math.max(this.canvasWidth, this.canvasHeight) >= 720); 
+    }
     
     getBrushSize() {
         if (this.toolId === CONSTANTS.TOOLS.ERASER) return this.core.state.sizes[CONSTANTS.TOOLS.ERASER];
@@ -28,6 +31,7 @@ export default class ToolContext {
 
     isPixelSelected(x, y) {
         if (!this.core.selection.isActive) return true;
+        x = Math.floor(x); y = Math.floor(y);
         if (x < 0 || x >= this.canvasWidth || y < 0 || y >= this.canvasHeight) return false;
         return !!this.core.selection.mask[y * this.canvasWidth + x];
     }
@@ -35,6 +39,11 @@ export default class ToolContext {
     setupDrawingState() {
         if (!this.activeCanvas) return;
         this.hasDrawnInBounds = false;
+        this._dirty = null;
+        if (!this.isSpriteSheetView && this.core.doc && this.core.doc.activeLayer) {
+            this._backupRev = this.core.doc.activeLayer._rev;
+            this._backupIsDeleted = this.core.doc.activeLayer.isDeleted;
+        }
         const cvs = this.activeCanvas;
         if (this.core.backupCanvas.width !== cvs.width || this.core.backupCanvas.height !== cvs.height) {
             this.core.backupCanvas.width = cvs.width; this.core.backupCanvas.height = cvs.height;
@@ -48,21 +57,57 @@ export default class ToolContext {
         this.scratchCtx.clearRect(0, 0, this.scratchCanvas.width, this.scratchCanvas.height);
     }
 
-    updateActiveCanvasFromScratch() {
+    updateActiveCanvasFromScratch(incremental = false) {
         if (!this.activeCtx) return;
         const ctx = this.activeCtx;
-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-        ctx.drawImage(this.core.backupCanvas, 0, 0);
-        ctx.globalAlpha = this.opacity;
-        if (this.toolId === CONSTANTS.TOOLS.ERASER) ctx.globalCompositeOperation = 'destination-out';
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(this.scratchCanvas, 0, 0);
+        
+        let rect = null;
+        if (incremental) {
+            // Only strokes that accumulate onto scratch (never erase from it) may use this path.
+            rect = this._dirty;
+            if (!rect) return; // nothing new since the last update
+            this._dirty = null;
+        }
+        
+        if (rect) {
+            const { x, y, w, h } = rect;
+            ctx.clearRect(x, y, w, h);
+            ctx.drawImage(this.core.backupCanvas, x, y, w, h, x, y, w, h);
+            ctx.globalAlpha = this.opacity;
+            if (this.toolId === CONSTANTS.TOOLS.ERASER) ctx.globalCompositeOperation = 'destination-out';
+            ctx.imageSmoothingEnabled = this.isSubpixelSmoothing;
+            ctx.drawImage(this.scratchCanvas, x, y, w, h, x, y, w, h);
+        } else {
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.drawImage(this.core.backupCanvas, 0, 0);
+            ctx.globalAlpha = this.opacity;
+            if (this.toolId === CONSTANTS.TOOLS.ERASER) ctx.globalCompositeOperation = 'destination-out';
+            ctx.imageSmoothingEnabled = this.isSubpixelSmoothing;
+            ctx.drawImage(this.scratchCanvas, 0, 0);
+        }
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 1.0;
         
         if (!this.isSpriteSheetView) {
             this.core.doc.activeLayer.markModified();
-            if(this.core.renderer) this.core.renderer.render();
+            if(this.core.renderer) this.core.renderer.render(rect);
+        }
+    }
+
+    _markDirty(x0, y0, x1, y1) {
+        const target = this.activeCanvas;
+        if (!target) return;
+        const cw = target.width, ch = target.height;
+        x0 = Math.max(0, x0); y0 = Math.max(0, y0);
+        x1 = Math.min(cw, x1); y1 = Math.min(ch, y1);
+        if (x1 <= x0 || y1 <= y0) return;
+        const d = this._dirty;
+        if (!d) {
+            this._dirty = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+        } else {
+            const nx = Math.min(d.x, x0), ny = Math.min(d.y, y0);
+            const mx = Math.max(d.x + d.w, x1), my = Math.max(d.y + d.h, y1);
+            d.x = nx; d.y = ny; d.w = mx - nx; d.h = my - ny;
         }
     }
     
@@ -72,17 +117,18 @@ export default class ToolContext {
             return;
         }
         if (!this.isSpriteSheetView) {
+            if (this.core.renderer) this.core.renderer.render();
             if (this.core.input && this.core.input.hiddenTapPending) {
                 this.core.input.hiddenTapPending = false;
                 this.core.input.hiddenTapTimeout = setTimeout(() => {
                     this.core.input.hiddenTapTimeout = null;
                     this.core.saveState();
-                    this.core.events.emit('frameChanged');
+                    this.core.events.emit('ui:updateActiveThumbnail');
                     this.core.playback.updateOnionSkin();
                 }, 300);
             } else {
                 this.core.saveState();
-                this.core.events.emit('frameChanged');
+                this.core.events.emit('ui:updateActiveThumbnail');
                 this.core.playback.updateOnionSkin();
             }
         }
@@ -95,6 +141,10 @@ export default class ToolContext {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
         ctx.drawImage(this.core.backupCanvas, 0, 0);
         if (!this.isSpriteSheetView) {
+            if (this.core.doc && this.core.doc.activeLayer) {
+                if (this._backupRev !== undefined) this.core.doc.activeLayer._rev = this._backupRev;
+                if (this._backupIsDeleted !== undefined) this.core.doc.activeLayer.isDeleted = this._backupIsDeleted;
+            }
             if(this.core.renderer) this.core.renderer.render();
             this.core.playback.updateOnionSkin();
         }
@@ -110,6 +160,112 @@ export default class ToolContext {
         if (mode === CONSTANTS.MIRROR.Q) actionFn(w - 1 - x, h - 1 - y);
     }
 
+    executeLineWithMirror(x0, y0, x1, y1, actionFn) {
+        const w = this.canvasWidth;
+        const h = this.canvasHeight;
+        const mode = this.core.state.mirrorMode;
+        actionFn(x0, y0, x1, y1);
+        if (mode === CONSTANTS.MIRROR.H || mode === CONSTANTS.MIRROR.Q) actionFn(w - 1 - x0, y0, w - 1 - x1, y1);
+        if (mode === CONSTANTS.MIRROR.V || mode === CONSTANTS.MIRROR.Q) actionFn(x0, h - 1 - y0, x1, h - 1 - y1);
+        if (mode === CONSTANTS.MIRROR.Q) actionFn(w - 1 - x0, h - 1 - y0, w - 1 - x1, h - 1 - y1);
+    }
+
+    executeEllipseWithMirror(x0, y0, x1, y1, actionFn) {
+        const w = this.canvasWidth;
+        const h = this.canvasHeight;
+        const mode = this.core.state.mirrorMode;
+        actionFn(x0, y0, x1, y1);
+        if (mode === CONSTANTS.MIRROR.H || mode === CONSTANTS.MIRROR.Q) actionFn(w - 1 - x0, y0, w - 1 - x1, y1);
+        if (mode === CONSTANTS.MIRROR.V || mode === CONSTANTS.MIRROR.Q) actionFn(x0, h - 1 - y0, x1, h - 1 - y1);
+        if (mode === CONSTANTS.MIRROR.Q) actionFn(w - 1 - x0, h - 1 - y0, w - 1 - x1, h - 1 - y1);
+    }
+
+    drawVectorPointToScratch(cx, cy) {
+        const size = this.getBrushSize();
+        const startX = cx - size / 2;
+        const startY = cy - size / 2;
+        
+        if (startX < this.canvasWidth && startY < this.canvasHeight && startX + size > 0 && startY + size > 0) {
+            this.hasDrawnInBounds = true;
+        }
+        this._markDirty(Math.floor(startX - 2), Math.floor(startY - 2), Math.ceil(startX + size + 2), Math.ceil(startY + size + 2));
+        
+        const ctx = this.scratchCtx;
+        ctx.save();
+        if (this.core.selection.isActive && this.core.selection.path) {
+            ctx.clip(this.core.selection.path);
+        }
+        ctx.fillStyle = (this.toolId === CONSTANTS.TOOLS.ERASER) ? "#000000" : this.color;
+        ctx.beginPath();
+        ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    drawVectorLineToScratch(x0, y0, x1, y1) {
+        const size = this.getBrushSize();
+        const minX = Math.min(x0, x1) - size / 2 - 2;
+        const minY = Math.min(y0, y1) - size / 2 - 2;
+        const maxX = Math.max(x0, x1) + size / 2 + 2;
+        const maxY = Math.max(y0, y1) + size / 2 + 2;
+        
+        if (minX < this.canvasWidth && minY < this.canvasHeight && maxX > 0 && maxY > 0) {
+            this.hasDrawnInBounds = true;
+        }
+        this._markDirty(Math.floor(minX), Math.floor(minY), Math.ceil(maxX), Math.ceil(maxY));
+        
+        const ctx = this.scratchCtx;
+        ctx.save();
+        if (this.core.selection.isActive && this.core.selection.path) {
+            ctx.clip(this.core.selection.path);
+        }
+        const color = (this.toolId === CONSTANTS.TOOLS.ERASER) ? "#000000" : this.color;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = size;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        if (Math.abs(x0 - x1) < 0.001 && Math.abs(y0 - y1) < 0.001) {
+            ctx.beginPath();
+            ctx.arc(x0, y0, size / 2, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x1, y1);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    drawVectorEllipseToScratch(x0, y0, x1, y1) {
+        const size = this.getBrushSize();
+        const minX = Math.min(x0, x1);
+        const maxX = Math.max(x0, x1);
+        const minY = Math.min(y0, y1);
+        const maxY = Math.max(y0, y1);
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        const rx = Math.max(0.1, (maxX - minX) / 2);
+        const ry = Math.max(0.1, (maxY - minY) / 2);
+        
+        this.hasDrawnInBounds = true;
+        this._markDirty(Math.floor(minX - size - 2), Math.floor(minY - size - 2), Math.ceil(maxX + size + 2), Math.ceil(maxY + size + 2));
+        
+        const ctx = this.scratchCtx;
+        ctx.save();
+        if (this.core.selection.isActive && this.core.selection.path) {
+            ctx.clip(this.core.selection.path);
+        }
+        ctx.strokeStyle = (this.toolId === CONSTANTS.TOOLS.ERASER) ? "#000000" : this.color;
+        ctx.lineWidth = size;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+
     drawPixelToScratch(cx, cy) {
         cx = Math.round(cx); cy = Math.round(cy);
         const size = this.getBrushSize();
@@ -119,6 +275,7 @@ export default class ToolContext {
         if (startX < this.canvasWidth && startY < this.canvasHeight && startX + size > 0 && startY + size > 0) {
             this.hasDrawnInBounds = true;
         }
+        this._markDirty(startX, startY, startX + size, startY + size);
         
         this.scratchCtx.fillStyle = (this.toolId === CONSTANTS.TOOLS.ERASER) ? "#000000" : this.color;
         const isRound = (this.brushShape === CONSTANTS.BRUSH_SHAPE.ROUND && size > 1 && (this.toolId === CONSTANTS.TOOLS.PENCIL || this.toolId === CONSTANTS.TOOLS.ERASER));
@@ -195,6 +352,7 @@ export default class ToolContext {
         this.activeCtx.putImageData(imgData, 0, 0);
         if (!this.isSpriteSheetView) {
             this.core.doc.activeLayer.markModified();
+            if (this.core.renderer) this.core.renderer.render();
         }
     }
 

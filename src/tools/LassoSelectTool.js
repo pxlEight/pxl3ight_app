@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js?cb=121';
-import { CONSTANTS } from '../core/Constants.js?cb=121';
+import BaseTool from './BaseTool.js?cb=158';
+import { CONSTANTS } from '../core/Constants.js?cb=158';
 
 export default class LassoSelectTool extends BaseTool {
     constructor(context) {
@@ -30,11 +30,35 @@ export default class LassoSelectTool extends BaseTool {
     }
     
     startMovingMask() {
-        this.context.core.events.emit('selection:startMoveMask');
+        this.isMovingMask = true;
+        this.startMask = new Uint8Array(this.context.getSelectionMask());
     }
     
     updateMovingMask(pos) {
-        this.context.core.events.emit('selection:updateMoveMask', { dx: pos.x - this.startX, dy: pos.y - this.startY });
+        if (!this.isMovingMask) return;
+        
+        const dx = Math.round(pos.x - this.startX);
+        const dy = Math.round(pos.y - this.startY);
+        
+        const w = this.context.canvasWidth;
+        const h = this.context.canvasHeight;
+        const mask = this.context.getSelectionMask();
+        
+        mask.fill(0);
+        
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (this.startMask[y * w + x]) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                        mask[ny * w + nx] = 1;
+                    }
+                }
+            }
+        }
+        
+        this.context.core.selection.rebuildPath();
     }
 
     startDrawing(pos) {
@@ -136,6 +160,7 @@ export default class LassoSelectTool extends BaseTool {
         
         if (this.isMovingMask && this.hasMoved) {
             this.updateMovingMask(pos);
+            this.context.core.saveState();
             this.isMovingMask = false;
             return;
         }

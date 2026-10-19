@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js?cb=121';
-import { CONSTANTS } from '../core/Constants.js?cb=121';
+import BaseTool from './BaseTool.js?cb=158';
+import { CONSTANTS } from '../core/Constants.js?cb=158';
 
 export default class WandTool extends BaseTool {
     constructor(context) {
@@ -13,6 +13,8 @@ export default class WandTool extends BaseTool {
 
     async doFloodSelect(startX, startY, mode) {
         if (this.isProcessing) return;
+        startX = Math.floor(startX);
+        startY = Math.floor(startY);
         
         const imgData = this.context.getImageData();
         if (!imgData) return;
@@ -165,6 +167,7 @@ export default class WandTool extends BaseTool {
         
         if (this.isMovingMask && this.hasMoved) {
             this.updateMovingMask(pos);
+            this.context.core.saveState();
             this.isMovingMask = false;
             return;
         }

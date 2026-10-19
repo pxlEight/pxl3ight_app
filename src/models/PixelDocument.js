@@ -1,5 +1,5 @@
-import PixelLayer from './PixelLayer.js?cb=122';
-import PixelFrame from './PixelFrame.js?cb=122';
+import PixelLayer from './PixelLayer.js?cb=158';
+import PixelFrame from './PixelFrame.js?cb=158';
 
 export default class PixelDocument {
     constructor(w, h, events) { 
@@ -11,23 +11,51 @@ export default class PixelDocument {
         this.activeLayerIndex = 0; 
     }
     get activeFrame() { return this.frames[this.currentFrameIndex]; } 
-    get activeLayer() { return this.activeFrame.layers[this.activeLayerIndex]; } 
+    get activeLayer() { 
+        const frame = this.activeFrame;
+        if (!frame) return null;
+        const layer = frame.layers[this.activeLayerIndex];
+        if (layer && layer.isDeleted) {
+            for (let k = this.currentFrameIndex - 1; k >= 0; k--) {
+                const prevLayer = this.frames[k]?.layers?.[this.activeLayerIndex];
+                if (prevLayer && !prevLayer.isDeleted) {
+                    if (k + (prevLayer.holdCount || 1) > this.currentFrameIndex) {
+                        return prevLayer;
+                    }
+                    break;
+                }
+            }
+        }
+        return layer; 
+    } 
     get activeCtx() { return this.activeLayer.ctx; }
     
     addLayer() { 
         // Index 0 is the top-most layer; insert directly above the active layer
         const insertAt = Math.max(0, Math.min(this.activeLayerIndex, this.activeFrame.layers.length));
-        this.frames.forEach(f => f.layers.splice(insertAt, 0, new PixelLayer(this.width, this.height))); 
+        const curIdx = this.currentFrameIndex;
+        this.frames.forEach((f, idx) => {
+            const nl = new PixelLayer(this.width, this.height);
+            if (idx !== 0 && idx !== curIdx) {
+                nl.isDeleted = true;
+            }
+            f.layers.splice(insertAt, 0, nl);
+            f.layers.forEach((l, i) => { l._name = `L${i + 1}`; });
+        }); 
         this.activeLayerIndex = insertAt; 
+        this.virtualizeFrames();
         this.events.emit('layerChanged'); 
+        this.events.emit('frameChanged');
     }
     deleteLayer() { 
         if (this.activeFrame.layers.length <= 1) return; 
         this.frames.forEach(f => {
             const removed = f.layers.splice(this.activeLayerIndex, 1)[0];
             if (removed && typeof removed.destroy === 'function') removed.destroy();
+            f.layers.forEach((l, i) => { l._name = `L${i + 1}`; });
         }); 
         this.activeLayerIndex = Math.min(this.activeLayerIndex, this.activeFrame.layers.length - 1); 
+        this.virtualizeFrames();
         this.events.emit('layerChanged'); 
     }
     duplicateActiveLayer() { 
@@ -35,7 +63,9 @@ export default class PixelDocument {
         this.frames.forEach(f => { 
             const clone = f.layers[this.activeLayerIndex].clone(); 
             f.layers.splice(this.activeLayerIndex, 0, clone); 
+            f.layers.forEach((l, i) => { l._name = `L${i + 1}`; });
         }); 
+        this.virtualizeFrames();
         this.events.emit('layerChanged'); 
     }
     mergeLayerDown() {
@@ -43,7 +73,7 @@ export default class PixelDocument {
         this.frames.forEach(f => {
             const top = f.layers[this.activeLayerIndex];
             const bottom = f.layers[this.activeLayerIndex + 1];
-            if (top.visible && !top.isDeleted) { 
+            if (top.visible && !top.isDeleted && top.hasContent) { 
                 bottom.ctx.globalAlpha = top.opacity; 
                 bottom.ctx.drawImage(top.canvas, 0, 0); 
                 bottom.ctx.globalAlpha = 1.0; 
@@ -56,8 +86,10 @@ export default class PixelDocument {
             delete bottom._cachedOriginIndex;
             const removed = f.layers.splice(this.activeLayerIndex, 1)[0];
             if (removed && typeof removed.destroy === 'function') removed.destroy();
+            f.layers.forEach((l, i) => { l._name = `L${i + 1}`; });
         });
         this.activeLayerIndex = Math.min(this.activeLayerIndex, this.activeFrame.layers.length - 1);
+        this.virtualizeFrames();
         this.events.emit('layerChanged'); 
         this.events.emit('frameChanged'); 
         return true;
@@ -77,6 +109,7 @@ export default class PixelDocument {
         }
         this.frames.push(frame); 
         this.currentFrameIndex = this.frames.length - 1; 
+        this.virtualizeFrames();
         this.events.emit('frameChanged');
     }
     addLayerFrame(layerIdx) {
@@ -109,6 +142,7 @@ export default class PixelDocument {
             nl.isDeleted = false;
             this.frames[endIdx].layers[layerIdx] = nl;
         }
+        this.virtualizeFrames();
         this.events.emit('frameChanged');
     }
     deleteLayerFrame(layerIdx, frameIdx) {
@@ -198,6 +232,7 @@ export default class PixelDocument {
             clone.isDeleted = true;
             this.frames[k].layers[layerIdx] = clone;
         }
+        this.virtualizeFrames();
         this.events.emit('frameChanged');
     }
     deleteFrame(index) { 
@@ -211,6 +246,7 @@ export default class PixelDocument {
         if (this.currentFrameIndex >= this.frames.length) {
             this.currentFrameIndex = this.frames.length - 1; 
         }
+        this.virtualizeFrames();
         this.events.emit('frameChanged'); 
     }
     copyLayerFrame(layerIdx, frameIdx) {
@@ -248,12 +284,75 @@ export default class PixelDocument {
         clone.isDeleted = false;
         this.frames[frameIdx + 1].layers[layerIdx] = clone;
         
+        this.virtualizeFrames();
         this.events.emit('frameChanged');
     }
     copyFrame(index) { 
         const clone = this.frames[index].clone(); 
         this.frames.splice(index + 1, 0, clone); 
         this.currentFrameIndex = index + 1; 
+        this.virtualizeFrames();
         this.events.emit('frameChanged'); 
+    }
+
+    virtualizeFrames(onionBefore = 2, onionAfter = 2) {
+        const totalPixels = this.width * this.height;
+        // Only virtualize for high-res projects (>=500k pixels e.g. 720p/1080p) or medium-res with >15 frames
+        const shouldVirtualize = (totalPixels >= 500000) || (this.frames.length > 15 && totalPixels >= 65536);
+        if (!shouldVirtualize) return;
+
+        const keepSet = new Set();
+        const cur = this.currentFrameIndex;
+        const totalFrames = this.frames.length;
+
+        // Keep current frame
+        keepSet.add(cur);
+
+        // Keep onion skin window
+        const start = Math.max(0, cur - onionBefore);
+        const end = Math.min(totalFrames - 1, cur + onionAfter);
+        for (let i = start; i <= end; i++) {
+            keepSet.add(i);
+        }
+
+        // Include hold origin frames for any held layers within the keep set
+        for (const fIdx of Array.from(keepSet)) {
+            const frame = this.frames[fIdx];
+            if (!frame || !frame.layers) continue;
+            for (let li = 0; li < frame.layers.length; li++) {
+                const layer = frame.layers[li];
+                if (layer && layer.isDeleted) {
+                    for (let k = fIdx - 1; k >= 0; k--) {
+                        const prevLayer = this.frames[k]?.layers?.[li];
+                        if (prevLayer && !prevLayer.isDeleted) {
+                            if (k + (prevLayer.holdCount || 1) > fIdx) {
+                                keepSet.add(k);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Hydrate frames in keepSet, dehydrate frames outside keepSet
+        for (let fi = 0; fi < totalFrames; fi++) {
+            const frame = this.frames[fi];
+            if (!frame || !frame.layers) continue;
+
+            if (keepSet.has(fi)) {
+                for (const layer of frame.layers) {
+                    if (!layer.isDeleted && layer.isDehydrated) {
+                        layer.hydrate();
+                    }
+                }
+            } else {
+                for (const layer of frame.layers) {
+                    if (layer._canvas) {
+                        layer.dehydrate();
+                    }
+                }
+            }
+        }
     }
 }

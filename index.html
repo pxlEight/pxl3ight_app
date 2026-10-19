@@ -8,8 +8,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icons/icon.svg">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="css/style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js?cb=122"></script>
+    <link rel="stylesheet" href="css/style.css?cb=158">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js?cb=158"></script>
     <script>
         const setAppHeight = () => document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
         window.addEventListener('resize', setAppHeight);
@@ -137,22 +137,40 @@
             <div style="position: absolute; bottom: -30px; left: 0; width: 100%; text-align: center; font-size: 13px; font-weight: normal; letter-spacing: 1px; color: #aaaaaa; text-shadow: none;">Testing Version Alpha</div>
         </div>
         <div class="startup-controls" id="startupMenu">
-            <button class="startup-btn" data-action="showResPicker">New Project</button>
+            <button class="startup-btn" data-action="showNewProjectModes">New Project</button>
             <button class="startup-btn" style="background-color: var(--ui-bg); border: 1px solid var(--accent);" data-action="openProjectPrompt">Open Project</button>
             <button class="startup-btn" id="btn-resume-session" style="display: none; background-color: #2e7d32; border: 1px solid #4caf50; margin-top: 10px;" data-action="resumeSession">Resume Unsaved Work</button>
         </div>
         <button id="btn-check-update" style="position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); left: max(16px, env(safe-area-inset-left)); background-color: transparent; color: #aaa; border: 1px solid #555; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; z-index: 100;">Check For Update</button>
-        <div class="startup-controls" id="startupResPicker" style="display: none;">
-            <h3 style="margin: 0 0 5px 0;">Select Canvas Size</h3>
-            <button class="res-btn" data-action="startProject" data-res="1280x720">1280x720</button>
-            <button class="res-btn" data-action="startProject" data-res="720x720">720x720</button>
-            <button class="res-btn" data-action="startProject" data-res="180x320">180x320</button>
-            <button class="res-btn" data-action="startProject" data-res="128x128">128x128</button>
-            <button class="res-btn" data-action="startProject" data-res="64x64">64x64</button>
-            <button class="res-btn" data-action="startProject" data-res="32x32">32x32</button>
-            <button class="res-btn" data-action="startProject" data-res="24x24">24x24</button>
-            <button class="res-btn" data-action="startProject" data-res="16x16">16x16</button>
+        
+        <div class="startup-controls" id="startupModePicker" style="display: none;">
+            <button class="startup-btn" data-action="showPixelateSizes">Pixelate</button>
+            <button class="startup-btn" data-action="showAnimateSizes">Animate</button>
+            <button class="res-btn" data-action="backToStartupMenu" style="margin-top: 10px; background: transparent; border: 1px solid #555; color: #aaa;">Back</button>
         </div>
+
+        <div class="startup-controls" id="startupResPickerPixelate" style="display: none; max-height: 75vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 0;">
+            <h3 style="margin: 0 0 5px 0;">Select Canvas Size</h3>
+            <button class="res-btn" data-action="startProject" data-res="720x720">720 X 720</button>
+            <button class="res-btn" data-action="startProject" data-res="180x320">180 X 320</button>
+            <button class="res-btn" data-action="startProject" data-res="128x128">128 X 128</button>
+            <button class="res-btn" data-action="startProject" data-res="64x64">64 X 64</button>
+            <button class="res-btn" data-action="startProject" data-res="32x32">32 X 32</button>
+            <button class="res-btn" data-action="startProject" data-res="24x24">24 X 24</button>
+            <button class="res-btn" data-action="startProject" data-res="16x16">16 X 16</button>
+            <button class="res-btn" data-action="backToModePicker" style="margin-top: 5px; background: transparent; border: 1px solid #555; color: #aaa;">Back</button>
+        </div>
+
+        <div class="startup-controls" id="startupResPickerAnimate" style="display: none; max-height: 75vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 0;">
+            <h3 style="margin: 0 0 5px 0;">Select Canvas Size</h3>
+            <button class="res-btn" data-action="startProject" data-res="1920x1080">1920 X 1080</button>
+            <button class="res-btn" data-action="startProject" data-res="1080x1920">1080 X 1920</button>
+            <button class="res-btn" data-action="startProject" data-res="1280x720">1280 X 720</button>
+            <button class="res-btn" data-action="startProject" data-res="720x1280">720 X 1280</button>
+            <button class="res-btn" data-action="backToModePicker" style="margin-top: 5px; background: transparent; border: 1px solid #555; color: #aaa;">Back</button>
+        </div>
+
+        <div class="startup-controls" id="startupResPicker" style="display: none;"></div>
     </div>
 
     <div id="newProjectWarning">
@@ -284,8 +302,14 @@
                 <div id="settings-menu" class="dropdown-menu" style="left: 0; right: auto; padding: 16px; width: 140px; text-align: center;">
                     <div style="font-size: 12px; font-weight: bold; color: #aaaaaa; text-transform: uppercase; margin-bottom: 12px;">Long Press Timer</div>
                     <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-                        <div id="long-press-timer-val" style="background-color: rgba(255,255,255,0.05); padding: 16px 8px; width: 60px; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: ns-resize; user-select: none; color: white; touch-action: none; text-align: center;" title="Drag up/down">450</div>
-                        <span style="font-size: 14px; font-weight: bold; color: #aaaaaa;">ms</span>
+                        <div id="long-press-timer-val" style="background-color: rgba(255,255,255,0.05); padding: 16px 8px; width: 60px; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: ns-resize; user-select: none; color: white; touch-action: none; text-align: center;" title="Drag up/down">0.5</div>
+                        <span style="font-size: 14px; font-weight: bold; color: #aaaaaa;">s</span>
+                    </div>
+                    <div id="subpixel-smoothing-container" style="display: none; flex-direction: column; align-items: center; margin-top: 16px; margin-bottom: 4px;">
+                        <div style="font-size: 12px; font-weight: bold; color: #aaaaaa; text-transform: uppercase; margin-bottom: 8px;">Smooth Edges</div>
+                        <button id="btn-toggle-subpixel" class="icon-btn stop-propagation" data-action="toggleSubpixelSmoothing" style="width: 100%; height: 32px; padding: 0 8px; font-size: 12px; font-weight: bold; border-radius: 6px; border: 1px solid #555; background-color: rgba(255,255,255,0.05); color: #aaa; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; user-select: none;">
+                            <span id="subpixel-status-text" style="pointer-events: none;">OFF</span>
+                        </button>
                     </div>
                     <div style="font-size: 12px; font-weight: bold; color: #aaaaaa; text-transform: uppercase; margin-top: 16px; margin-bottom: 12px;">Draw Offset</div>
                     <div id="draw-offset-container" style="background-color: white; border-radius: 6px; width: 108px; height: 108px; margin: 0 auto; position: relative; display: flex; align-items: center; justify-content: center; touch-action: none; overflow: hidden; cursor: pointer;">
@@ -324,15 +348,21 @@
                         <circle cx="12" cy="20" r="2"/>
                     </svg>
                 </button>
-                <div id="image-size-menu" class="dropdown-menu" style="display: none; position: fixed; flex-direction: column; gap: 4px; padding: 6px; width: 120px; z-index: 250; max-height: 150px; overflow-y: auto; overflow-x: hidden;">
-                    <button data-action="resampleProject" data-res="1280x720" style="text-align:center;">1280x720</button>
-                    <button data-action="resampleProject" data-res="720x720" style="text-align:center;">720x720</button>
-                    <button data-action="resampleProject" data-res="180x320" style="text-align:center;">180x320</button>
-                    <button data-action="resampleProject" data-res="128x128" style="text-align:center;">128x128</button>
-                    <button data-action="resampleProject" data-res="64x64" style="text-align:center;">64x64</button>
-                    <button data-action="resampleProject" data-res="32x32" style="text-align:center;">32x32</button>
-                    <button data-action="resampleProject" data-res="24x24" style="text-align:center;">24x24</button>
-                    <button data-action="resampleProject" data-res="16x16" style="text-align:center;">16x16</button>
+                <div id="image-size-menu" class="dropdown-menu" style="display: none; position: fixed; flex-direction: column; gap: 4px; padding: 6px; width: 130px; z-index: 250; max-height: 240px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;">
+                    <div style="font-size: 11px; color: #888; font-weight: bold; padding: 4px 6px; text-transform: uppercase; letter-spacing: 0.5px; pointer-events: none;">Animate</div>
+                    <button data-action="resampleProject" data-res="1920x1080" style="text-align:center; padding: 8px 10px;">1920 X 1080</button>
+                    <button data-action="resampleProject" data-res="1080x1920" style="text-align:center; padding: 8px 10px;">1080 X 1920</button>
+                    <button data-action="resampleProject" data-res="1280x720" style="text-align:center; padding: 8px 10px;">1280 X 720</button>
+                    <button data-action="resampleProject" data-res="720x1280" style="text-align:center; padding: 8px 10px;">720 X 1280</button>
+                    <div style="height: 1px; background-color: rgba(255,255,255,0.1); margin: 3px 0; flex-shrink: 0;"></div>
+                    <div style="font-size: 11px; color: #888; font-weight: bold; padding: 4px 6px; text-transform: uppercase; letter-spacing: 0.5px; pointer-events: none;">Pixelate</div>
+                    <button data-action="resampleProject" data-res="720x720" style="text-align:center; padding: 8px 10px;">720 X 720</button>
+                    <button data-action="resampleProject" data-res="180x320" style="text-align:center; padding: 8px 10px;">180 X 320</button>
+                    <button data-action="resampleProject" data-res="128x128" style="text-align:center; padding: 8px 10px;">128 X 128</button>
+                    <button data-action="resampleProject" data-res="64x64" style="text-align:center; padding: 8px 10px;">64 X 64</button>
+                    <button data-action="resampleProject" data-res="32x32" style="text-align:center; padding: 8px 10px;">32 X 32</button>
+                    <button data-action="resampleProject" data-res="24x24" style="text-align:center; padding: 8px 10px;">24 X 24</button>
+                    <button data-action="resampleProject" data-res="16x16" style="text-align:center; padding: 8px 10px;">16 X 16</button>
                 </div>
                 <div id="file-menu" class="dropdown-menu" style="right: 0; left: auto; max-height: 230px; overflow-y: auto; overflow-x: hidden;">
                     <button data-action="saveProjectFile">Save Project</button>
@@ -453,11 +483,12 @@
         </div>
         <div class="timeline-content">
             <div class="timeline-footer" id="timelineFooter">
-                <div class="timeline-controls"><button id="btn-play" data-action="togglePlay">▶️</button></div>
+                <div class="timeline-controls" id="timelineControls"><button id="btn-play" data-action="togglePlay">▶️</button><div class="layer-labels-column" id="layerLabelsCol" style="touch-action: none;"></div></div>
                 <div class="timeline-strip-container" id="timelineContainer">
-                    <div class="playhead-marker"></div><div class="timeline-strip" id="timelineStrip">
+                    <div class="timeline-strip" id="timelineStrip">
                     </div>
                 </div>
+                <div class="frame-number-bar" id="frameNumberBar"><div class="frame-number-row" id="frameNumberRow"></div></div>
                 <button id="onionToggleBtn" class="stop-propagation handle-btn" data-action="toggleOnionSkin" title="Toggle Onion Skin" style="font-size: 20px;">🧅</button>
             </div>
         </div>
@@ -534,7 +565,7 @@
             <button id="btnUpdateReload" style="background-color: #555; padding: 8px 16px; font-size: 14px; font-weight: bold; border-radius: 4px; color: white; display: flex; justify-content: center; align-items: center; text-align: center;">Reload</button>
         </div>
     </div>
-    <script type="module" src="src/main.js?cb=122"></script>
+    <script type="module" src="src/main.js?cb=158"></script>
 </body>
 </html><script>
 window.addEventListener('load', () => {

@@ -1,4 +1,4 @@
-import { CONSTANTS } from '../core/Constants.js?cb=121';
+import { CONSTANTS } from '../core/Constants.js?cb=158';
 
 export default class InputManager {
     constructor(containerElement, core) {
@@ -22,11 +22,17 @@ export default class InputManager {
         
         if (!this.core.doc && !this.core.state.isSpriteSheetView) return;
         
-        const canvas = this.core.state.isSpriteSheetView ? this.core.spriteSheetViewCanvas : this.core.doc.activeLayer.canvas;
-        const ctx = this.core.state.isSpriteSheetView ? this.core.spriteSheetCtx : this.core.doc.activeCtx;
+        if (!this.core.state.isSpriteSheetView && this.core.renderer && this.core.renderer.renderPending) {
+            this.core.renderer.renderImmediate();
+        }
+        const canvas = this.core.state.isSpriteSheetView ? this.core.spriteSheetViewCanvas : this.core.mainArtCanvas;
+        const ctx = canvas ? canvas.getContext('2d') : null;
+        if (!ctx) return;
         
-        if (pos.x >= 0 && pos.x < canvas.width && pos.y >= 0 && pos.y < canvas.height) {
-            const pixel = ctx.getImageData(pos.x, pos.y, 1, 1).data;
+        const px = Math.floor(pos.x);
+        const py = Math.floor(pos.y);
+        if (px >= 0 && px < canvas.width && py >= 0 && py < canvas.height) {
+            const pixel = ctx.getImageData(px, py, 1, 1).data;
             if (pixel[3] > 0) {
                 const hex = "#" + (1 << 24 | pixel[0] << 16 | pixel[1] << 8 | pixel[2]).toString(16).slice(1).toUpperCase();
                 this.core.events.emit('ui:previewCrosshairColor', hex);
@@ -75,7 +81,9 @@ export default class InputManager {
                             this.hiddenTapTimeout = null;
                         }
                         
-                        if (this.core.doc && this.core.doc.activeLayer) {
+                        if (this.core.tools && this.core.tools.activeTool && typeof this.core.tools.activeTool.cancel === 'function') {
+                            this.core.tools.activeTool.cancel();
+                        } else if (this.core.doc && this.core.doc.activeLayer) {
                             const ctx = this.core.doc.activeCtx;
                             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
                             ctx.drawImage(this.core.backupCanvas, 0, 0);
@@ -128,7 +136,7 @@ export default class InputManager {
         if (!this.core.doc) return; 
         
         const currentLayer = this.core.doc.activeLayer; 
-        if (!currentLayer.visible || currentLayer.locked) return;
+        if (this.core.state.tool.current !== CONSTANTS.TOOLS.DROPPER && (!currentLayer.visible || currentLayer.locked)) return;
         
         this.activePointers.set(e.pointerId, e);
         
@@ -258,7 +266,7 @@ export default class InputManager {
             this.core.state.input.crosshairTimer = setTimeout(() => {
                 this.core.state.input.isCrosshairSampling = true; if (navigator.vibrate) navigator.vibrate(40); 
                 
-                if (this.core.state.tool.current !== CONSTANTS.TOOLS.DROPPER && this.core.state.tool.current !== CONSTANTS.TOOLS.FILL) {
+                if (this.core.state.tool.current !== CONSTANTS.TOOLS.DROPPER) {
                     if (this.core.tools.activeTool && this.core.tools.activeTool.cancel) {
                         this.core.tools.activeTool.cancel();
                     }

@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js?cb=121';
-import { CONSTANTS } from '../core/Constants.js?cb=121';
+import BaseTool from './BaseTool.js?cb=158';
+import { CONSTANTS } from '../core/Constants.js?cb=158';
 
 export default class MarqueeTool extends BaseTool {
     constructor(context) { 
@@ -25,15 +25,17 @@ export default class MarqueeTool extends BaseTool {
         this.hasMoved = false;
         this.isMovingMask = false;
         this.isPointerDown = true;
-        this.startX = pos.x; 
-        this.startY = pos.y;
-        this.currentX = pos.x;
-        this.currentY = pos.y;
+        const px = Math.floor(pos.x);
+        const py = Math.floor(pos.y);
+        this.startX = px; 
+        this.startY = py;
+        this.currentX = px;
+        this.currentY = py;
         this.downClient = { x: e.clientX, y: e.clientY };
         
         const mode = this.context.core.selection.selectionMode || CONSTANTS.SELECT_MODE.REPLACE;
         const isActive = this.context.core.selection.isActive;
-        const isInside = this.context.isPixelSelected(pos.x, pos.y);
+        const isInside = this.context.isPixelSelected(px, py);
 
         const now = Date.now();
         if (this.lastModifierTapTime && (now - this.lastModifierTapTime < 300) && isActive && isInside && mode === CONSTANTS.SELECT_MODE.REPLACE) {
@@ -72,8 +74,8 @@ export default class MarqueeTool extends BaseTool {
     
     startDrawing(pos) {
         this.isDrawing = true;
-        this.currentX = pos.x;
-        this.currentY = pos.y;
+        this.currentX = Math.floor(pos.x);
+        this.currentY = Math.floor(pos.y);
         
         this.activeMode = this.context.core.selection.selectionMode || CONSTANTS.SELECT_MODE.REPLACE;
         if (this.activeMode === CONSTANTS.SELECT_MODE.REPLACE) {
@@ -122,8 +124,8 @@ export default class MarqueeTool extends BaseTool {
     
     updateDrawing(pos) {
         if (!this.isDrawing) return;
-        this.currentX = pos.x;
-        this.currentY = pos.y;
+        this.currentX = Math.floor(pos.x);
+        this.currentY = Math.floor(pos.y);
     }
     
     onPointerMove(pos, e) {
@@ -152,11 +154,16 @@ export default class MarqueeTool extends BaseTool {
     onPointerUp(pos, e) {
         if (this.isMovingMask && this.hasMoved) {
             this.updateMovingMask(pos);
+            this.context.core.saveState();
         } else if (this.isDrawing) {
-            const minX = Math.max(0, Math.min(this.startX, this.currentX));
-            const maxX = Math.min(this.context.canvasWidth - 1, Math.max(this.startX, this.currentX));
-            const minY = Math.max(0, Math.min(this.startY, this.currentY));
-            const maxY = Math.min(this.context.canvasHeight - 1, Math.max(this.startY, this.currentY));
+            const sx = Math.floor(this.startX);
+            const sy = Math.floor(this.startY);
+            const cx = Math.floor(this.currentX);
+            const cy = Math.floor(this.currentY);
+            const minX = Math.max(0, Math.min(sx, cx));
+            const maxX = Math.min(this.context.canvasWidth - 1, Math.max(sx, cx));
+            const minY = Math.max(0, Math.min(sy, cy));
+            const maxY = Math.min(this.context.canvasHeight - 1, Math.max(sy, cy));
             
             const mask = this.context.getSelectionMask();
             const mode = this.activeMode || CONSTANTS.SELECT_MODE.REPLACE;
@@ -240,10 +247,14 @@ export default class MarqueeTool extends BaseTool {
             ctx.stroke(this.context.core.selection.path);
         }
         
-        const minX = Math.max(0, Math.min(this.startX, this.currentX));
-        const maxX = Math.min(w - 1, Math.max(this.startX, this.currentX));
-        const minY = Math.max(0, Math.min(this.startY, this.currentY));
-        const maxY = Math.min(h - 1, Math.max(this.startY, this.currentY));
+        const sx = Math.floor(this.startX);
+        const sy = Math.floor(this.startY);
+        const cx = Math.floor(this.currentX);
+        const cy = Math.floor(this.currentY);
+        const minX = Math.max(0, Math.min(sx, cx));
+        const maxX = Math.min(w - 1, Math.max(sx, cx));
+        const minY = Math.max(0, Math.min(sy, cy));
+        const maxY = Math.min(h - 1, Math.max(sy, cy));
         const rw = maxX - minX + 1;
         const rh = Math.max(1, maxY - minY + 1); 
         

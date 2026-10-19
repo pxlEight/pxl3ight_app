@@ -1,8 +1,9 @@
 export default class ViewportManager {
-    constructor(viewportElement, bgCanvasElement, events) {
+    constructor(viewportElement, bgCanvasElement, events, core = null) {
         this.element = viewportElement; 
         this.bgCanvas = bgCanvasElement; 
         this.events = events;
+        this.core = core;
         this.scale = 1; 
         this.panX = 0; 
         this.panY = 0; 
@@ -66,9 +67,16 @@ export default class ViewportManager {
         const actualLeft = rect.left + offsetX;
         const actualTop = rect.top + offsetY;
         
+        const rawX = (clientX - actualLeft) * scaleX;
+        const rawY = (clientY - actualTop) * scaleY;
+        
+        const isSmoothing = this.core && this.core.state && this.core.state.subpixelSmoothing && (Math.max(this.bgCanvas.width, this.bgCanvas.height) >= 720);
+        if (isSmoothing) {
+            return { x: rawX, y: rawY };
+        }
         return { 
-            x: Math.floor((clientX - actualLeft) * scaleX), 
-            y: Math.floor((clientY - actualTop) * scaleY) 
+            x: Math.floor(rawX), 
+            y: Math.floor(rawY) 
         };
     }
     updateTransform() { 

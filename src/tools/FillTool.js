@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js?cb=121';
-import { CONSTANTS } from '../core/Constants.js?cb=121';
+import BaseTool from './BaseTool.js?cb=158';
+import { CONSTANTS } from '../core/Constants.js?cb=158';
 
 export default class FillTool extends BaseTool {
     constructor(context) { 
@@ -10,6 +10,8 @@ export default class FillTool extends BaseTool {
 
     async floodFill(startX, startY, fillColorHex) {
         if (this.isProcessing) return;
+        startX = Math.floor(startX);
+        startY = Math.floor(startY);
         if (startX < 0 || startX >= this.context.canvasWidth || startY < 0 || startY >= this.context.canvasHeight) return;
         const imgData = this.context.getImageData();
         if (!imgData) return;
@@ -62,6 +64,7 @@ export default class FillTool extends BaseTool {
             this.context.putImageData(newImgData);
             this.context.hasDrawnInBounds = true;
             this.context.commitDrawing();
+            if (this.context.core.renderer) this.context.core.renderer.render();
         } catch (e) {
             console.error("Worker Fill Error", e);
         } finally {

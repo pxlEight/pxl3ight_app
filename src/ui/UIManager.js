@@ -1,27 +1,44 @@
-import { CONSTANTS } from '../core/Constants.js?cb=122';
-import UIWidgetDragger from './UIWidgetDragger.js?cb=122';
-import UIDragInteraction from './UIDragInteraction.js?cb=122';
-import PaletteManager from './PaletteManager.js?cb=122';
+import { CONSTANTS, CANVAS_PERF } from '../core/Constants.js?cb=158';
+import UIWidgetDragger from './UIWidgetDragger.js?cb=158';
+import UIDragInteraction from './UIDragInteraction.js?cb=158';
+import PaletteManager from './PaletteManager.js?cb=158';
 
 export default class UIManager {
     constructor(core) {
         this.core = core; 
         this.events = core.events;
         this.contextMenuFrameIndex = -1;
+        this._lastActiveFrameIndex = -1;
+        this._timelineStrip = null;
+        this._frameNumberRow = null;
         
         this.bindGlobalEvents();
         this.initPalettes();
         this.bindExtraUI();
         
         this.events.on('ui:updateTool', (tool) => this.setTool(tool));
-        this.events.on('ui:layerChanged', () => {
-            this.updateLayerStackUI();
-            this.updateTimelineUI();
-        });
-        this.events.on('ui:frameChanged', () => { 
-            this.updateTimelineUI(); 
-            this.updateLayerStackUI(); 
-        });
+        // Several events fire back-to-back for a single user action (e.g. switchFrame emits both
+        // frameChanged and layerChanged). Coalesce them into a single refresh per task.
+        this._uiRefreshQueued = false;
+        this._scheduleUIRefresh = () => {
+            if (this.core.playback && this.core.playback.isPlaying) {
+                this.updateActiveFrameOnly();
+                return;
+            }
+            if (this._uiRefreshQueued) return;
+            this._uiRefreshQueued = true;
+            queueMicrotask(() => {
+                this._uiRefreshQueued = false;
+                this.updateLayerStackUI();
+                this.updateTimelineUI();
+                if (this.core.doc && typeof this.core.doc.virtualizeFrames === 'function') {
+                    this.core.doc.virtualizeFrames(this.core.playback?.onionFramesBefore ?? 2, this.core.playback?.onionFramesAfter ?? 2);
+                }
+            });
+        };
+        this.events.on('ui:layerChanged', () => this._scheduleUIRefresh());
+        this.events.on('ui:frameChanged', () => this._scheduleUIRefresh());
+        this.events.on('ui:updateActiveThumbnail', () => this.updateActiveThumbnailOnly());
         this.events.on('ui:closeAllMenus', () => this.closeAllMenus());
         
         this.events.on('core:setHSVColor', (hx) => {
@@ -114,6 +131,9 @@ export default class UIManager {
         this.events.on('ui:hidePalettePanel', () => { document.getElementById('palettePanel').style.display = 'none'; });
         this.events.on('ui:hideStartupScreen', () => { 
             document.getElementById('startupScreen').style.display = 'none'; 
+            this.hideAllStartupSubmenus();
+            const sm = document.getElementById('startupMenu');
+            if (sm) sm.style.display = 'flex';
         });
         this.events.on('ui:resetFileInput', () => { 
             document.getElementById('fileInput').value = ''; 
@@ -267,33 +287,47 @@ export default class UIManager {
             onDown: (e, inst) => { 
                 this.core.selection.anchor(); 
                 if (!this.core.doc) return; 
-                inst.customData.activeLayer = this.core.doc.activeLayer; 
-                inst.customData.startOpVal = Math.round(this.core.doc.activeLayer.opacity * 100); 
+                inst.customData.activeLayerIndex = this.core.doc.activeLayerIndex;
+                const activeLayer = this.core.doc.activeLayer;
+                inst.customData.startOpVal = Math.round((activeLayer ? activeLayer.opacity : 1.0) * 100); 
             },
             onDragMove: (e, dx, dy, inst) => {
+                if (!this.core.doc) return;
                 let newVal = Math.max(0, Math.min(100, inst.customData.startOpVal - Math.round(dy / 1.5)));
-                inst.customData.activeLayer.opacity = newVal / 100; 
+                const targetOpacity = newVal / 100;
+                const activeIdx = inst.customData.activeLayerIndex !== undefined ? inst.customData.activeLayerIndex : this.core.doc.activeLayerIndex;
+                this.core.doc.frames.forEach(f => {
+                    if (f.layers[activeIdx]) {
+                        f.layers[activeIdx].opacity = targetOpacity;
+                    }
+                });
                 document.getElementById('lm-opacity').innerText = newVal;
                 if (!this.core.state.isSpriteSheetView) { 
                     if (this.core.renderer) this.core.renderer.render(); 
                     this.core.playback.updateOnionSkin(); 
                 }
             },
-            onDragEnd: () => this.core.saveState()
+            onDragEnd: () => {
+                this.core.saveState();
+                this.events.emit('ui:layerChanged');
+            }
         });
         new UIDragInteraction(document.getElementById('long-press-timer-val'), {
             stopPropagation: true, 
             preventDefaultOnMove: true,
             onDown: (e, inst) => { 
-                inst.customData.startVal = window.longPressTimer; 
+                inst.customData.startValSec = (window.longPressTimer || 500) / 1000; 
             },
             onDragMove: (e, dx, dy, inst) => {
-                let minVal = 150;
-                let maxVal = 750;
-                let newVal = Math.max(minVal, Math.min(maxVal, inst.customData.startVal - Math.round(dy / 1.5)));
-                window.longPressTimer = newVal; 
-                localStorage.setItem('longPressTimer_v2', newVal);
-                document.getElementById('long-press-timer-val').innerText = newVal;
+                const stepPixels = 20;
+                const steps = Math.round(-dy / stepPixels);
+                let newSec = inst.customData.startValSec + (steps * 0.25);
+                newSec = Math.max(0.25, Math.min(3.0, Math.round(newSec * 100) / 100));
+                const newMs = Math.round(newSec * 1000);
+                window.longPressTimer = newMs; 
+                localStorage.setItem('longPressTimer_v3', newSec.toString());
+                localStorage.setItem('longPressTimer_v2', newMs);
+                document.getElementById('long-press-timer-val').innerText = newSec;
             }
         });
         
@@ -348,10 +382,44 @@ export default class UIManager {
             });
         }
         
+        const subpixelContainer = document.getElementById('subpixel-smoothing-container');
+        const subpixelToggleBtn = document.getElementById('btn-toggle-subpixel');
+        const subpixelStatusText = document.getElementById('subpixel-status-text');
+
+        this.updateSubpixelUI = () => {
+            const docW = this.core.doc ? this.core.doc.width : (this.core.bgCanvas ? this.core.bgCanvas.width : 0);
+            const docH = this.core.doc ? this.core.doc.height : (this.core.bgCanvas ? this.core.bgCanvas.height : 0);
+            const isOver720 = Math.max(docW, docH) >= 720;
+            if (subpixelContainer) {
+                subpixelContainer.style.display = isOver720 ? 'flex' : 'none';
+            }
+            const isEnabled = isOver720 && !!this.core.state.subpixelSmoothing;
+            if (subpixelToggleBtn && subpixelStatusText) {
+                if (isEnabled) {
+                    subpixelToggleBtn.classList.add('active');
+                    subpixelToggleBtn.style.backgroundColor = 'var(--accent)';
+                    subpixelToggleBtn.style.color = 'white';
+                    subpixelToggleBtn.style.borderColor = 'var(--accent)';
+                    subpixelStatusText.innerText = 'ON';
+                } else {
+                    subpixelToggleBtn.classList.remove('active');
+                    subpixelToggleBtn.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                    subpixelToggleBtn.style.color = '#aaa';
+                    subpixelToggleBtn.style.borderColor = '#555';
+                    subpixelStatusText.innerText = 'OFF';
+                }
+            }
+        };
+
+        this.events.on('resolutionChanged', () => this.updateSubpixelUI());
+        this.events.on('subpixelSmoothingChanged', () => this.updateSubpixelUI());
+        this.events.on('ui:updateSubpixelUI', () => this.updateSubpixelUI());
+        
         // init UI
         if (document.getElementById('long-press-timer-val')) {
-            document.getElementById('long-press-timer-val').innerText = window.longPressTimer;
+            document.getElementById('long-press-timer-val').innerText = (window.longPressTimer || 500) / 1000;
         }
+        this.updateSubpixelUI();
 
 
         this.makeShapeMenuDraggable();
@@ -361,6 +429,13 @@ export default class UIManager {
     closeAllMenus() {
         document.querySelectorAll('.context-menu, .shape-menu, .dropdown-menu').forEach(menu => {
             menu.style.display = 'none';
+        });
+    }
+
+    hideAllStartupSubmenus() {
+        ['startupMenu', 'startupModePicker', 'startupResPickerPixelate', 'startupResPickerAnimate', 'startupResPicker'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
         });
     }
 
@@ -412,8 +487,30 @@ export default class UIManager {
             
             switch(action) {
                 case 'showResPicker': 
-                    document.getElementById('startupMenu').style.display = 'none'; 
-                    document.getElementById('startupResPicker').style.display = 'flex'; 
+                case 'showNewProjectModes':
+                    this.hideAllStartupSubmenus();
+                    const modePickerEl = document.getElementById('startupModePicker');
+                    if (modePickerEl) modePickerEl.style.display = 'flex';
+                    break;
+                case 'showPixelateSizes':
+                    this.hideAllStartupSubmenus();
+                    const pixPickerEl = document.getElementById('startupResPickerPixelate');
+                    if (pixPickerEl) pixPickerEl.style.display = 'flex';
+                    break;
+                case 'showAnimateSizes':
+                    this.hideAllStartupSubmenus();
+                    const animPickerEl = document.getElementById('startupResPickerAnimate');
+                    if (animPickerEl) animPickerEl.style.display = 'flex';
+                    break;
+                case 'backToStartupMenu':
+                    this.hideAllStartupSubmenus();
+                    const startMenuEl = document.getElementById('startupMenu');
+                    if (startMenuEl) startMenuEl.style.display = 'flex';
+                    break;
+                case 'backToModePicker':
+                    this.hideAllStartupSubmenus();
+                    const bModePickerEl = document.getElementById('startupModePicker');
+                    if (bModePickerEl) bModePickerEl.style.display = 'flex';
                     break;
                 case 'openProjectPrompt': 
                     document.getElementById('projectFileInput').click(); 
@@ -432,8 +529,9 @@ export default class UIManager {
                 case 'reloadPage': 
                     document.getElementById('newProjectWarning').style.display = 'none';
                     document.getElementById('startupScreen').style.display = 'flex';
-                    document.getElementById('startupMenu').style.display = 'flex';
-                    document.getElementById('startupResPicker').style.display = 'none';
+                    this.hideAllStartupSubmenus();
+                    const rsm = document.getElementById('startupMenu');
+                    if (rsm) rsm.style.display = 'flex';
                     
                     this.core.storage.clearSession();
                     this.core.history.clear();
@@ -481,9 +579,23 @@ export default class UIManager {
                     } else {
                         ism.style.display = 'flex';
                         const rect = target.getBoundingClientRect();
-                        ism.style.top = (rect.top + (rect.height / 2) - (ism.offsetHeight / 2)) + 'px';
-                        ism.style.right = (window.innerWidth - rect.left + 5) + 'px';
-                        ism.style.left = 'auto';
+                        const ismH = ism.offsetHeight;
+                        const ismW = ism.offsetWidth;
+                        
+                        let topPos = rect.top + (rect.height / 2) - (ismH / 2);
+                        const minTop = 10;
+                        const maxTop = window.innerHeight - ismH - 10;
+                        topPos = Math.max(minTop, Math.min(topPos, maxTop));
+                        ism.style.top = topPos + 'px';
+                        
+                        let rightPos = window.innerWidth - rect.left + 5;
+                        if (window.innerWidth - rightPos < ismW + 10) {
+                            ism.style.right = 'auto';
+                            ism.style.left = '10px';
+                        } else {
+                            ism.style.right = rightPos + 'px';
+                            ism.style.left = 'auto';
+                        }
                     }
                     break;
                 case 'resampleProject': 
@@ -507,7 +619,17 @@ export default class UIManager {
                     const smWasOpen = sm.style.display === 'flex';
                     this.closeAllMenus(); 
                     if (!smWasOpen) {
+                        if (typeof this.updateSubpixelUI === 'function') this.updateSubpixelUI();
                         sm.style.display = 'flex'; 
+                    }
+                    break;
+                case 'toggleSubpixelSmoothing':
+                    e.stopPropagation();
+                    const nextVal = !this.core.state.subpixelSmoothing;
+                    this.core.state.setSubpixelSmoothing(nextVal);
+                    this.updateSubpixelUI();
+                    if (typeof this.core.updateCanvasSmoothing === 'function') {
+                        this.core.updateCanvasSmoothing();
                     }
                     break;
                 case 'toggleUIMenu': 
@@ -712,7 +834,8 @@ export default class UIManager {
                 { id: 'shapeMenu', excludes: ['#shapeMenu', '#btn-shape'] },
                 { id: 'selectMenu', excludes: ['#selectMenu', '#btn-select'] },
                 { id: 'onionSkinMenu', excludes: ['#onionSkinMenu', '#onionToggleBtn'] },
-                { id: 'playbackMenu', excludes: ['#playbackMenu', '#btn-play'] }
+                { id: 'playbackMenu', excludes: ['#playbackMenu', '#btn-play'] },
+                { id: 'settings-menu', excludes: ['#settings-menu', '#btn-settings-menu'] }
             ];
             menus.forEach(mc => {
                 const el = document.getElementById(mc.id);
@@ -1051,6 +1174,9 @@ export default class UIManager {
                 this.core.doc.frames.forEach(f => { 
                     const movedLayer = f.layers.splice(currentIndex, 1)[0]; 
                     f.layers.splice(dropIndex, 0, movedLayer); 
+                    f.layers.forEach((l, idx) => {
+                        l._name = `L${idx + 1}`;
+                    });
                 });
                 
                 if (this.core.doc.activeLayerIndex === currentIndex) {
@@ -1157,30 +1283,13 @@ export default class UIManager {
 
 
     getLayerName(layerObj, index) {
-        if (layerObj._name) return layerObj._name;
-        const doc = this.core.doc;
-
-        // Each frame has its own layer objects; reuse a name already assigned to this layer slot
-        let name = null;
-        for (const f of doc.frames) {
-            const l = f.layers[index];
-            if (l && l._name) { name = l._name; break; }
+        const name = `L${index + 1}`;
+        if (layerObj) layerObj._name = name;
+        if (this.core && this.core.doc && this.core.doc.frames) {
+            this.core.doc.frames.forEach(f => {
+                if (f.layers && f.layers[index]) f.layers[index]._name = name;
+            });
         }
-
-        if (!name) {
-            const used = doc.activeFrame.layers.map(l => l._name).filter(Boolean);
-            if (used.length === 0) {
-                // Fresh/unnamed document: name by position (top = L1)
-                this.layerCounter = 0;
-                name = `L${index + 1}`;
-            } else {
-                const maxNum = Math.max(this.layerCounter || 0, ...used.map(n => parseInt(n.slice(1), 10) || 0));
-                name = `L${maxNum + 1}`;
-            }
-        }
-
-        this.layerCounter = Math.max(this.layerCounter || 0, parseInt(name.slice(1), 10) || 0);
-        doc.frames.forEach(f => { if (f.layers[index]) f.layers[index]._name = name; });
         return name;
     }
     updateLayerStackUI() {
@@ -1222,27 +1331,92 @@ export default class UIManager {
 
     getFrameX(index) {
         if (!this.core.doc) return 0;
-        let x = 40; // offset for labels column
-        for (let i = 0; i < index; i++) {
-            x += 44 + 8;
-        }
-        return x;
+        return index * 61;
     }
 
     getFrameIndexAtX(targetX) {
         if (!this.core.doc) return 0;
-        let currentX = 40; // offset for labels column
-        let foundIndex = 0;
-        for (let i = 0; i < this.core.doc.frames.length; i++) {
-            const fw = 44 + 8;
-            if (currentX + fw / 2 > targetX) {
-                foundIndex = i;
-                break;
+        return Math.max(0, Math.min(this.core.doc.frames.length - 1, Math.round(targetX / 61)));
+    }
+
+    applyScrubPosition(pos) {
+        if (!this.core.doc) return;
+        const strip = document.getElementById('timelineStrip');
+        const isLandscape = window.innerWidth > window.innerHeight;
+        let clampedIndex;
+
+        if (isLandscape) {
+            clampedIndex = this.getFrameIndexAtX(pos);
+            const lastFrameX = this.getFrameX(this.core.doc.frames.length - 1);
+            if (pos > lastFrameX) {
+                const overScroll = pos - lastFrameX;
+                strip.scrollLeft = lastFrameX - (strip.clientWidth / 2) + 31 + overScroll;
+            } else {
+                const newX = this.getFrameX(clampedIndex);
+                strip.scrollLeft = newX - (strip.clientWidth / 2) + 31;
             }
-            currentX += fw;
-            foundIndex = i + 1;
+        } else {
+            strip.scrollLeft = pos;
+            clampedIndex = this.getFrameIndexAtX(pos);
         }
-        return Math.max(0, Math.min(this.core.doc.frames.length - 1, foundIndex));
+
+        if (clampedIndex !== this.core.doc.currentFrameIndex) {
+            this.events.emit('core:switchFrame', clampedIndex);
+        }
+    }
+
+    cancelScrubMomentum() {
+        if (this._scrubMomentumRaf) {
+            cancelAnimationFrame(this._scrubMomentumRaf);
+            this._scrubMomentumRaf = null;
+            if (this.core && typeof this.core.finishScrubbing === 'function') {
+                this.core.finishScrubbing();
+            }
+        }
+    }
+
+    // velocity is in scrub-position px per second; decays with exponential friction
+    startScrubMomentum(startPos, velocity) {
+        this.cancelScrubMomentum();
+        const MIN_START = 150, MIN_STOP = 30, FRICTION = 3.5;
+        if (Math.abs(velocity) < MIN_START) {
+            if (this.core && typeof this.core.finishScrubbing === 'function') {
+                this.core.finishScrubbing();
+            }
+            return;
+        }
+        if (this.core && typeof this.core.startScrubbing === 'function') {
+            this.core.startScrubbing();
+        }
+        velocity = Math.max(-6000, Math.min(6000, velocity));
+        const maxPos = this.getFrameX(this.core.doc.frames.length - 1);
+        let pos = startPos, last = performance.now();
+
+        const step = (now) => {
+            const dt = Math.min(0.05, (now - last) / 1000);
+            last = now;
+            if (!this.core.doc || this.core.playback.isPlaying || this.core.state.isSpriteSheetView) {
+                this._scrubMomentumRaf = null;
+                if (this.core && typeof this.core.finishScrubbing === 'function') {
+                    this.core.finishScrubbing();
+                }
+                return;
+            }
+            pos += velocity * dt;
+            velocity *= Math.exp(-FRICTION * dt);
+            if (pos < 0) { pos = 0; velocity = 0; }
+            else if (pos > maxPos) { pos = maxPos; velocity = 0; }
+            this.applyScrubPosition(pos);
+            if (Math.abs(velocity) < MIN_STOP) {
+                this._scrubMomentumRaf = null;
+                if (this.core && typeof this.core.finishScrubbing === 'function') {
+                    this.core.finishScrubbing();
+                }
+                return;
+            }
+            this._scrubMomentumRaf = requestAnimationFrame(step);
+        };
+        this._scrubMomentumRaf = requestAnimationFrame(step);
     }
 
     createFrameNode() {
@@ -1250,6 +1424,7 @@ export default class UIManager {
         square.className = 'frame-square';
         
         let frameDragTimer, longPressed = false, isDraggingFrame = false, hasScrolled = false, startX, startY, dragGhost = null, scrubStartScroll = 0;
+        let scrubSamples = [], scrubPos = 0;
         
         square.addEventListener('touchmove', (e) => { 
             if (longPressed) e.preventDefault(); 
@@ -1264,25 +1439,15 @@ export default class UIManager {
                     clearTimeout(frameDragTimer); 
                     hasScrolled = true; 
                 } 
+                scrubSamples.push({ t: performance.now(), x: em.clientX });
+                if (scrubSamples.length > 12) scrubSamples.shift();
                 if (hasScrolled && !this.core.playback.isPlaying && !this.core.state.isSpriteSheetView) {
-                    const strip = document.getElementById('timelineStrip'); 
+                    if (this.core && typeof this.core.startScrubbing === 'function') {
+                        this.core.startScrubbing();
+                    }
                     const isLandscape = window.innerWidth > window.innerHeight;
-                    let clampedIndex;
-                    
-                    if (isLandscape) {
-                        const targetX = scrubStartScroll + dx;
-                        clampedIndex = this.getFrameIndexAtX(targetX);
-                        const newX = this.getFrameX(clampedIndex);
-                        strip.scrollLeft = newX - (strip.clientWidth / 2) + 26;
-                    } else {
-                        const intendedScroll = scrubStartScroll - (dx * 1.5);
-                        strip.scrollLeft = intendedScroll;
-                        clampedIndex = this.getFrameIndexAtX(intendedScroll);
-                    }
-                    
-                    if (clampedIndex !== this.core.doc.currentFrameIndex) {
-                        this.events.emit('core:switchFrame', clampedIndex);
-                    }
+                    scrubPos = isLandscape ? scrubStartScroll + dx : scrubStartScroll - (dx * 1.5);
+                    this.applyScrubPosition(scrubPos);
                 }
                 return; 
             }
@@ -1298,8 +1463,8 @@ export default class UIManager {
                     document.body.appendChild(dragGhost);
                 }
                 if (isDraggingFrame && dragGhost) { 
-                    dragGhost.style.left = (em.clientX - 22) + 'px'; 
-                    dragGhost.style.top = (em.clientY - 22) + 'px'; 
+                    dragGhost.style.left = (em.clientX - 27) + 'px'; 
+                    dragGhost.style.top = (em.clientY - 27) + 'px'; 
                 }
             }
         };
@@ -1350,8 +1515,30 @@ export default class UIManager {
                     this.events.emit('core:switchFrame', currentIndex); 
                 }
             } else {
-                if (this.core.doc && !this.core.playback.isPlaying && !this.core.state.isSpriteSheetView) {
-                    // Removed auto-scroll to allow handle selection on wide frames
+                let momentumStarted = false;
+                if (this.core.doc && !this.core.playback.isPlaying && !this.core.state.isSpriteSheetView && eu.type === 'pointerup') {
+                    // Fling: estimate release velocity from the last ~120ms of samples
+                    const now = performance.now();
+                    const recent = scrubSamples.filter(s => now - s.t <= 120);
+                    if (recent.length >= 2) {
+                        const first = recent[0], last = recent[recent.length - 1];
+                        const dt = last.t - first.t;
+                        if (dt > 0) {
+                            const vx = (last.x - first.x) / dt; // px per ms
+                            const isLandscape = window.innerWidth > window.innerHeight;
+                            const posVel = isLandscape ? vx : -vx * 1.5; // same mapping as the drag
+                            const velocity = posVel * 1000;
+                            if (Math.abs(velocity) >= 150) {
+                                momentumStarted = true;
+                                this.startScrubMomentum(scrubPos, velocity);
+                            }
+                        }
+                    }
+                }
+                if (!momentumStarted) {
+                    if (this.core && typeof this.core.finishScrubbing === 'function') {
+                        this.core.finishScrubbing();
+                    }
                 }
             }
         };
@@ -1360,12 +1547,15 @@ export default class UIManager {
             if (this.core.playback.isPlaying) return; 
             e.preventDefault(); 
             
+            this.cancelScrubMomentum();
             longPressed = false; 
             isDraggingFrame = false; 
             hasScrolled = false; 
             startX = e.clientX; 
             startY = e.clientY;
+            scrubSamples = [{ t: performance.now(), x: e.clientX }];
             scrubStartScroll = this.getFrameX(this.core.doc.currentFrameIndex);
+            scrubPos = scrubStartScroll;
             
             try { square.setPointerCapture(e.pointerId); } catch(err) {}
             
@@ -1387,17 +1577,149 @@ export default class UIManager {
         
         const footer = document.getElementById('timelineFooter');
         const container = document.getElementById('timelineContainer');
+        const controls = document.getElementById('timelineControls');
         
         if (footer && container) {
-            const extra = (level - 1) * 48;
-            footer.style.height = `${76 + extra}px`;
-            container.style.height = `${58 + extra}px`;
+            const extra = (level - 1) * 57;
+            footer.style.height = `${85 + extra}px`;
+            container.style.height = `${85 + extra}px`;
+            if (controls) controls.style.height = `${85 + extra}px`;
+        }
+    }
+
+    updateFrameNumbers() {
+        const bar = document.getElementById('frameNumberBar');
+        const row = document.getElementById('frameNumberRow');
+        const container = document.getElementById('timelineContainer');
+        const strip = document.getElementById('timelineStrip');
+        if (!bar || !row || !container || !strip || !this.core.doc) return;
+
+        // Cover the strip area plus its right margin, flush with the dark side blocks
+        bar.style.left = container.offsetLeft + 'px';
+        bar.style.width = (container.offsetWidth + 10) + 'px';
+
+        const count = this.core.doc.frames.length;
+        while (row.children.length < count) {
+            const n = document.createElement('div');
+            n.className = 'frame-number';
+            row.appendChild(n);
+        }
+        while (row.children.length > count) row.removeChild(row.lastChild);
+        for (let i = 0; i < count; i++) {
+            const n = row.children[i];
+            n.style.left = (8 + i * 61) + 'px'; // strip padding-left + frame pitch
+            const txt = String(i + 1);
+            if (n.textContent !== txt) n.textContent = txt;
+            n.classList.toggle('active', i === this.core.doc.currentFrameIndex);
+        }
+
+        if (!strip.dataset.numbersInit) {
+            strip.dataset.numbersInit = 'true';
+            strip.addEventListener('scroll', () => this.syncFrameNumberScroll());
+            window.addEventListener('resize', () => this.updateFrameNumbers());
+        }
+        this.syncFrameNumberScroll();
+    }
+
+    syncFrameNumberScroll() {
+        const row = document.getElementById('frameNumberRow');
+        const strip = document.getElementById('timelineStrip');
+        if (row && strip) row.style.transform = `translateX(${-strip.scrollLeft}px)`;
+    }
+
+    updateActiveFrameOnly() {
+        if (!this.core.doc) return;
+        const curIdx = this.core.doc.currentFrameIndex;
+        const prevIdx = this._lastActiveFrameIndex;
+        if (curIdx === prevIdx) return;
+        this._lastActiveFrameIndex = curIdx;
+
+        const strip = this._timelineStrip || (this._timelineStrip = document.getElementById('timelineStrip'));
+        if (!strip) return;
+
+        const squares = strip.children;
+        if (prevIdx !== undefined && prevIdx >= 0 && prevIdx < squares.length) {
+            const prevSq = squares[prevIdx];
+            if (prevSq && prevSq.classList.contains('frame-square')) {
+                prevSq.classList.remove('active');
+                prevSq.style.zIndex = '';
+            }
+        }
+        if (curIdx >= 0 && curIdx < squares.length) {
+            const curSq = squares[curIdx];
+            if (curSq && curSq.classList.contains('frame-square')) {
+                curSq.classList.add('active');
+                curSq.style.zIndex = '25';
+            }
+        }
+
+        const row = this._frameNumberRow || (this._frameNumberRow = document.getElementById('frameNumberRow'));
+        if (row && row.children) {
+            const nums = row.children;
+            if (prevIdx !== undefined && prevIdx >= 0 && prevIdx < nums.length) {
+                nums[prevIdx].classList.remove('active');
+            }
+            if (curIdx >= 0 && curIdx < nums.length) {
+                nums[curIdx].classList.add('active');
+            }
+        }
+    }
+
+    updateActiveThumbnailOnly() {
+        if (!this.core.doc) return;
+        const strip = document.getElementById('timelineStrip');
+        if (!strip) return;
+        const curIdx = this.core.doc.currentFrameIndex;
+        const activeLayerIdx = this.core.doc.activeLayerIndex;
+        const squares = strip.querySelectorAll('.frame-square');
+        const square = squares[curIdx];
+        if (!square) return;
+        const containers = square.querySelectorAll('.layer-thumb-container');
+        const container = containers[activeLayerIdx];
+        if (!container) return;
+        const thumbCanvas = container.querySelector('canvas');
+        if (!thumbCanvas) return;
+
+        const layer = this.core.doc.activeLayer;
+        const thumbScale = Math.min(1, CANVAS_PERF.thumbMaxWidth / this.core.doc.width);
+        const thumbW = Math.max(1, Math.round(this.core.doc.width * thumbScale));
+        const thumbH = Math.max(1, Math.round(this.core.doc.height * thumbScale));
+
+        if (thumbCanvas.width !== thumbW || thumbCanvas.height !== thumbH) {
+            thumbCanvas.width = thumbW;
+            thumbCanvas.height = thumbH;
+            thumbCanvas._thumbKey = null;
+        }
+
+        const visible = !!(layer && layer.visible);
+        const thumbKey = layer ? `${layer._id}|${layer._ver}|${layer.opacity}|${visible}` : 'none';
+        if (thumbCanvas._thumbKey !== thumbKey) {
+            thumbCanvas._thumbKey = thumbKey;
+            const thumbCtx = thumbCanvas.getContext('2d'); 
+            thumbCtx.clearRect(0, 0, thumbCanvas.width, thumbCanvas.height);
+            
+            if (visible && layer && layer.hasContent) {
+                const src = layer._canvas || (layer.isDehydrated && this.core.renderer ? this.core.renderer.getDehydratedLayerCanvas(layer) : layer.canvas);
+                if (src) {
+                    thumbCtx.globalAlpha = layer.opacity;
+                    if (thumbScale < 1) {
+                        thumbCtx.imageSmoothingEnabled = true;
+                        thumbCtx.imageSmoothingQuality = 'medium';
+                    } else {
+                        thumbCtx.imageSmoothingEnabled = false;
+                    }
+                    thumbCtx.drawImage(src, 0, 0, thumbW, thumbH);
+                    thumbCtx.globalAlpha = 1.0;
+                }
+            }
         }
     }
 
     updateTimelineUI() {
         if (!this.core.doc) return;
+        this._lastActiveFrameIndex = -1;
         const strip = document.getElementById('timelineStrip');
+        this.updateFrameNumbers();
         
         const isIndexCovered = (layerIdx, targetIdx) => {
             for (let k = Math.min(targetIdx, this.core.doc.frames.length - 1); k >= 0; k--) {
@@ -1409,13 +1731,24 @@ export default class UIManager {
             return false;
         };
         
-        let labelsCol = strip.querySelector('.layer-labels-column');
+        let labelsCol = document.getElementById('layerLabelsCol') || document.querySelector('.layer-labels-column');
         if (!labelsCol) {
             labelsCol = document.createElement('div');
             labelsCol.className = 'layer-labels-column';
+            labelsCol.id = 'layerLabelsCol';
             labelsCol.style.touchAction = 'none';
-            strip.insertBefore(labelsCol, strip.firstChild);
+            const controls = document.getElementById('timelineControls');
+            if (controls) controls.appendChild(labelsCol);
+            else strip.insertBefore(labelsCol, strip.firstChild);
+        }
 
+        const oldStripLabels = strip.querySelector('.layer-labels-column');
+        if (oldStripLabels) {
+            strip.removeChild(oldStripLabels);
+        }
+
+        if (!labelsCol.dataset.eventsInit) {
+            labelsCol.dataset.eventsInit = 'true';
             let isDraggingLabels = false;
             let startY = 0;
             let startScroll = 0;
@@ -1431,8 +1764,19 @@ export default class UIManager {
                 if (!isDraggingLabels) return;
                 const dy = e.clientY - startY;
                 container.scrollTop = startScroll - dy;
+                labelsCol.scrollTop = container.scrollTop;
             });
             const onUp = (e) => {
+                if (isDraggingLabels) {
+                    const dy = Math.abs(e.clientY - startY);
+                    if (dy < 6) {
+                        const targetLabel = e.target.closest('.layer-label');
+                        if (targetLabel && targetLabel.parentElement === labelsCol) {
+                            const idx = Array.from(labelsCol.children).indexOf(targetLabel);
+                            if (idx >= 0) this.events.emit('core:selectLayer', idx);
+                        }
+                    }
+                }
                 isDraggingLabels = false;
                 try { labelsCol.releasePointerCapture(e.pointerId); } catch(err) {}
             };
@@ -1440,8 +1784,36 @@ export default class UIManager {
             labelsCol.addEventListener('pointercancel', onUp);
             labelsCol.addEventListener('wheel', (e) => {
                 container.scrollTop += e.deltaY;
+                labelsCol.scrollTop = container.scrollTop;
                 e.preventDefault();
             }, { passive: false });
+
+            container.addEventListener('scroll', () => {
+                labelsCol.scrollTop = container.scrollTop;
+            });
+        }
+        
+        if (!strip.dataset.scrollInit) {
+            strip.dataset.scrollInit = 'true';
+            let isDraggingStrip = false, startStripX = 0, startStripScroll = 0;
+            strip.addEventListener('pointerdown', (e) => {
+                if (e.target.closest('.frame-square') || e.target.closest('.layer-labels-column') || e.target.closest('.add-frame-timeline-btn') || e.target.closest('.layer-hold-handle')) return;
+                isDraggingStrip = true;
+                startStripX = e.clientX;
+                startStripScroll = strip.scrollLeft;
+                try { strip.setPointerCapture(e.pointerId); } catch(err) {}
+            });
+            strip.addEventListener('pointermove', (e) => {
+                if (!isDraggingStrip) return;
+                const dx = e.clientX - startStripX;
+                strip.scrollLeft = startStripScroll - dx;
+            });
+            const onStripUp = (e) => {
+                isDraggingStrip = false;
+                try { strip.releasePointerCapture(e.pointerId); } catch(err) {}
+            };
+            strip.addEventListener('pointerup', onStripUp);
+            strip.addEventListener('pointercancel', onStripUp);
         }
         
         const layerCount = this.core.doc.activeFrame.layers.length;
@@ -1458,7 +1830,9 @@ export default class UIManager {
         for (let i = 0; i < layerCount; i++) {
             const layerObj = this.core.doc.activeFrame.layers[i];
             const lName = this.getLayerName(layerObj, i);
-            labelsCol.children[i].innerText = layerObj.locked ? `🔐${lName.substring(1)}` : lName;
+            const lbl = labelsCol.children[i];
+            lbl.innerText = layerObj.locked ? `🔐${lName.substring(1)}` : lName;
+            lbl.classList.toggle('active', i === this.core.doc.activeLayerIndex);
         }
         
         let frameSquares = Array.from(strip.children).filter(el => el.classList.contains('frame-square'));
@@ -1481,10 +1855,12 @@ export default class UIManager {
             const square = frameSquares[idx];
             
             square.dataset.frameIndex = idx; 
-            square.classList.toggle('active', idx === this.core.doc.currentFrameIndex);
+            const isFrameActive = idx === this.core.doc.currentFrameIndex;
+            square.classList.toggle('active', isFrameActive);
+            square.style.zIndex = isFrameActive ? '25' : '';
             
-            square.style.width = '44px';
-            square.style.height = (layerCount * 48 - 4) + 'px'; // 44px + 4px gap per layer
+            square.style.width = '53px';
+            square.style.height = (layerCount * 57 - 4) + 'px'; // 53px + 4px gap per layer
             
             let thumbContainers = Array.from(square.children).filter(el => el.classList.contains('layer-thumb-container'));
             while (thumbContainers.length < layerCount) {
@@ -1507,17 +1883,19 @@ export default class UIManager {
             for (let i = 0; i < layerCount; i++) {
                 const container = thumbContainers[i];
                 container.dataset.layerIndex = i;
-                square.appendChild(container); // order correctly
+                if (container.parentNode !== square) square.appendChild(container); // already in DOM order otherwise
                 
                 const layer = frame.layers[i];
                 const lHCount = layer.holdCount || 1;
                 
-                const targetWContainer = (44 * lHCount + 8 * (lHCount - 1));
+                const targetWContainer = (53 * lHCount + 8 * (lHCount - 1));
                 container.style.width = targetWContainer + 'px';
                 container.style.position = 'absolute';
-                container.style.top = (i * 48) + 'px';
+                container.style.top = (i * 57) + 'px';
                 container.style.left = '0';
-                container.style.zIndex = lHCount > 1 ? '5' : '1';
+                const isCurrentActiveLayer = (isFrameActive && i === this.core.doc.activeLayerIndex);
+                container.classList.toggle('active', isCurrentActiveLayer);
+                container.style.zIndex = isCurrentActiveLayer ? '30' : (lHCount > 1 ? '5' : '1');
                 
                 // Clear any existing plus buttons in this container
                 let existingPlus = container.querySelector('.add-frame-timeline-btn');
@@ -1544,10 +1922,7 @@ export default class UIManager {
                         addBtn.innerText = '➕';
                         addBtn.style.pointerEvents = 'auto';
                         addBtn.dataset.layerAddBtn = i;
-                        addBtn.onclick = (e) => {
-                            e.stopPropagation();
-                            this.events.emit('core:addLayerFrame', i);
-                        };
+                        this.bindAddFrameButton(addBtn, i);
                         container.appendChild(addBtn);
                         }
                     }
@@ -1582,17 +1957,17 @@ export default class UIManager {
                         const onHoldMove = (em) => {
                             if (!isDraggingHold) return;
                             const dx = em.clientX - holdStartX;
-                            const addedHolds = Math.round(dx / 52); 
+                            const addedHolds = Math.round(dx / 61); 
                             let newHold = Math.max(1, startHoldCount + addedHolds);
                             if (isNaN(newHold) || newHold < 1) newHold = 1;
                             
-                            const lWidth = (44 * newHold + 8 * (newHold - 1));
+                            const lWidth = (53 * newHold + 8 * (newHold - 1));
                             container.style.width = lWidth + 'px';
                             
                             const addBtn = strip.querySelector(`[data-layer-add-btn="${i}"]`);
                             if (addBtn) {
                                 const holdDiff = newHold - startHoldCount;
-                                addBtn.style.transform = holdDiff !== 0 ? `translateX(${holdDiff * 52}px)` : 'none';
+                                addBtn.style.transform = holdDiff !== 0 ? `translateX(${holdDiff * 61}px)` : 'none';
                             }
                         };
                         
@@ -1607,7 +1982,7 @@ export default class UIManager {
                             if (isDraggingHold) {
                                 isDraggingHold = false;
                                 const dx = eu.clientX - holdStartX;
-                                const addedHolds = Math.round(dx / 52); 
+                                const addedHolds = Math.round(dx / 61); 
                                 let newHold = Math.max(1, startHoldCount + addedHolds);
                                 
                                 if (isNaN(newHold) || newHold < 1) newHold = 1;
@@ -1621,6 +1996,7 @@ export default class UIManager {
                                     }
                                     
                                     if (safeDiff !== 0) {
+                                        if (this.core.selection) this.core.selection.anchor();
                                         this.core.doc.frames[currentIndex].layers[i].holdCount = currentHold + safeDiff;
                                         if (safeDiff > 0) {
                                             this.core.doc.insertLayerFrameGap(i, currentIndex + 1, safeDiff);
@@ -1629,7 +2005,7 @@ export default class UIManager {
                                                 this.core.doc.deleteLayerFrame(i, currentIndex + 1);
                                             }
                                         }
-                                        this.events.emit('core:saveState');
+                                        this.core.saveState();
                                     }
                                     this.updateTimelineUI(); 
                                 } else {
@@ -1648,20 +2024,43 @@ export default class UIManager {
                     holdHandle.style.display = (i === this.core.doc.activeLayerIndex && idx === this.core.doc.currentFrameIndex) ? 'block' : 'none';
                 }
                 
-                if (thumbCanvas.width !== this.core.doc.width) thumbCanvas.width = this.core.doc.width;
-                if (thumbCanvas.height !== this.core.doc.height) thumbCanvas.height = this.core.doc.height;
+                // Thumbnails are drawn at a small fixed size (not the full document resolution) and
+                // only repainted when the layer's content/appearance actually changed.
+                const thumbScale = Math.min(1, CANVAS_PERF.thumbMaxWidth / this.core.doc.width);
+                const thumbW = Math.max(1, Math.round(this.core.doc.width * thumbScale));
+                const thumbH = Math.max(1, Math.round(this.core.doc.height * thumbScale));
+                if (thumbCanvas.width !== thumbW || thumbCanvas.height !== thumbH) {
+                    thumbCanvas.width = thumbW;
+                    thumbCanvas.height = thumbH;
+                    thumbCanvas._thumbKey = null; // resizing clears the bitmap
+                }
                 
-                thumbCanvas.style.width = '44px';
+                thumbCanvas.style.width = '53px';
                 thumbCanvas.style.height = '100%';
                 thumbCanvas.style.objectFit = 'contain';
                 thumbCanvas.style.objectPosition = 'left';
                 
-                const thumbCtx = thumbCanvas.getContext('2d'); 
-                thumbCtx.clearRect(0, 0, thumbCanvas.width, thumbCanvas.height);
-                
-                if (layer && layer.visible) {
-                    thumbCtx.globalAlpha = layer.opacity;
-                    thumbCtx.drawImage(layer.canvas, 0, 0);
+                const visible = !!(layer && layer.visible);
+                const thumbKey = layer ? `${layer._id}|${layer._ver}|${layer.opacity}|${visible}` : 'none';
+                if (thumbCanvas._thumbKey !== thumbKey) {
+                    thumbCanvas._thumbKey = thumbKey;
+                    const thumbCtx = thumbCanvas.getContext('2d'); 
+                    thumbCtx.clearRect(0, 0, thumbCanvas.width, thumbCanvas.height);
+                    
+                    if (visible && layer && layer.hasContent) {
+                        const src = layer._canvas || (layer.isDehydrated && this.core.renderer ? this.core.renderer.getDehydratedLayerCanvas(layer) : layer.canvas);
+                        if (src) {
+                            thumbCtx.globalAlpha = layer.opacity;
+                            if (thumbScale < 1) {
+                                thumbCtx.imageSmoothingEnabled = true;
+                                thumbCtx.imageSmoothingQuality = 'medium';
+                            } else {
+                                thumbCtx.imageSmoothingEnabled = false;
+                            }
+                            thumbCtx.drawImage(src, 0, 0, thumbW, thumbH);
+                            thumbCtx.globalAlpha = 1.0;
+                        }
+                    }
                 }
             }
         });
@@ -1673,17 +2072,33 @@ export default class UIManager {
             addColumn.className = 'add-frame-column';
             addColumn.style.display = 'flex';
             addColumn.style.flexDirection = 'column';
-            addColumn.style.gap = '8px';
+            addColumn.style.gap = '4px';
             addColumn.style.marginLeft = '8px';
+            addColumn.style.marginRight = '20px';
             strip.appendChild(addColumn);
         } else {
+            addColumn.style.gap = '4px';
+            addColumn.style.marginRight = '20px';
             strip.appendChild(addColumn); // ensure it's at the end
+        }
+
+        let endSpacer = strip.querySelector('.timeline-end-spacer');
+        if (!endSpacer) {
+            endSpacer = document.createElement('div');
+            endSpacer.className = 'timeline-end-spacer';
+            endSpacer.style.cssText = 'width: 120px; min-width: 120px; height: 1px; flex-shrink: 0; pointer-events: none;';
+            strip.appendChild(endSpacer);
+        } else {
+            endSpacer.style.cssText = 'width: 120px; min-width: 120px; height: 1px; flex-shrink: 0; pointer-events: none;';
+            strip.appendChild(endSpacer); // always after addColumn
         }
         
         while (addColumn.children.length < layerCount) {
             const btnContainer = document.createElement('div');
-            btnContainer.style.height = '44px';
-            btnContainer.style.width = '44px';
+            btnContainer.style.height = '53px';
+            btnContainer.style.minHeight = '53px';
+            btnContainer.style.width = '53px';
+            btnContainer.style.flexShrink = '0';
             addColumn.appendChild(btnContainer);
         }
         while (addColumn.children.length > layerCount) {
@@ -1692,6 +2107,10 @@ export default class UIManager {
         
         for (let i = 0; i < layerCount; i++) {
             const btnContainer = addColumn.children[i];
+            btnContainer.style.height = '53px';
+            btnContainer.style.minHeight = '53px';
+            btnContainer.style.width = '53px';
+            btnContainer.style.flexShrink = '0';
             btnContainer.innerHTML = ''; // clear
             
             const docLength = this.core.doc.frames.length;
@@ -1705,13 +2124,52 @@ export default class UIManager {
                 addBtn.title = 'Add Frame';
                 addBtn.innerText = '➕';
                         addBtn.dataset.layerAddBtn = i;
-                addBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    this.events.emit('core:addLayerFrame', i);
-                };
+                this.bindAddFrameButton(addBtn, i);
                 btnContainer.appendChild(addBtn);
             }
         }
+    }
+
+    bindAddFrameButton(addBtn, layerIdx) {
+        let isTap = false, startX = 0, startY = 0, lastTriggerTime = 0;
+        const trigger = (e) => {
+            const now = Date.now();
+            if (now - lastTriggerTime < 350) return;
+            lastTriggerTime = now;
+            e.stopPropagation();
+            if (e.cancelable) e.preventDefault();
+            this.events.emit('core:addLayerFrame', layerIdx);
+        };
+
+        addBtn.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            isTap = true;
+            startX = e.clientX;
+            startY = e.clientY;
+        });
+
+        addBtn.addEventListener('pointermove', (e) => {
+            if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) {
+                isTap = false;
+            }
+        });
+
+        addBtn.addEventListener('pointerup', (e) => {
+            e.stopPropagation();
+            if (isTap) {
+                isTap = false;
+                trigger(e);
+            }
+        });
+
+        addBtn.addEventListener('pointercancel', () => {
+            isTap = false;
+        });
+
+        addBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            trigger(e);
+        });
     }
 
     // scrubber removed

@@ -1,4 +1,4 @@
-import { CONSTANTS } from '../core/Constants.js?cb=121';
+import { CONSTANTS } from '../core/Constants.js?cb=158';
 
 export default class SelectionManager {
     constructor(core) {
@@ -183,31 +183,37 @@ export default class SelectionManager {
         }
     }
     clear(recordHistory = true) {
+        const wasFloating = this.isFloating && !!this.core.doc;
+        const hadMask = this.isActive;
         this.anchor(recordHistory); 
-        if(this.mask) this.mask.fill(0);
+        if (this.mask && hadMask) this.mask.fill(0);
         this.isActive = false; 
         this.transformMatrix = new DOMMatrix();
         this.isUniformScaling = false;
         this.advancedTransformMode = false;
         this.selectionMode = CONSTANTS.SELECT_MODE.REPLACE;
         if (this.selectionModifierUI) this.selectionModifierUI.style.display = 'none';
-        this.rebuildPath();
-        if (recordHistory) {
+        this.path = new Path2D();
+        this.bounds = { minX: 9999, minY: 9999, maxX: -1, maxY: -1 };
+        this.updateDragHandle();
+        if (recordHistory && !wasFloating && hadMask) {
             this.core.saveState();
         }
     }
     rebuildPath() {
         this.path = new Path2D(); 
         this.bounds = { minX: 9999, minY: 9999, maxX: -1, maxY: -1 };
-        if(!this.core.bgCanvas) return;
+        if(!this.core.bgCanvas || !this.mask) return;
         
         const w = this.core.bgCanvas.width;
         const h = this.core.bgCanvas.height; 
+        const mask = this.mask;
         let hasSelection = false;
         
-        for(let y=0; y<h; y++) {
-            for(let x=0; x<w; x++) {
-                if (this.mask[y*w + x]) {
+        for (let y = 0; y < h; y++) {
+            const rowOffset = y * w;
+            for (let x = 0; x < w; x++) {
+                if (mask[rowOffset + x]) {
                     hasSelection = true;
                     if (x < this.bounds.minX) this.bounds.minX = x; 
                     if (x > this.bounds.maxX) this.bounds.maxX = x;
@@ -229,12 +235,13 @@ export default class SelectionManager {
             };
 
             for(let y = this.bounds.minY; y <= this.bounds.maxY; y++) {
+                const rowOffset = y * w;
                 for(let x = this.bounds.minX; x <= this.bounds.maxX; x++) {
-                    if (this.mask[y*w + x]) {
-                        if (y === 0 || !this.mask[(y-1)*w + x]) addEdge(x, y, x+1, y);
-                        if (y === h-1 || !this.mask[(y+1)*w + x]) addEdge(x+1, y+1, x, y+1);
-                        if (x === 0 || !this.mask[y*w + (x-1)]) addEdge(x, y+1, x, y);
-                        if (x === w-1 || !this.mask[y*w + (x+1)]) addEdge(x+1, y, x+1, y+1);
+                    if (mask[rowOffset + x]) {
+                        if (y === 0 || !mask[(y-1)*w + x]) addEdge(x, y, x+1, y);
+                        if (y === h-1 || !mask[(y+1)*w + x]) addEdge(x+1, y+1, x, y+1);
+                        if (x === 0 || !mask[rowOffset + (x-1)]) addEdge(x, y+1, x, y);
+                        if (x === w-1 || !mask[rowOffset + (x+1)]) addEdge(x+1, y, x+1, y+1);
                     }
                 }
             }
@@ -248,16 +255,31 @@ export default class SelectionManager {
                     const startY = Math.floor(curr / (w + 1));
                     this.path.moveTo(startX, startY);
                     
+                    let curX = next % (w + 1);
+                    let curY = Math.floor(next / (w + 1));
+                    let dx = curX - startX;
+                    let dy = curY - startY;
+                    
                     while (true) {
-                        const nx = next % (w + 1);
-                        const ny = Math.floor(next / (w + 1));
-                        this.path.lineTo(nx, ny);
-                        
                         curr = next;
                         const potentialNexts = edges.get(curr);
-                        if (!potentialNexts || potentialNexts.length === 0) break;
+                        if (!potentialNexts || potentialNexts.length === 0) {
+                            this.path.lineTo(curX, curY);
+                            break;
+                        }
                         
                         next = potentialNexts.pop();
+                        const nx = next % (w + 1);
+                        const ny = Math.floor(next / (w + 1));
+                        const ndx = nx - curX;
+                        const ndy = ny - curY;
+                        if (ndx !== dx || ndy !== dy) {
+                            this.path.lineTo(curX, curY);
+                            dx = ndx;
+                            dy = ndy;
+                        }
+                        curX = nx;
+                        curY = ny;
                     }
                 }
             }
@@ -316,7 +338,12 @@ export default class SelectionManager {
     }
     
     onRotateUp(e) {
-        this.isRotating = false;
+        if (this.isRotating) {
+            this.isRotating = false;
+            if (!this.core.state.isSpriteSheetView) {
+                this.core.saveState();
+            }
+        }
         document.body.removeEventListener('pointermove', this.onRotateMoveBound);
         document.body.removeEventListener('pointerup', this.onRotateUpBound);
         document.body.removeEventListener('pointercancel', this.onRotateUpBound);
@@ -594,6 +621,12 @@ export default class SelectionManager {
         
         this.rebuildPath();
         this.origBounds = { ...this.bounds };
+        if (!this.core.state.isSpriteSheetView) {
+            if (this.core.renderer) this.core.renderer.render();
+            this.core.saveState();
+            this.core.events.emit('frameChanged');
+            this.core.playback.updateOnionSkin();
+        }
     }
     radialCut() {
         if (!this.isFloating) return;
@@ -755,10 +788,12 @@ export default class SelectionManager {
                 }
             }, window.longPressTimer || 500);
 
+            let hasScaled = false;
             const onMove = (em) => {
                 if (Math.abs(em.clientX - startClientX) > 4 || Math.abs(em.clientY - startClientY) > 4) {
                     clearTimeout(this.scaleTimer);
                 }
+                hasScaled = true;
 
                 const metrics = this.core.viewport.getMetrics();
                 
@@ -809,6 +844,9 @@ export default class SelectionManager {
                 wrapper.removeEventListener('pointerup', onUp);
                 wrapper.removeEventListener('pointercancel', onUp);
                 this.isScaling = false;
+                if (hasScaled && !this.core.state.isSpriteSheetView) {
+                    this.core.saveState();
+                }
             };
 
             wrapper.addEventListener('pointermove', onMove);
@@ -842,6 +880,7 @@ export default class SelectionManager {
             this.baseMatrix = this.transformMatrix ? DOMMatrix.fromMatrix(this.transformMatrix) : new DOMMatrix();
             const startClientX = e.clientX;
             const startClientY = e.clientY;
+            let hasDragged = false;
             
             this.radialTimer = setTimeout(() => {
                 this.isRadialOpen = true; 
@@ -866,6 +905,7 @@ export default class SelectionManager {
                         const dx = Math.round(currentPos.x - startPos.x);
                         const dy = Math.round(currentPos.y - startPos.y);
                         
+                        if (dx !== 0 || dy !== 0) hasDragged = true;
                         this.transformMatrix = new DOMMatrix().translate(dx, dy).multiply(this.baseMatrix);
                         
                         this.previewTransform();
@@ -912,6 +952,9 @@ export default class SelectionManager {
                     this.radialBtns.forEach(b => b.classList.remove('active'));
                 } else if (this.isDragging) {
                     this.isDragging = false;
+                    if (hasDragged && !this.core.state.isSpriteSheetView) {
+                        this.core.saveState();
+                    }
                 }
             };
             this.dragHandle.addEventListener('pointermove', onMove); 
