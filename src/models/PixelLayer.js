@@ -1,4 +1,4 @@
-import { canvas2DOptions } from '../core/Constants.js?cb=158';
+import { canvas2DOptions } from '../core/Constants.js?cb=171';
 
 // Monotonic content-version counter. Unlike _rev (which undo/redo rewinds), _ver never repeats,
 // so it is safe as a cache key for thumbnails and other derived images.

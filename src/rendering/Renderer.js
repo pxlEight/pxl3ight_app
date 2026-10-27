@@ -1,4 +1,4 @@
-import { canvas2DOptions } from '../core/Constants.js?cb=158';
+import { canvas2DOptions } from '../core/Constants.js?cb=171';
 export default class Renderer {
     constructor(doc, targetCanvas, core = null) { 
         this.doc = doc; 
@@ -149,7 +149,8 @@ export default class Renderer {
             this._frameCache.set(frameIndex, existing);
             return existing.canvas;
         }
-        if (!hasDehydrated) return null;
+        const isScrubbingOrPlaying = !!(this.core && ((this.core.playback && this.core.playback.isPlaying) || (this.core.state && this.core.state.isScrubbing)));
+        if (!hasDehydrated && !isScrubbingOrPlaying) return null;
 
         const maxEntries = Math.min(20, Math.max(8, Math.floor(20000000 / Math.max(1, w * h))));
         let entry = existing;

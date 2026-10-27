@@ -1,8 +1,9 @@
-import { CONSTANTS } from '../core/Constants.js?cb=158';
+import { CONSTANTS } from '../core/Constants.js?cb=171';
 
 export default class ToolContext {
     constructor(core) {
         this.core = core;
+        this._hasScratchClip = false;
     }
     
     get isSpriteSheetView() { return this.core.state.isSpriteSheetView; }
@@ -19,6 +20,7 @@ export default class ToolContext {
     get shape() { return this.core.state.tool.shape; }
     get brushShape() { return this.core.state.tool.brushShape; }
     get smooth() { return this.core.state.tool.smooth; }
+    get velocity() { return this.core.state.tool.velocity || 0; }
     get isSubpixelSmoothing() { 
         return !!this.core.state.subpixelSmoothing && (Math.max(this.canvasWidth, this.canvasHeight) >= 720); 
     }
@@ -30,10 +32,15 @@ export default class ToolContext {
     }
 
     isPixelSelected(x, y) {
-        if (!this.core.selection.isActive) return true;
+        if (!this.core.selection || !this.core.selection.isActive) return true;
         x = Math.floor(x); y = Math.floor(y);
         if (x < 0 || x >= this.canvasWidth || y < 0 || y >= this.canvasHeight) return false;
-        return !!this.core.selection.mask[y * this.canvasWidth + x];
+        const sel = this.core.selection;
+        if (sel.bounds) {
+            const b = sel.bounds;
+            if (x < b.minX || x > b.maxX || y < b.minY || y > b.maxY) return false;
+        }
+        return !!sel.mask && !!sel.mask[y * this.canvasWidth + x];
     }
 
     setupDrawingState() {
@@ -54,7 +61,20 @@ export default class ToolContext {
         if (this.scratchCanvas.width !== cvs.width || this.scratchCanvas.height !== cvs.height) {
             this.scratchCanvas.width = cvs.width; this.scratchCanvas.height = cvs.height;
         }
+        if (this._hasScratchClip) {
+            this.scratchCtx.restore();
+            this._hasScratchClip = false;
+        }
         this.scratchCtx.clearRect(0, 0, this.scratchCanvas.width, this.scratchCanvas.height);
+
+        if (this.core.selection && this.core.selection.isActive) {
+            this.core.selection.pauseAnts();
+            if (this.isSubpixelSmoothing && this.core.selection.path) {
+                this.scratchCtx.save();
+                this.scratchCtx.clip(this.core.selection.path);
+                this._hasScratchClip = true;
+            }
+        }
     }
 
     updateActiveCanvasFromScratch(incremental = false) {
@@ -112,6 +132,13 @@ export default class ToolContext {
     }
     
     commitDrawing() {
+        if (this._hasScratchClip) {
+            this.scratchCtx.restore();
+            this._hasScratchClip = false;
+        }
+        if (this.core.selection) {
+            this.core.selection.resumeAnts();
+        }
         if (this.hasDrawnInBounds === false) {
             this.cancelDrawing();
             return;
@@ -136,6 +163,13 @@ export default class ToolContext {
     }
 
     cancelDrawing() {
+        if (this._hasScratchClip) {
+            this.scratchCtx.restore();
+            this._hasScratchClip = false;
+        }
+        if (this.core.selection) {
+            this.core.selection.resumeAnts();
+        }
         if (!this.activeCtx) return;
         const ctx = this.activeCtx;
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -180,8 +214,8 @@ export default class ToolContext {
         if (mode === CONSTANTS.MIRROR.Q) actionFn(w - 1 - x0, h - 1 - y0, w - 1 - x1, h - 1 - y1);
     }
 
-    drawVectorPointToScratch(cx, cy) {
-        const size = this.getBrushSize();
+    drawVectorPointToScratch(cx, cy, customSize) {
+        const size = (customSize !== undefined) ? customSize : this.getBrushSize();
         const startX = cx - size / 2;
         const startY = cy - size / 2;
         
@@ -191,19 +225,22 @@ export default class ToolContext {
         this._markDirty(Math.floor(startX - 2), Math.floor(startY - 2), Math.ceil(startX + size + 2), Math.ceil(startY + size + 2));
         
         const ctx = this.scratchCtx;
-        ctx.save();
-        if (this.core.selection.isActive && this.core.selection.path) {
+        const needsClip = !this._hasScratchClip && (this.core.selection && this.core.selection.isActive && this.core.selection.path);
+        if (needsClip) {
+            ctx.save();
             ctx.clip(this.core.selection.path);
         }
         ctx.fillStyle = (this.toolId === CONSTANTS.TOOLS.ERASER) ? "#000000" : this.color;
         ctx.beginPath();
         ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
+        if (needsClip) {
+            ctx.restore();
+        }
     }
 
-    drawVectorLineToScratch(x0, y0, x1, y1) {
-        const size = this.getBrushSize();
+    drawVectorLineToScratch(x0, y0, x1, y1, customSize) {
+        const size = (customSize !== undefined) ? customSize : this.getBrushSize();
         const minX = Math.min(x0, x1) - size / 2 - 2;
         const minY = Math.min(y0, y1) - size / 2 - 2;
         const maxX = Math.max(x0, x1) + size / 2 + 2;
@@ -215,8 +252,9 @@ export default class ToolContext {
         this._markDirty(Math.floor(minX), Math.floor(minY), Math.ceil(maxX), Math.ceil(maxY));
         
         const ctx = this.scratchCtx;
-        ctx.save();
-        if (this.core.selection.isActive && this.core.selection.path) {
+        const needsClip = !this._hasScratchClip && (this.core.selection && this.core.selection.isActive && this.core.selection.path);
+        if (needsClip) {
+            ctx.save();
             ctx.clip(this.core.selection.path);
         }
         const color = (this.toolId === CONSTANTS.TOOLS.ERASER) ? "#000000" : this.color;
@@ -236,7 +274,9 @@ export default class ToolContext {
             ctx.lineTo(x1, y1);
             ctx.stroke();
         }
-        ctx.restore();
+        if (needsClip) {
+            ctx.restore();
+        }
     }
 
     drawVectorEllipseToScratch(x0, y0, x1, y1) {
@@ -254,8 +294,9 @@ export default class ToolContext {
         this._markDirty(Math.floor(minX - size - 2), Math.floor(minY - size - 2), Math.ceil(maxX + size + 2), Math.ceil(maxY + size + 2));
         
         const ctx = this.scratchCtx;
-        ctx.save();
-        if (this.core.selection.isActive && this.core.selection.path) {
+        const needsClip = !this._hasScratchClip && (this.core.selection && this.core.selection.isActive && this.core.selection.path);
+        if (needsClip) {
+            ctx.save();
             ctx.clip(this.core.selection.path);
         }
         ctx.strokeStyle = (this.toolId === CONSTANTS.TOOLS.ERASER) ? "#000000" : this.color;
@@ -263,12 +304,14 @@ export default class ToolContext {
         ctx.beginPath();
         ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.restore();
+        if (needsClip) {
+            ctx.restore();
+        }
     }
 
-    drawPixelToScratch(cx, cy) {
+    drawPixelToScratch(cx, cy, customSize) {
         cx = Math.round(cx); cy = Math.round(cy);
-        const size = this.getBrushSize();
+        const size = (customSize !== undefined) ? customSize : this.getBrushSize();
         const startX = cx - Math.floor(size / 2);
         const startY = cy - Math.floor(size / 2);
         
@@ -282,27 +325,68 @@ export default class ToolContext {
         const centerOffset = (size - 1) / 2;
         const radiusSq = Math.pow(size / 2, 2);
         
-        if (this.core.selection.isActive) {
-            for (let y = 0; y < size; y++) {
-                let spanStart = -1;
-                for (let x = 0; x <= size; x++) {
-                    let drawThisPixel = false;
-                    if (x < size) {
-                        let validShape = true;
-                        if (isRound) {
-                            const dx = x - centerOffset; const dy = y - centerOffset;
-                            if ((dx * dx + dy * dy) > radiusSq) validShape = false;
+        if (this.core.selection && this.core.selection.isActive) {
+            const sel = this.core.selection;
+            const b = sel.bounds;
+            if (b) {
+                if (startX + size - 1 < b.minX || startX > b.maxX || startY + size - 1 < b.minY || startY > b.maxY) {
+                    return;
+                }
+            }
+            const mask = sel.mask;
+            if (!mask) return;
+            const cw = this.canvasWidth;
+            const ch = this.canvasHeight;
+
+            if (isRound) {
+                for (let y = 0; y < size; y++) {
+                    const py = startY + y;
+                    if (py < 0 || py >= ch) continue;
+                    const dy = y - centerOffset;
+                    const dxSq = radiusSq - dy * dy;
+                    if (dxSq < 0) continue;
+                    const dx = Math.sqrt(dxSq);
+                    const minX = Math.ceil(-dx); 
+                    const maxX = Math.floor(dx);
+                    const rowStart = centerOffset + minX;
+                    const rowEnd = centerOffset + maxX;
+                    const rowOffset = py * cw;
+                    
+                    let spanStart = -1;
+                    for (let x = rowStart; x <= rowEnd + 1; x++) {
+                        let drawThisPixel = false;
+                        if (x <= rowEnd) {
+                            const px = startX + x;
+                            if (px >= 0 && px < cw && mask[rowOffset + px]) {
+                                drawThisPixel = true;
+                            }
                         }
-                        if (validShape) {
-                            const px = startX + x; const py = startY + y;
-                            if (this.isPixelSelected(px, py)) drawThisPixel = true;
+                        if (drawThisPixel) {
+                            if (spanStart === -1) spanStart = x;
+                        } else if (spanStart !== -1) {
+                            this.scratchCtx.fillRect(startX + spanStart, py, x - spanStart, 1);
+                            spanStart = -1;
                         }
                     }
-                    if (drawThisPixel) {
-                        if (spanStart === -1) spanStart = x;
-                    } else {
-                        if (spanStart !== -1) {
-                            this.scratchCtx.fillRect(startX + spanStart, startY + y, x - spanStart, 1);
+                }
+            } else {
+                for (let y = 0; y < size; y++) {
+                    const py = startY + y;
+                    if (py < 0 || py >= ch) continue;
+                    const rowOffset = py * cw;
+                    let spanStart = -1;
+                    for (let x = 0; x <= size; x++) {
+                        let drawThisPixel = false;
+                        if (x < size) {
+                            const px = startX + x;
+                            if (px >= 0 && px < cw && mask[rowOffset + px]) {
+                                drawThisPixel = true;
+                            }
+                        }
+                        if (drawThisPixel) {
+                            if (spanStart === -1) spanStart = x;
+                        } else if (spanStart !== -1) {
+                            this.scratchCtx.fillRect(startX + spanStart, py, x - spanStart, 1);
                             spanStart = -1;
                         }
                     }

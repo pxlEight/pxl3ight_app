@@ -1,5 +1,5 @@
-import PixelLayer from './PixelLayer.js?cb=158';
-import PixelFrame from './PixelFrame.js?cb=158';
+import PixelLayer from './PixelLayer.js?cb=171';
+import PixelFrame from './PixelFrame.js?cb=171';
 
 export default class PixelDocument {
     constructor(w, h, events) { 
@@ -33,10 +33,9 @@ export default class PixelDocument {
     addLayer() { 
         // Index 0 is the top-most layer; insert directly above the active layer
         const insertAt = Math.max(0, Math.min(this.activeLayerIndex, this.activeFrame.layers.length));
-        const curIdx = this.currentFrameIndex;
         this.frames.forEach((f, idx) => {
             const nl = new PixelLayer(this.width, this.height);
-            if (idx !== 0 && idx !== curIdx) {
+            if (idx !== 0) {
                 nl.isDeleted = true;
             }
             f.layers.splice(insertAt, 0, nl);

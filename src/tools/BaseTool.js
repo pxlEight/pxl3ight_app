@@ -8,18 +8,22 @@ export default class BaseTool {
     onPointerUp(pos, e) {} 
     cancel() {}
     
-    drawPixel(cx, cy) { 
+    drawPixel(cx, cy, customSize) { 
         if (this.context.isSubpixelSmoothing) {
-            this.context.executeWithMirror(cx, cy, (x, y) => this.context.drawVectorPointToScratch(x, y));
+            this.context.executeWithMirror(cx, cy, (x, y) => this.context.drawVectorPointToScratch(x, y, customSize));
             return;
         }
-        this.context.executeWithMirror(Math.round(cx), Math.round(cy), (x, y) => this.context.drawPixelToScratch(x, y)); 
+        this.context.executeWithMirror(Math.round(cx), Math.round(cy), (x, y) => this.context.drawPixelToScratch(x, y, customSize)); 
     }
     
-    drawLine(x0, y0, x1, y1) {
+    drawLine(x0, y0, x1, y1, startSize, endSize) {
+        if (startSize === undefined) startSize = this.context.getBrushSize();
+        if (endSize === undefined) endSize = startSize;
+
         if (this.context.isSubpixelSmoothing) {
+            const avgSize = (startSize + endSize) / 2;
             this.context.executeLineWithMirror(x0, y0, x1, y1, (lx0, ly0, lx1, ly1) => {
-                this.context.drawVectorLineToScratch(lx0, ly0, lx1, ly1);
+                this.context.drawVectorLineToScratch(lx0, ly0, lx1, ly1, avgSize);
             });
             return;
         }
@@ -27,13 +31,19 @@ export default class BaseTool {
         let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
         let dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
         let err = dx + dy, e2; 
+        const totalSteps = Math.max(dx, Math.abs(dy));
+        let step = 0;
         
         while (true) { 
-            this.drawPixel(x0, y0); 
+            const curSize = (totalSteps > 0) 
+                ? Math.round(startSize + (step / totalSteps) * (endSize - startSize)) 
+                : Math.round(startSize);
+            this.drawPixel(x0, y0, curSize); 
             if (x0 === x1 && y0 === y1) break; 
             e2 = 2 * err; 
             if (e2 >= dy) { err += dy; x0 += sx; } 
             if (e2 <= dx) { err += dx; y0 += sy; } 
+            step++;
         }
     }
     

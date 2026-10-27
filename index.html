@@ -8,8 +8,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icons/icon.svg">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="css/style.css?cb=158">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js?cb=158"></script>
+    <link rel="stylesheet" href="css/style.css?cb=171">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js?cb=171"></script>
     <script>
         const setAppHeight = () => document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
         window.addEventListener('resize', setAppHeight);
@@ -299,25 +299,22 @@
         <div class="header-tools" style="pointer-events: auto;">
             <div style="position: relative;">
                 <button id="btn-settings-menu" class="icon-btn" data-action="toggleSettingsMenu" title="Settings" style="width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 6px;">⚙️</button>
-                <div id="settings-menu" class="dropdown-menu" style="left: 0; right: auto; padding: 16px; width: 140px; text-align: center;">
-                    <div style="font-size: 12px; font-weight: bold; color: #aaaaaa; text-transform: uppercase; margin-bottom: 12px;">Long Press Timer</div>
+                <div id="settings-menu" class="dropdown-menu" style="left: 0; right: auto; padding: 12px; width: 140px; text-align: center; max-height: 320px; overflow-y: auto; overflow-x: hidden; touch-action: pan-y; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;">
+                    <div style="font-size: 11px; font-weight: bold; color: #aaaaaa; text-transform: uppercase; margin-bottom: 6px;">Long Press Timer</div>
                     <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-                        <div id="long-press-timer-val" style="background-color: rgba(255,255,255,0.05); padding: 16px 8px; width: 60px; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: ns-resize; user-select: none; color: white; touch-action: none; text-align: center;" title="Drag up/down">0.5</div>
+                        <div id="long-press-timer-val" style="background-color: rgba(255,255,255,0.05); padding: 10px 8px; width: 60px; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: ns-resize; user-select: none; color: white; touch-action: none; text-align: center;" title="Drag up/down">0.5</div>
                         <span style="font-size: 14px; font-weight: bold; color: #aaaaaa;">s</span>
                     </div>
-                    <div id="subpixel-smoothing-container" style="display: none; flex-direction: column; align-items: center; margin-top: 16px; margin-bottom: 4px;">
-                        <div style="font-size: 12px; font-weight: bold; color: #aaaaaa; text-transform: uppercase; margin-bottom: 8px;">Smooth Edges</div>
-                        <button id="btn-toggle-subpixel" class="icon-btn stop-propagation" data-action="toggleSubpixelSmoothing" style="width: 100%; height: 32px; padding: 0 8px; font-size: 12px; font-weight: bold; border-radius: 6px; border: 1px solid #555; background-color: rgba(255,255,255,0.05); color: #aaa; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; user-select: none;">
-                            <span id="subpixel-status-text" style="pointer-events: none;">OFF</span>
+                    <div id="subpixel-smoothing-container" style="display: none; flex-direction: row; align-items: center; justify-content: space-between; width: 100%; margin-top: 10px; margin-bottom: 6px; cursor: pointer; box-sizing: border-box;" data-action="toggleSubpixelSmoothing">
+                        <span style="font-size: 11px; font-weight: bold; color: #aaaaaa; text-transform: uppercase; user-select: none; pointer-events: none;">Soft Edge</span>
+                        <button id="btn-toggle-subpixel" class="icon-btn stop-propagation" data-action="toggleSubpixelSmoothing" title="Toggle Soft Edge" style="width: 20px; height: 20px; min-width: 20px; min-height: 20px; padding: 0; border-radius: 3px; border: 2px solid #666; background-color: rgba(255,255,255,0.05); cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; box-sizing: border-box;">
+                            <div id="subpixel-radio-indicator" style="width: 10px; height: 10px; border-radius: 1px; background-color: var(--accent); display: none; pointer-events: none;"></div>
                         </button>
                     </div>
-                    <div style="font-size: 12px; font-weight: bold; color: #aaaaaa; text-transform: uppercase; margin-top: 16px; margin-bottom: 12px;">Draw Offset</div>
-                    <div id="draw-offset-container" style="background-color: white; border-radius: 6px; width: 108px; height: 108px; margin: 0 auto; position: relative; display: flex; align-items: center; justify-content: center; touch-action: none; overflow: hidden; cursor: pointer;">
-                        <div style="width: 80px; height: 80px; border: 2px solid black; border-radius: 50%; box-sizing: border-box; position: relative; pointer-events: none;">
-                            <div id="draw-offset-dot" style="width: 12px; height: 12px; background-color: var(--accent); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 1px 3px rgba(0,0,0,0.5); pointer-events: none;"></div>
-                        </div>
-                    </div>
-                    <button id="btn-reset-draw-offset" style="margin-top: 12px; padding: 6px 12px; font-size: 12px; font-weight: bold; background-color: rgba(255,255,255,0.1); border: 1px solid #555; color: white; border-radius: 4px; cursor: pointer;">Reset Offset</button>
+                    <button id="btn-open-draw-offset" class="icon-btn stop-propagation" data-action="openDrawOffsetModal" style="width: 100%; height: 32px; margin-top: 10px; margin-bottom: 6px; padding: 0 8px; font-size: 11px; font-weight: bold; color: #aaaaaa; text-transform: uppercase; border-radius: 6px; border: 1px solid #555; background-color: rgba(255,255,255,0.05); cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none;">
+                        Draw Offset
+                    </button>
+                    <div id="settings-menu-scroll-indicator" style="position: sticky; bottom: -12px; left: 0; right: 0; height: 22px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.85); color: white; pointer-events: auto; cursor: pointer; z-index: 10; font-size: 12px; margin: 0 -12px -12px -12px; border-radius: 0 0 8px 8px; backdrop-filter: blur(4px); flex-shrink: 0;">▼</div>
                 </div>
             </div>
         </div>
@@ -364,7 +361,7 @@
                     <button data-action="resampleProject" data-res="24x24" style="text-align:center; padding: 8px 10px;">24 X 24</button>
                     <button data-action="resampleProject" data-res="16x16" style="text-align:center; padding: 8px 10px;">16 X 16</button>
                 </div>
-                <div id="file-menu" class="dropdown-menu" style="right: 0; left: auto; max-height: 230px; overflow-y: auto; overflow-x: hidden;">
+                <div id="file-menu" class="dropdown-menu" style="right: 0; left: auto; max-height: 230px; overflow-y: auto; overflow-x: hidden; touch-action: pan-y; -webkit-overflow-scrolling: touch;">
                     <button data-action="saveProjectFile">Save Project</button>
                     <button data-action="openProjectPrompt">Open Project</button>
                     <button data-action="importImagePrompt">Import Image</button>
@@ -375,7 +372,7 @@
                     <button id="btn-image-size" data-action="toggleImageSizeMenu" style="display:flex; justify-content:flex-start; align-items:center; width:100%; gap:8px;"><span>◀</span> Image Size</button>
                     <button data-action="clearHistoryMemory">Clear History</button>
                     <button data-action="confirmNewProject">New Project</button>
-                    <div id="file-menu-scroll-indicator" style="position: sticky; bottom: -6px; left: 0; right: 0; height: 24px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.8); color: white; pointer-events: none; z-index: 10; font-size: 12px; margin: 0 -6px -6px -6px; border-radius: 0 0 8px 8px; backdrop-filter: blur(4px);">▼</div>
+                    <div id="file-menu-scroll-indicator" style="position: sticky; bottom: -6px; left: 0; right: 0; height: 24px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.8); color: white; pointer-events: auto; cursor: pointer; z-index: 10; font-size: 12px; margin: 0 -6px -6px -6px; border-radius: 0 0 8px 8px; backdrop-filter: blur(4px);">▼</div>
                 </div>
                 <input type="file" id="fileInput" accept="image/*" style="display: none;">
                 <input type="file" id="projectFileInput" accept=".pxl3,application/json" style="display: none;">
@@ -419,6 +416,8 @@
                 </div>
                 <div style="font-size: 10px; font-weight: bold; color: #aaaaaa; margin-top: 8px; margin-bottom: -2px; text-transform: uppercase; letter-spacing: 0.5px;">Smooth</div>
                 <div id="smoothVal" title="Drag up/down to change smoothing" style="font-size: 13px; font-weight: bold; cursor: ns-resize; padding: 14px 10px; margin: 4px 0; width: 100%; box-sizing: border-box; text-align: center; color: var(--accent); user-select: none; border-radius: 6px; background-color: rgba(255,255,255,0.05); touch-action: none;">0</div>
+                <div style="font-size: 10px; font-weight: bold; color: #aaaaaa; margin-top: 8px; margin-bottom: -2px; text-transform: uppercase; letter-spacing: 0.5px;">Speed</div>
+                <div id="velocityVal" title="Drag up/down to change speed dynamics" style="font-size: 13px; font-weight: bold; cursor: ns-resize; padding: 14px 10px; margin: 4px 0; width: 100%; box-sizing: border-box; text-align: center; color: var(--accent); user-select: none; border-radius: 6px; background-color: rgba(255,255,255,0.05); touch-action: none;">0</div>
             </div>
             <div class="palette-panel" id="brushPanel" style="display: none; position: absolute; left: 100%; right: auto; top: 0; margin-left: 10px; margin-right: 0; background-color: var(--ui-bg); padding: 12px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.7); backdrop-filter: blur(5px); width: 180px; max-height: 130px;">
                 <div class="section-header" data-action="togglePaletteSection" data-target="customBrushGrid" data-chevron="customBrushChevron">
@@ -557,6 +556,18 @@
             <button class="loop-btn" data-loop="pingpong">Ping Pong</button>
         </div>
     </div>
+    <div id="draw-offset-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: var(--app-height, 100vh); z-index: 10000; align-items: center; justify-content: center; background-color: transparent; pointer-events: auto;">
+        <div class="draw-offset-window-wrapper" style="box-shadow: 0 8px 32px rgba(0,0,0,0.4); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; width: 168px; user-select: none; border: 1px solid rgba(255,255,255,0.25);">
+            <div id="draw-offset-panel" style="background-color: rgb(30, 30, 36); height: 36px; padding: 0 8px; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; z-index: 10;">
+                <button id="btn-reset-draw-offset" class="icon-btn stop-propagation" data-action="resetDrawOffset" title="Reset Offset" style="height: 24px; padding: 0 8px; font-size: 11px; font-weight: bold; background-color: rgba(255, 255, 255, 0.5); border: 1px solid rgba(255, 255, 255, 0.4); color: rgb(30, 30, 36); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none;">Reset</button>
+                <button id="btn-close-draw-offset" class="icon-btn stop-propagation" data-action="closeDrawOffsetModal" title="Close" style="width: 24px; height: 24px; padding: 0; font-size: 13px; font-weight: bold; background-color: rgba(255, 255, 255, 0.5); border: 1px solid rgba(255, 255, 255, 0.4); color: rgb(30, 30, 36); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none;">✕</button>
+            </div>
+            <div id="draw-offset-container" class="draw-offset-window" style="background-color: rgba(255, 255, 255, 0.5); width: 168px; height: 168px; position: relative; display: flex; align-items: center; justify-content: center; touch-action: none; overflow: hidden; cursor: pointer; box-sizing: border-box;">
+                <div id="draw-offset-circle" style="width: 80px; height: 80px; border: 2px solid black; border-radius: 50%; box-sizing: border-box; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none;"></div>
+                <div id="draw-offset-dot" style="width: 12px; height: 12px; background-color: var(--accent); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 1px 3px rgba(0,0,0,0.5); pointer-events: none; z-index: 5;"></div>
+            </div>
+        </div>
+    </div>
     <div id="updateToast" style="display: none; position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background-color: var(--ui-bg); border: 2px solid var(--accent); padding: 16px 48px; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,0.8); text-align: center; backdrop-filter: blur(8px); width: max-content;">
         <div id="btnDismissUpdate" style="position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: #aaa; font-size: 14px; cursor: pointer; padding: 4px; min-width: 24px; min-height: 24px; display: flex; justify-content: center; align-items: center; -webkit-tap-highlight-color: transparent;" title="Dismiss">✕</div>
         <div style="font-weight: bold; margin-bottom: 12px; font-size: 16px; color: white;">Update Available!</div>
@@ -565,7 +576,7 @@
             <button id="btnUpdateReload" style="background-color: #555; padding: 8px 16px; font-size: 14px; font-weight: bold; border-radius: 4px; color: white; display: flex; justify-content: center; align-items: center; text-align: center;">Reload</button>
         </div>
     </div>
-    <script type="module" src="src/main.js?cb=158"></script>
+    <script type="module" src="src/main.js?cb=171"></script>
 </body>
 </html><script>
 window.addEventListener('load', () => {

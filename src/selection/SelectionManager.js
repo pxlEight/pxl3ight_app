@@ -1,4 +1,4 @@
-import { CONSTANTS } from '../core/Constants.js?cb=158';
+import { CONSTANTS } from '../core/Constants.js?cb=171';
 
 export default class SelectionManager {
     constructor(core) {
@@ -10,6 +10,8 @@ export default class SelectionManager {
         this.bounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
         this.antsOffset = 0; 
         this.isAntsAnimating = false; 
+        this.isAntsPaused = false;
+        this.lastAntsTime = 0;
         this.transformMatrix = new DOMMatrix();
         this.clipboard = null; 
         this.isDragging = false; 
@@ -163,40 +165,81 @@ export default class SelectionManager {
         this.animateAnts = this.animateAnts.bind(this); 
         this.bindEvents();
     }
+    discardFloat() {
+        if (this.floatingCanvas) {
+            this.floatingCanvas.style.display = 'none';
+            this.floatingCanvas.style.transform = '';
+            const fCtx = this.floatingCanvas.getContext('2d');
+            if (fCtx && this.floatingCanvas.width > 0 && this.floatingCanvas.height > 0) {
+                fCtx.clearRect(0, 0, this.floatingCanvas.width, this.floatingCanvas.height);
+            }
+        }
+        if (this.origFloatingCanvas) {
+            this.origFloatingCanvas = null;
+        }
+        this.isFloating = false;
+        this.transformMatrix = new DOMMatrix();
+        this.origBounds = null;
+    }
     init(w, h) { 
         this.mask = new Uint8Array(w * h); 
-        this.clear(false); 
+        this.clear(false, false); 
+        if (this.floatingCanvas) {
+            this.floatingCanvas.width = w;
+            this.floatingCanvas.height = h;
+            this.floatingCanvas.style.display = 'none';
+            this.floatingCanvas.style.transform = '';
+            const fCtx = this.floatingCanvas.getContext('2d');
+            if (fCtx) fCtx.clearRect(0, 0, w, h);
+        }
     }
     anchor(recordHistory = true) {
-        if (!this.isFloating || !this.core.doc) return;
-        this.burnFloatOffset();
-        this.core.doc.activeCtx.drawImage(this.floatingCanvas, 0, 0); 
-        this.core.doc.activeLayer.markModified();
-        this.floatingCanvas.style.display = 'none'; 
-        this.floatingCanvas.getContext('2d').clearRect(0, 0, this.core.bgCanvas.width, this.core.bgCanvas.height);
-        this.isFloating = false;
-        if (recordHistory) { 
+        if (!this.isFloating) return;
+        if (this.core.doc && this.core.doc.activeCtx) {
+            this.burnFloatOffset();
+            this.core.doc.activeCtx.drawImage(this.floatingCanvas, 0, 0); 
+            this.core.doc.activeLayer.markModified();
+        }
+        this.discardFloat();
+        if (recordHistory && this.core.doc) { 
             if(this.core.renderer) this.core.renderer.render(); 
             this.core.saveState(); 
             this.core.events.emit('frameChanged'); 
             this.core.playback.updateOnionSkin(); 
         }
     }
-    clear(recordHistory = true) {
-        const wasFloating = this.isFloating && !!this.core.doc;
+    clear(recordHistory = true, anchorFloat = true) {
+        const wasFloating = this.isFloating;
         const hadMask = this.isActive;
-        this.anchor(recordHistory); 
+        if (anchorFloat) {
+            this.anchor(recordHistory);
+        } else {
+            this.discardFloat();
+        }
         if (this.mask && hadMask) this.mask.fill(0);
         this.isActive = false; 
+        this.isAntsPaused = false;
+        this.isAntsAnimating = false;
+        this.lastAntsTime = 0;
+        if (this.selectionCanvas && this.selectionCanvas.width > 0) {
+            const sCtx = this.selectionCanvas.getContext('2d');
+            if (sCtx) sCtx.clearRect(0, 0, this.selectionCanvas.width, this.selectionCanvas.height);
+            this.selectionCanvas.width = 0;
+        }
         this.transformMatrix = new DOMMatrix();
         this.isUniformScaling = false;
         this.advancedTransformMode = false;
+        this.isRotating = false;
+        this.isScaling = false;
+        this.isDragging = false;
+        this.isRadialOpen = false;
+        this.activeRadialAction = null;
         this.selectionMode = CONSTANTS.SELECT_MODE.REPLACE;
         if (this.selectionModifierUI) this.selectionModifierUI.style.display = 'none';
         this.path = new Path2D();
         this.bounds = { minX: 9999, minY: 9999, maxX: -1, maxY: -1 };
         this.updateDragHandle();
-        if (recordHistory && !wasFloating && hadMask) {
+        if (recordHistory && !wasFloating && hadMask && this.core.doc) {
             this.core.saveState();
         }
     }
@@ -286,8 +329,9 @@ export default class SelectionManager {
         }
         
         this.updateDragHandle();
-        if (this.isActive && !this.isAntsAnimating) { 
+        if (this.isActive && !this.isAntsAnimating && !this.isAntsPaused) { 
             this.isAntsAnimating = true; 
+            this.lastAntsTime = 0;
             requestAnimationFrame(this.animateAnts); 
         }
     }
@@ -693,7 +737,19 @@ export default class SelectionManager {
             this.core.events.emit('frameChanged');
         }
     }
-    animateAnts() {
+    pauseAnts() {
+        this.isAntsPaused = true;
+    }
+    resumeAnts() {
+        if (!this.isAntsPaused) return;
+        this.isAntsPaused = false;
+        if (this.isActive && !this.isAntsAnimating) {
+            this.isAntsAnimating = true;
+            this.lastAntsTime = 0;
+            requestAnimationFrame(this.animateAnts);
+        }
+    }
+    animateAnts(timestamp) {
         if (!this.isAntsAnimating) { 
             if (this.selectionCanvas.width > 0) { 
                 this.selectionCanvas.getContext('2d').clearRect(0, 0, this.selectionCanvas.width, this.selectionCanvas.height); 
@@ -701,8 +757,21 @@ export default class SelectionManager {
             } 
             return; 
         }
+
+        if (this.isAntsPaused) {
+            this.isAntsAnimating = false;
+            return;
+        }
         
         if (this.isActive && !this.core.state.isSpriteSheetView) {
+            const now = (typeof timestamp === 'number') ? timestamp : performance.now();
+            if (this.lastAntsTime && (now - this.lastAntsTime < 45)) {
+                requestAnimationFrame(this.animateAnts);
+                return;
+            }
+            const elapsed = this.lastAntsTime ? (now - this.lastAntsTime) : 16.6;
+            this.lastAntsTime = now;
+
             const w = this.core.bgCanvas.width;
             const h = this.core.bgCanvas.height;
             
@@ -751,10 +820,12 @@ export default class SelectionManager {
             ctx.stroke(this.path);
             
             ctx.restore(); 
-            this.antsOffset += 0.25; 
+            this.antsOffset += (elapsed / 16.6) * 0.25; 
             requestAnimationFrame(this.animateAnts);
         } else {
             this.isAntsAnimating = false; 
+            this.isAntsPaused = false;
+            this.lastAntsTime = 0;
             if (this.selectionCanvas.width > 0) { 
                 this.selectionCanvas.getContext('2d').clearRect(0, 0, this.selectionCanvas.width, this.selectionCanvas.height); 
                 this.selectionCanvas.width = 0; 

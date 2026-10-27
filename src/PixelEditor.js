@@ -1,32 +1,32 @@
-import EventBus from './core/EventBus.js?cb=158';
-import AppConfig from './core/AppConfig.js?cb=158';
-import HistoryManager from './core/HistoryManager.js?cb=158';
-import StorageManager from './core/StorageManager.js?cb=158';
-import WorkerManager from './core/WorkerManager.js?cb=158';
-import ViewportManager from './rendering/ViewportManager.js?cb=158';
-import SelectionManager from './selection/SelectionManager.js?cb=158';
-import PlaybackController from './animation/PlaybackController.js?cb=158';
-import ToolManager from './tools/ToolManager.js?cb=158';
-import PaletteManager from './ui/PaletteManager.js?cb=158';
-import BrushManager from './ui/BrushManager.js?cb=158';
-import UIManager from './ui/UIManager.js?cb=158';
-import InputManager from './ui/InputManager.js?cb=158';
-import PixelDocument from './models/PixelDocument.js?cb=158';
-import PixelFrame from './models/PixelFrame.js?cb=158';
-import PixelLayer, { bumpVerCounter } from './models/PixelLayer.js?cb=158';
-import Renderer from './rendering/Renderer.js?cb=158';
-import GpuLayerAdjust from './rendering/GpuLayerAdjust.js?cb=158';
-import { CONSTANTS, canvas2DOptions } from './core/Constants.js?cb=158';
-import DrawingTool from './tools/DrawingTool.js?cb=158';
-import ShapeTool from './tools/ShapeTool.js?cb=158';
-import FillTool from './tools/FillTool.js?cb=158';
-import DropperTool from './tools/DropperTool.js?cb=158';
-import WandTool from './tools/WandTool.js?cb=158';
-import MarqueeTool from './tools/MarqueeTool.js?cb=158';
-import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=158';
-import ColorSelectTool from './tools/ColorSelectTool.js?cb=158';
-import LassoSelectTool from './tools/LassoSelectTool.js?cb=158';
-import ZoomTool from './tools/ZoomTool.js?cb=158';
+import EventBus from './core/EventBus.js?cb=171';
+import AppConfig from './core/AppConfig.js?cb=171';
+import HistoryManager from './core/HistoryManager.js?cb=171';
+import StorageManager from './core/StorageManager.js?cb=171';
+import WorkerManager from './core/WorkerManager.js?cb=171';
+import ViewportManager from './rendering/ViewportManager.js?cb=171';
+import SelectionManager from './selection/SelectionManager.js?cb=171';
+import PlaybackController from './animation/PlaybackController.js?cb=171';
+import ToolManager from './tools/ToolManager.js?cb=171';
+import PaletteManager from './ui/PaletteManager.js?cb=171';
+import BrushManager from './ui/BrushManager.js?cb=171';
+import UIManager from './ui/UIManager.js?cb=171';
+import InputManager from './ui/InputManager.js?cb=171';
+import PixelDocument from './models/PixelDocument.js?cb=171';
+import PixelFrame from './models/PixelFrame.js?cb=171';
+import PixelLayer, { bumpVerCounter } from './models/PixelLayer.js?cb=171';
+import Renderer from './rendering/Renderer.js?cb=171';
+import GpuLayerAdjust from './rendering/GpuLayerAdjust.js?cb=171';
+import { CONSTANTS, canvas2DOptions } from './core/Constants.js?cb=171';
+import DrawingTool from './tools/DrawingTool.js?cb=171';
+import ShapeTool from './tools/ShapeTool.js?cb=171';
+import FillTool from './tools/FillTool.js?cb=171';
+import DropperTool from './tools/DropperTool.js?cb=171';
+import WandTool from './tools/WandTool.js?cb=171';
+import MarqueeTool from './tools/MarqueeTool.js?cb=171';
+import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=171';
+import ColorSelectTool from './tools/ColorSelectTool.js?cb=171';
+import LassoSelectTool from './tools/LassoSelectTool.js?cb=171';
+import ZoomTool from './tools/ZoomTool.js?cb=171';
 
 export default class PixelEditor {
     constructor() {
@@ -544,9 +544,9 @@ export default class PixelEditor {
         this.bgCanvas.height = resH; 
         this.renderCheckerboard(resW, resH);
         
-        this.selection.init(resW, resH); 
         this.doc = new PixelDocument(resW, resH, this.events); 
         this.renderer = new Renderer(this.doc, this.mainArtCanvas, this); 
+        this.selection.init(resW, resH); 
         this.doc.frames = [];
         
         if (session.customSwatches) {
@@ -708,9 +708,9 @@ export default class PixelEditor {
         this.bgCanvas.height = h; 
         this.renderCheckerboard(w, h);
         
-        this.selection.init(w, h); 
         this.doc = new PixelDocument(w, h, this.events); 
         this.renderer = new Renderer(this.doc, this.mainArtCanvas, this);
+        this.selection.init(w, h);
         
         this.history.clear(); 
         this.history.updateMaxSteps(w, h, this.doc.frames ? this.doc.frames.length : 1, (this.doc.activeFrame ? this.doc.activeFrame.layers.length : 1));
@@ -746,9 +746,9 @@ export default class PixelEditor {
                 this.bgCanvas.height = resH; 
                 this.renderCheckerboard(resW, resH);
                 
-                this.selection.init(resW, resH); 
                 this.doc = new PixelDocument(resW, resH, this.events); 
                 this.renderer = new Renderer(this.doc, this.mainArtCanvas, this); 
+                this.selection.init(resW, resH); 
                 this.doc.frames = [];
                 
                 if (data.customSwatches) {

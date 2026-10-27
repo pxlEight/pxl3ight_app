@@ -1,4 +1,4 @@
-import { CONSTANTS } from './Constants.js?cb=158';
+import { CONSTANTS } from './Constants.js?cb=171';
 
 export default class AppConfig {
     constructor(events) {
@@ -7,7 +7,7 @@ export default class AppConfig {
         this.mirrorMode = CONSTANTS.MIRROR.NONE; 
         this.isSpriteSheetView = false;
         this.isScrubbing = false;
-        this.tool = { current: CONSTANTS.TOOLS.PENCIL, shape: CONSTANTS.TOOLS.RECT, opacity: 1.0, brushShape: CONSTANTS.BRUSH_SHAPE.SQUARE, smooth: 0 };
+        this.tool = { current: CONSTANTS.TOOLS.PENCIL, shape: CONSTANTS.TOOLS.RECT, opacity: 1.0, brushShape: CONSTANTS.BRUSH_SHAPE.SQUARE, smooth: 0, velocity: 0 };
         this.sizes = { [CONSTANTS.TOOLS.PENCIL]: 1, [CONSTANTS.TOOLS.ERASER]: 1, [CONSTANTS.TOOLS.SHAPE]: 1 };
         this.input = {
             isDrawing: false, lastX: -1, lastY: -1, shapeStartX: -1, shapeStartY: -1, 

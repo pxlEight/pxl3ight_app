@@ -1,4 +1,4 @@
-import { CONSTANTS } from '../core/Constants.js?cb=158';
+import { CONSTANTS } from '../core/Constants.js?cb=171';
 
 export default class InputManager {
     constructor(containerElement, core) {
@@ -61,7 +61,7 @@ export default class InputManager {
     
     onPointerDown(e) {
         if(e.target.id === 'dragHandle' || e.target.closest('.scale-handle') || e.target.closest('.corner-btn') || e.target.closest('#radialMenu') || e.target.closest('header')) return;
-        if (e.target.closest('.widget') || e.target.closest('.bottom-widget') || e.target.closest('.context-menu') || e.target.closest('.shape-menu')) return; 
+        if (e.target.closest('.widget') || e.target.closest('.bottom-widget') || e.target.closest('.context-menu') || e.target.closest('.shape-menu') || e.target.closest('#draw-offset-modal')) return; 
 
         if (document.body.classList.contains('ui-hidden')) {
             const now = Date.now();
