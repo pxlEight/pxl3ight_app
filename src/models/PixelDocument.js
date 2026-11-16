@@ -1,5 +1,5 @@
-import PixelLayer from './PixelLayer.js?cb=171';
-import PixelFrame from './PixelFrame.js?cb=171';
+import PixelLayer from './PixelLayer.js?cb=202';
+import PixelFrame from './PixelFrame.js?cb=202';
 
 export default class PixelDocument {
     constructor(w, h, events) { 
@@ -29,6 +29,72 @@ export default class PixelDocument {
         return layer; 
     } 
     get activeCtx() { return this.activeLayer.ctx; }
+
+    ensureLayerFrameBeforeDraw(layerIdx = this.activeLayerIndex, frameIdx = this.currentFrameIndex) {
+        if (!this.frames || frameIdx < 0 || frameIdx >= this.frames.length) return [];
+        const targetFrame = this.frames[frameIdx];
+        if (!targetFrame || !targetFrame.layers || layerIdx < 0 || layerIdx >= targetFrame.layers.length) return [];
+
+        const targetLayer = targetFrame.layers[layerIdx];
+        if (targetLayer.locked) return [];
+
+        // Check if target frame is covered by an earlier hold
+        let isCovered = false;
+        for (let k = frameIdx - 1; k >= 0; k--) {
+            const prev = this.frames[k]?.layers?.[layerIdx];
+            if (prev && !prev.isDeleted) {
+                if (k + (prev.holdCount || 1) > frameIdx) {
+                    isCovered = true;
+                }
+                break;
+            }
+        }
+
+        // If targetLayer is deleted and NOT covered by an earlier hold, drawing here will create a frame at frameIdx
+        if (targetLayer.isDeleted && !isCovered) {
+            const createdFrameIndices = [];
+
+            // Check for missing frames before frameIdx on this layer
+            for (let k = 0; k < frameIdx; k++) {
+                let kCovered = false;
+                for (let j = k; j >= 0; j--) {
+                    const l = this.frames[j]?.layers?.[layerIdx];
+                    if (l && !l.isDeleted) {
+                        if (j + (l.holdCount || 1) > k) {
+                            kCovered = true;
+                        }
+                        break;
+                    }
+                }
+                if (!kCovered) {
+                    // Frame k is missing! Create an empty frame
+                    const emptyLayer = new PixelLayer(this.width, this.height);
+                    emptyLayer.opacity = targetLayer.opacity;
+                    emptyLayer.visible = targetLayer.visible;
+                    emptyLayer.locked = targetLayer.locked;
+                    emptyLayer._name = targetLayer._name;
+                    emptyLayer.holdCount = 1;
+                    emptyLayer.isDeleted = false;
+                    this.frames[k].layers[layerIdx] = emptyLayer;
+                    createdFrameIndices.push(k);
+                }
+            }
+
+            // Un-delete targetLayer so it's ready for drawing
+            targetLayer.isDeleted = false;
+            targetLayer.holdCount = 1;
+            createdFrameIndices.push(frameIdx);
+
+            if (createdFrameIndices.length > 0) {
+                this.virtualizeFrames();
+                this.events.emit('frameChanged');
+            }
+
+            return createdFrameIndices;
+        }
+
+        return [];
+    }
     
     addLayer() { 
         // Index 0 is the top-most layer; insert directly above the active layer
@@ -47,7 +113,7 @@ export default class PixelDocument {
         this.events.emit('frameChanged');
     }
     deleteLayer() { 
-        if (this.activeFrame.layers.length <= 1) return; 
+        if (this.activeFrame.layers.length <= 1 || this.activeLayer.locked) return; 
         this.frames.forEach(f => {
             const removed = f.layers.splice(this.activeLayerIndex, 1)[0];
             if (removed && typeof removed.destroy === 'function') removed.destroy();
@@ -69,6 +135,9 @@ export default class PixelDocument {
     }
     mergeLayerDown() {
         if (this.activeLayerIndex >= this.activeFrame.layers.length - 1) return false;
+        const topLayer = this.activeLayer;
+        const bottomLayer = this.activeFrame.layers[this.activeLayerIndex + 1];
+        if (topLayer.locked || bottomLayer?.locked) return false;
         this.frames.forEach(f => {
             const top = f.layers[this.activeLayerIndex];
             const bottom = f.layers[this.activeLayerIndex + 1];
@@ -145,6 +214,8 @@ export default class PixelDocument {
         this.events.emit('frameChanged');
     }
     deleteLayerFrame(layerIdx, frameIdx) {
+        if (frameIdx < 0 || frameIdx >= this.frames.length) return;
+        if (this.frames[frameIdx].layers[layerIdx]?.locked) return;
         // Shift all subsequent layer frames left
         for (let k = frameIdx; k < this.frames.length - 1; k++) {
             this.frames[k].layers[layerIdx] = this.frames[k+1].layers[layerIdx];
@@ -282,6 +353,47 @@ export default class PixelDocument {
         const clone = this.frames[frameIdx].layers[layerIdx].clone();
         clone.isDeleted = false;
         this.frames[frameIdx + 1].layers[layerIdx] = clone;
+        
+        this.virtualizeFrames();
+        this.events.emit('frameChanged');
+    }
+    pasteLayerFrameAfter(layerIdx, frameIdx, layerData) {
+        if (frameIdx < 0 || frameIdx >= this.frames.length || !layerData) return;
+        if (this.frames[frameIdx].layers[layerIdx]?.locked) return;
+        
+        const insertIdx = frameIdx + 1;
+        
+        let endIdx = 0;
+        for (let i = 0; i < this.frames.length; i++) {
+            if (!this.frames[i].layers[layerIdx].isDeleted) {
+                const hold = this.frames[i].layers[layerIdx].holdCount || 1;
+                if (i + hold > endIdx) endIdx = i + hold;
+            }
+        }
+        
+        if (endIdx >= this.frames.length || insertIdx >= this.frames.length) {
+            // Need a new global frame
+            const frame = new PixelFrame(this.width, this.height, 0);
+            frame.layers = this.activeFrame.layers.map((l, idx) => {
+                const nl = new PixelLayer(this.width, this.height);
+                nl.opacity = l.opacity;
+                nl.visible = l.visible;
+                nl.locked = l.locked;
+                if (idx !== layerIdx) nl.isDeleted = true;
+                return nl;
+            });
+            this.frames.push(frame);
+        }
+        
+        // Shift all frames right from this.frames.length - 1 down to insertIdx + 1
+        for (let k = this.frames.length - 1; k > insertIdx; k--) {
+            this.frames[k].layers[layerIdx] = this.frames[k-1].layers[layerIdx];
+        }
+        
+        // Insert clone of clipboard layer at insertIdx
+        const clone = layerData.clone();
+        clone.isDeleted = false;
+        this.frames[insertIdx].layers[layerIdx] = clone;
         
         this.virtualizeFrames();
         this.events.emit('frameChanged');

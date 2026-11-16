@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js?cb=171';
-import { CONSTANTS } from '../core/Constants.js?cb=171';
+import BaseTool from './BaseTool.js?cb=202';
+import { CONSTANTS } from '../core/Constants.js?cb=202';
 
 export default class ShapeTool extends BaseTool {
     constructor(context) {
@@ -21,7 +21,7 @@ export default class ShapeTool extends BaseTool {
     onPointerMove(pos, e) {
         if (!this.isDrawing) return;
         
-        this.context.scratchCtx.clearRect(0, 0, this.context.scratchCanvas.width, this.context.scratchCanvas.height);
+        this.context.clearScratch();
         
         if (this.context.shape === CONSTANTS.TOOLS.LINE) {
             this.drawLine(this.startX, this.startY, pos.x, pos.y);

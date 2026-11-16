@@ -1,4 +1,4 @@
-import { CONSTANTS } from '../core/Constants.js?cb=171';
+import { CONSTANTS } from '../core/Constants.js?cb=202';
 
 export default class SelectionManager {
     constructor(core) {
@@ -109,6 +109,13 @@ export default class SelectionManager {
             btnSub.style.background = '#333';
         });
 
+        this.core.events.on('layerChanged', () => {
+            this.updateDragHandle();
+        });
+        this.core.events.on('frameChanged', () => {
+            this.updateDragHandle();
+        });
+
         let modUiPointerDown = null;
         document.body.addEventListener('pointerdown', (e) => {
             if (this.selectionModifierUI && this.selectionModifierUI.style.display !== 'none' && !e.target.closest('#selectionModifierUI')) {
@@ -124,6 +131,7 @@ export default class SelectionManager {
 
             if (this.advancedTransformMode && !e.target.closest('#dragHandle') && !e.target.closest('.widget') && !e.target.closest('.header-tools')) {
                 if (this.core.state.tool.current !== CONSTANTS.TOOLS.ZOOM) {
+                    if (this.core.doc && this.core.doc.activeLayer && this.core.doc.activeLayer.locked) return;
                     this.startRotation(e);
                     return;
                 }
@@ -195,7 +203,10 @@ export default class SelectionManager {
     }
     anchor(recordHistory = true) {
         if (!this.isFloating) return;
-        if (this.core.doc && this.core.doc.activeCtx) {
+        if (this.core.doc && this.core.doc.activeCtx && !this.core.doc.activeLayer.locked) {
+            if (typeof this.core.doc.ensureLayerFrameBeforeDraw === 'function') {
+                this.core.doc.ensureLayerFrameBeforeDraw();
+            }
             this.burnFloatOffset();
             this.core.doc.activeCtx.drawImage(this.floatingCanvas, 0, 0); 
             this.core.doc.activeLayer.markModified();
@@ -337,10 +348,11 @@ export default class SelectionManager {
     }
     
     startRotation(e) {
-        if (!this.core.doc) return;
+        if (!this.core.doc || this.core.doc.activeLayer.locked) return;
         if (!this.isFloating) {
             this.floatSelection();
         }
+        if (!this.isFloating) return;
         
         this.isRotating = true;
         
@@ -396,7 +408,7 @@ export default class SelectionManager {
 
 
     updateDragHandle() {
-        if (!this.isActive || this.core.state.isSpriteSheetView) { 
+        if (!this.isActive || this.core.state.isSpriteSheetView || (this.core.doc && this.core.doc.activeLayer && this.core.doc.activeLayer.locked)) { 
             this.dragHandle.style.display = 'none'; 
             this.radialMenu.style.display = 'none'; 
             if (this.rotIndicator) this.rotIndicator.style.display = 'none';
@@ -546,7 +558,7 @@ export default class SelectionManager {
         }
     }
     floatSelection() {
-        if (this.isFloating || !this.core.doc) return;
+        if (this.isFloating || !this.core.doc || this.core.doc.activeLayer.locked) return;
         this.isFloating = true; 
         const w = this.core.doc.width;
         const h = this.core.doc.height;
@@ -606,7 +618,7 @@ export default class SelectionManager {
         };
     }
     radialDuplicate() {
-        if (!this.core.doc) return;
+        if (!this.core.doc || this.core.doc.activeLayer.locked) return;
         if (!this.isFloating) this.floatSelection();
         if (!this.isFloating) return;
         
@@ -622,7 +634,7 @@ export default class SelectionManager {
         }
     }
     radialPaste() {
-        if (!this.clipboard || !this.core.doc) return;
+        if (!this.clipboard || !this.core.doc || this.core.doc.activeLayer.locked) return;
         this.anchor(); 
         this.isFloating = true; 
         this.floatingCanvas.width = this.core.bgCanvas.width; 
@@ -673,7 +685,7 @@ export default class SelectionManager {
         }
     }
     radialCut() {
-        if (!this.isFloating) return;
+        if (!this.isFloating || !this.core.doc || this.core.doc.activeLayer.locked) return;
         this.radialCopy(); 
         this.floatingCanvas.getContext('2d').clearRect(0, 0, this.floatingCanvas.width, this.floatingCanvas.height);
         this.floatingCanvas.style.display = 'none'; 
@@ -689,7 +701,7 @@ export default class SelectionManager {
         }
     }
     radialFlip(axis) {
-        if (!this.isFloating) return;
+        if (!this.isFloating || !this.core.doc || this.core.doc.activeLayer.locked) return;
         this.burnFloatOffset();
         const cx = this.bounds.minX + (this.bounds.maxX - this.bounds.minX + 1) / 2;
         const cy = this.bounds.minY + (this.bounds.maxY - this.bounds.minY + 1) / 2;
@@ -837,11 +849,12 @@ export default class SelectionManager {
 
         wrapper.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
-            if (!this.core.doc) return;
+            if (!this.core.doc || this.core.doc.activeLayer.locked) return;
 
             if (!this.isFloating) {
                 this.floatSelection();
             }
+            if (!this.isFloating) return;
 
             this.isScaling = true;
             this.isUniformScaling = false;
@@ -928,7 +941,7 @@ export default class SelectionManager {
     bindEvents() {
         this.dragHandle.addEventListener('pointerdown', (e) => {
             e.stopPropagation(); 
-            if (!this.core.doc) return;
+            if (!this.core.doc || this.core.doc.activeLayer.locked) return;
             
             const now = Date.now();
             if (now - this.lastDragHandleTapTime < 300) {
@@ -942,6 +955,7 @@ export default class SelectionManager {
             if (!this.isFloating) {
                 this.floatSelection();
             }
+            if (!this.isFloating) return;
             this.isDragging = true; 
             this.isRadialOpen = false; 
             this.activeRadialAction = null; 

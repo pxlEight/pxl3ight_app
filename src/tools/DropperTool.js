@@ -1,10 +1,10 @@
-import BaseTool from './BaseTool.js?cb=171';
-import { CONSTANTS } from '../core/Constants.js?cb=171';
+import BaseTool from './BaseTool.js?cb=202';
+import { CONSTANTS } from '../core/Constants.js?cb=202';
 
 export default class DropperTool extends BaseTool {
     constructor(context) { super(context); this.isDrawing = false; }
 
-    pickColor(x, y, autoSwitch = true) {
+    pickColor(x, y, autoSwitch = false) {
         if (!this.context.isSpriteSheetView && this.context.core.renderer && this.context.core.renderer.renderPending) {
             this.context.core.renderer.renderImmediate();
         }
@@ -34,10 +34,23 @@ export default class DropperTool extends BaseTool {
     
     onPointerUp(pos, e) { 
         if (this.isDrawing) {
-            this.pickColor(pos.x, pos.y, true); 
+            this.pickColor(pos.x, pos.y, false); 
         }
         this.isDrawing = false; 
     }
     
-    cancel() { this.isDrawing = false; }
+    cancel() { 
+        this.isDrawing = false; 
+        if (this.context && this.context.core && this.context.core.state && this.context.core.state.input) {
+            if (this.context.core.state.input.crosshairTimer) {
+                clearTimeout(this.context.core.state.input.crosshairTimer);
+                this.context.core.state.input.crosshairTimer = null;
+            }
+            if (this.context.core.state.input.isCrosshairSampling) {
+                this.context.core.state.input.isCrosshairSampling = false;
+                this.context.core.events.emit('ui:hideCrosshair');
+                this.context.core.state.input.lastCrosshairHex = null;
+            }
+        }
+    }
 }

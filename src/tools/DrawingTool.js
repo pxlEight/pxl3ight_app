@@ -1,4 +1,4 @@
-import BaseTool from './BaseTool.js?cb=171';
+import BaseTool from './BaseTool.js?cb=202';
 
 export default class DrawingTool extends BaseTool {
     constructor(context) {
@@ -40,11 +40,11 @@ export default class DrawingTool extends BaseTool {
         if (adj >= 0) {
             // Thickening
             const boost = (baseSize === 1) ? 1.5 : (baseSize * 0.8);
-            size = Math.round(baseSize + adj * boost);
+            size = baseSize + adj * boost;
         } else {
             // Thinning
             const reduction = (baseSize - 1) * 0.8 + 0.3;
-            size = Math.max(1, Math.round(baseSize + adj * reduction));
+            size = Math.max(1, baseSize + adj * reduction);
         }
         
         return Math.max(1, size);
@@ -54,6 +54,7 @@ export default class DrawingTool extends BaseTool {
         const now = performance.now();
         const dt = Math.max(5, now - this.lastTime);
         this.lastTime = now;
+        this.lastDt = dt;
         
         let dist;
         if (e && e.clientX !== undefined) {
@@ -65,7 +66,9 @@ export default class DrawingTool extends BaseTool {
         }
         
         const instSpeed = dist / dt;
-        this.smoothedSpeed = this.smoothedSpeed * 0.35 + instSpeed * 0.65;
+        // Low-pass filter for speed: smooth out pointer timestamp and movement jitter
+        const speedBlend = 1 - Math.exp(-dt / 60);
+        this.smoothedSpeed = this.smoothedSpeed + (instSpeed - this.smoothedSpeed) * speedBlend;
         return this.smoothedSpeed;
     }
 
@@ -80,13 +83,17 @@ export default class DrawingTool extends BaseTool {
         this.realY = pos.y;
         
         this.lastTime = performance.now();
+        this.lastDt = 16;
         this.lastScreenX = (e && e.clientX !== undefined) ? e.clientX : pos.x;
         this.lastScreenY = (e && e.clientY !== undefined) ? e.clientY : pos.y;
-        this.smoothedSpeed = 0;
+        
+        // Start at neutral mid-speed (0.9 px/ms, where s = 0.5 and delta = 0)
+        // so the stroke begins at baseSize without an abrupt blob or jump
+        this.smoothedSpeed = 0.9;
         
         const baseSize = this.context.getBrushSize();
         const velocitySetting = this.context.velocity || 0;
-        this.currentSize = this.computeDynamicSize(baseSize, 0, velocitySetting);
+        this.currentSize = this.computeDynamicSize(baseSize, this.smoothedSpeed, velocitySetting);
         
         this.drawPixel(pos.x, pos.y, this.currentSize); 
         this.context.updateActiveCanvasFromScratch(true);
@@ -98,7 +105,14 @@ export default class DrawingTool extends BaseTool {
         const speed = this.updateSpeed(e, pos);
         const baseSize = this.context.getBrushSize();
         const velocitySetting = this.context.velocity || 0;
-        const newSize = this.computeDynamicSize(baseSize, speed, velocitySetting);
+        const targetSize = velocitySetting ? this.computeDynamicSize(baseSize, speed, velocitySetting) : baseSize;
+        
+        // Average and smooth size transitions over time so line thickness has less difference
+        // over short intervals, keeping large brushes smooth without bumpy ridges
+        const dt = this.lastDt || 16;
+        const sizeBlend = 1 - Math.exp(-dt / 90);
+        const newSize = this.currentSize + (targetSize - this.currentSize) * sizeBlend;
+        
         const startSize = this.currentSize;
         const endSize = newSize;
         this.currentSize = newSize;
@@ -120,7 +134,7 @@ export default class DrawingTool extends BaseTool {
                 if (coalesced && coalesced.length > 1) samples = coalesced;
             }
             
-            if (samples) {
+            if (samples && this.context.soft <= 0) {
                 const input = this.context.core.input;
                 const sampleCount = samples.length;
                 for (let i = 0; i < sampleCount; i++) {

@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js?cb=171';
-import { CONSTANTS } from '../core/Constants.js?cb=171';
+import BaseTool from './BaseTool.js?cb=202';
+import { CONSTANTS } from '../core/Constants.js?cb=202';
 
 export default class FillTool extends BaseTool {
     constructor(context) { 
@@ -9,7 +9,10 @@ export default class FillTool extends BaseTool {
     }
 
     async floodFill(startX, startY, fillColorHex) {
-        if (this.isProcessing) return;
+        if (this.isProcessing || (this.context.core.doc && this.context.core.doc.activeLayer && this.context.core.doc.activeLayer.locked)) return;
+        if (this.context.core.doc && typeof this.context.core.doc.ensureLayerFrameBeforeDraw === 'function') {
+            this.context.core.doc.ensureLayerFrameBeforeDraw();
+        }
         startX = Math.floor(startX);
         startY = Math.floor(startY);
         if (startX < 0 || startX >= this.context.canvasWidth || startY < 0 || startY >= this.context.canvasHeight) return;
@@ -43,6 +46,7 @@ export default class FillTool extends BaseTool {
         });
         
         let currentBuffer = imgData.data.buffer;
+        const tolerance = this.context.fillTolerance || 0;
         
         try {
             for (const pt of points) {
@@ -56,7 +60,8 @@ export default class FillTool extends BaseTool {
                     alpha: this.context.opacity,
                     isSelectionActive: this.context.core.selection.isActive,
                     selectionMask: this.context.core.selection.mask,
-                    startColor
+                    startColor,
+                    tolerance
                 }, [currentBuffer]);
                 currentBuffer = result.data.buffer;
             }

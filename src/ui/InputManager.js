@@ -1,4 +1,4 @@
-import { CONSTANTS } from '../core/Constants.js?cb=171';
+import { CONSTANTS } from '../core/Constants.js?cb=202';
 
 export default class InputManager {
     constructor(containerElement, core) {
@@ -11,6 +11,7 @@ export default class InputManager {
         this.lastCenterY = 0;
         this.pointerDownX = 0; 
         this.pointerDownY = 0;
+        this.wasPinching = false;
         
         this.bindEvents();
     }
@@ -83,7 +84,7 @@ export default class InputManager {
                         
                         if (this.core.tools && this.core.tools.activeTool && typeof this.core.tools.activeTool.cancel === 'function') {
                             this.core.tools.activeTool.cancel();
-                        } else if (this.core.doc && this.core.doc.activeLayer) {
+                        } else if (this.core.doc && this.core.doc.activeLayer && !this.core.doc.activeLayer.locked) {
                             const ctx = this.core.doc.activeCtx;
                             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
                             ctx.drawImage(this.core.backupCanvas, 0, 0);
@@ -136,11 +137,14 @@ export default class InputManager {
         if (!this.core.doc) return; 
         
         const currentLayer = this.core.doc.activeLayer; 
-        if (this.core.state.tool.current !== CONSTANTS.TOOLS.DROPPER && (!currentLayer.visible || currentLayer.locked)) return;
-        
+        const isLayerLocked = currentLayer && (!currentLayer.visible || currentLayer.locked);
+        const isAllowedOnLockedLayer = this.core.state.tool.current === CONSTANTS.TOOLS.DROPPER || this.core.state.tool.current === CONSTANTS.TOOLS.ZOOM;
+
         this.activePointers.set(e.pointerId, e);
+        try { this.container.setPointerCapture(e.pointerId); } catch(err) {}
         
         if (this.activePointers.size === 1) {
+            this.wasPinching = false;
             if (this.core.selection && this.core.selection.advancedTransformMode && this.core.state.tool.current !== CONSTANTS.TOOLS.ZOOM) {
                 return;
             }
@@ -154,10 +158,14 @@ export default class InputManager {
             this.core.events.emit('ui:closeAllMenus'); 
             this.core.events.emit('ui:hidePalettePanel');
             
+            if (isLayerLocked && !isAllowedOnLockedLayer) {
+                return;
+            }
+
             if (this.core.tools.activeTool) {
                 this.core.tools.activeTool.onPointerDown(pos, e);
             }
-        } else if (this.activePointers.size === 2) {
+        } else if (this.activePointers.size >= 2) {
             if (this.core.selection && this.core.selection.advancedTransformMode && this.core.state.tool.current !== CONSTANTS.TOOLS.ZOOM) {
                 return;
             }
@@ -169,14 +177,21 @@ export default class InputManager {
                 clearTimeout(this.core.state.input.crosshairTimer); 
                 this.core.state.input.crosshairTimer = null; 
             }
+            if (this.core.state.input.isCrosshairSampling) {
+                this.core.state.input.isCrosshairSampling = false;
+                this.core.events.emit('ui:hideCrosshair');
+                this.core.state.input.lastCrosshairHex = null;
+            }
             
-            this.isPanning = true; 
-            const touches = Array.from(this.activePointers.values());
-            this.lastPinchDistance = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
-            this.lastCenterX = (touches[0].clientX + touches[1].clientX) / 2; 
-            this.lastCenterY = (touches[0].clientY + touches[1].clientY) / 2;
+            this.wasPinching = true;
+            if (this.activePointers.size === 2) {
+                this.isPanning = true; 
+                const touches = Array.from(this.activePointers.values());
+                this.lastPinchDistance = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+                this.lastCenterX = (touches[0].clientX + touches[1].clientX) / 2; 
+                this.lastCenterY = (touches[0].clientY + touches[1].clientY) / 2;
+            }
         }
-        this.container.setPointerCapture(e.pointerId);
     }
     
     onPointerMove(e) {
@@ -199,7 +214,26 @@ export default class InputManager {
             return; 
         }
         
+        if (this.wasPinching) {
+            if (this.isPanning && this.activePointers.size === 2) {
+                const touches = Array.from(this.activePointers.values());
+                const pinchData = this.core.viewport.handlePinchZoom(touches, this.lastPinchDistance, this.lastCenterX, this.lastCenterY);
+                this.lastPinchDistance = pinchData.distance; 
+                this.lastCenterX = pinchData.centerX; 
+                this.lastCenterY = pinchData.centerY;
+            }
+            return;
+        }
+        
         if (this.activePointers.size === 1) {
+            const currentLayer = this.core.doc ? this.core.doc.activeLayer : null;
+            const isLayerLocked = currentLayer && (!currentLayer.visible || currentLayer.locked);
+            const isAllowedOnLockedLayer = this.core.state.tool.current === CONSTANTS.TOOLS.DROPPER || this.core.state.tool.current === CONSTANTS.TOOLS.ZOOM;
+
+            if (isLayerLocked && !isAllowedOnLockedLayer) {
+                return;
+            }
+
             if (this.core.tools.activeTool) {
                 this.core.tools.activeTool.onPointerMove(pos, e);
             }
@@ -232,18 +266,28 @@ export default class InputManager {
                     }
                 }
                 
-                if (this.core.state.tool.current === CONSTANTS.TOOLS.DROPPER) {
-                    this.core.events.emit('requestToolChange', CONSTANTS.TOOLS.PENCIL);
-                }
-                
                 if (this.core.tools.activeTool && this.core.tools.activeTool.cancel) {
                     this.core.tools.activeTool.cancel();
                 }
+                this.wasPinching = false;
+                this.isPanning = false; 
+                this.lastPinchDistance = 0;
                 return;
             }
             
-            const pos = this.getAdjustedPos(e);
-            if (this.core.tools.activeTool) {
+            if (this.wasPinching) {
+                this.wasPinching = false;
+                this.isPanning = false;
+                this.lastPinchDistance = 0;
+                return;
+            }
+            
+            const currentLayer = this.core.doc ? this.core.doc.activeLayer : null;
+            const isLayerLocked = currentLayer && (!currentLayer.visible || currentLayer.locked);
+            const isAllowedOnLockedLayer = this.core.state.tool.current === CONSTANTS.TOOLS.DROPPER || this.core.state.tool.current === CONSTANTS.TOOLS.ZOOM;
+
+            if (this.core.tools.activeTool && (!isLayerLocked || isAllowedOnLockedLayer)) {
+                const pos = this.getAdjustedPos(e);
                 this.core.tools.activeTool.onPointerUp(pos, e);
             }
             
@@ -264,6 +308,10 @@ export default class InputManager {
         
         this.core.events.on('tool:startCrosshairTimer', ({ e, requireLongPress }) => {
             this.core.state.input.crosshairTimer = setTimeout(() => {
+                if (this.activePointers.size >= 2 || this.wasPinching) {
+                    this.core.state.input.crosshairTimer = null;
+                    return;
+                }
                 this.core.state.input.isCrosshairSampling = true; if (navigator.vibrate) navigator.vibrate(40); 
                 
                 if (this.core.state.tool.current !== CONSTANTS.TOOLS.DROPPER) {

@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js?cb=171';
-import { CONSTANTS } from '../core/Constants.js?cb=171';
+import BaseTool from './BaseTool.js?cb=202';
+import { CONSTANTS } from '../core/Constants.js?cb=202';
 
 export default class ColorSelectTool extends BaseTool {
     constructor(context) {
@@ -84,23 +84,6 @@ export default class ColorSelectTool extends BaseTool {
         this.activeMode = mode;
         const isActive = this.context.core.selection.isActive;
         const isInside = this.context.isPixelSelected(pos.x, pos.y);
-        
-        const now = Date.now();
-        if (this.lastModifierTapTime && (now - this.lastModifierTapTime < 300) && isActive && isInside && mode === CONSTANTS.SELECT_MODE.REPLACE) {
-            this.lastModifierTapTime = 0;
-            if (this.longPressTimer) {
-                clearTimeout(this.longPressTimer);
-                this.longPressTimer = null;
-            }
-            this.context.core.events.emit('selection:showModifierUI', { clientX: e.clientX, clientY: e.clientY });
-            return;
-        }
-        
-        if (isActive && isInside && mode === CONSTANTS.SELECT_MODE.REPLACE) {
-            this.lastModifierTapTime = now;
-        } else {
-            this.lastModifierTapTime = 0;
-        }
         
         if (isActive && isInside && mode === CONSTANTS.SELECT_MODE.REPLACE) {
             this.longPressTimer = setTimeout(() => {

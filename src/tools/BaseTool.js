@@ -28,6 +28,14 @@ export default class BaseTool {
             return;
         }
         x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+        if (this.context.soft > 0) {
+            // Soft brush: render the whole segment in one pass instead of per-pixel stamping.
+            const avgSize = (startSize + endSize) / 2;
+            this.context.executeLineWithMirror(x0, y0, x1, y1, (lx0, ly0, lx1, ly1) => {
+                this.context.drawSoftSegmentToScratch(lx0, ly0, lx1, ly1, avgSize, true);
+            });
+            return;
+        }
         let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
         let dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
         let err = dx + dy, e2; 

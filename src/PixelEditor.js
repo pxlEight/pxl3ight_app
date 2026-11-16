@@ -1,38 +1,38 @@
-import EventBus from './core/EventBus.js?cb=171';
-import AppConfig from './core/AppConfig.js?cb=171';
-import HistoryManager from './core/HistoryManager.js?cb=171';
-import StorageManager from './core/StorageManager.js?cb=171';
-import WorkerManager from './core/WorkerManager.js?cb=171';
-import ViewportManager from './rendering/ViewportManager.js?cb=171';
-import SelectionManager from './selection/SelectionManager.js?cb=171';
-import PlaybackController from './animation/PlaybackController.js?cb=171';
-import ToolManager from './tools/ToolManager.js?cb=171';
-import PaletteManager from './ui/PaletteManager.js?cb=171';
-import BrushManager from './ui/BrushManager.js?cb=171';
-import UIManager from './ui/UIManager.js?cb=171';
-import InputManager from './ui/InputManager.js?cb=171';
-import PixelDocument from './models/PixelDocument.js?cb=171';
-import PixelFrame from './models/PixelFrame.js?cb=171';
-import PixelLayer, { bumpVerCounter } from './models/PixelLayer.js?cb=171';
-import Renderer from './rendering/Renderer.js?cb=171';
-import GpuLayerAdjust from './rendering/GpuLayerAdjust.js?cb=171';
-import { CONSTANTS, canvas2DOptions } from './core/Constants.js?cb=171';
-import DrawingTool from './tools/DrawingTool.js?cb=171';
-import ShapeTool from './tools/ShapeTool.js?cb=171';
-import FillTool from './tools/FillTool.js?cb=171';
-import DropperTool from './tools/DropperTool.js?cb=171';
-import WandTool from './tools/WandTool.js?cb=171';
-import MarqueeTool from './tools/MarqueeTool.js?cb=171';
-import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=171';
-import ColorSelectTool from './tools/ColorSelectTool.js?cb=171';
-import LassoSelectTool from './tools/LassoSelectTool.js?cb=171';
-import ZoomTool from './tools/ZoomTool.js?cb=171';
+import EventBus from './core/EventBus.js?cb=202';
+import AppConfig from './core/AppConfig.js?cb=202';
+import HistoryManager from './core/HistoryManager.js?cb=202';
+import StorageManager from './core/StorageManager.js?cb=202';
+import WorkerManager from './core/WorkerManager.js?cb=202';
+import ViewportManager from './rendering/ViewportManager.js?cb=202';
+import SelectionManager from './selection/SelectionManager.js?cb=202';
+import PlaybackController from './animation/PlaybackController.js?cb=202';
+import ToolManager from './tools/ToolManager.js?cb=202';
+import PaletteManager from './ui/PaletteManager.js?cb=202';
+import BrushManager from './ui/BrushManager.js?cb=202';
+import UIManager from './ui/UIManager.js?cb=202';
+import InputManager from './ui/InputManager.js?cb=202';
+import PixelDocument from './models/PixelDocument.js?cb=202';
+import PixelFrame from './models/PixelFrame.js?cb=202';
+import PixelLayer, { bumpVerCounter } from './models/PixelLayer.js?cb=202';
+import Renderer from './rendering/Renderer.js?cb=202';
+import GpuLayerAdjust from './rendering/GpuLayerAdjust.js?cb=202';
+import { CONSTANTS, canvas2DOptions } from './core/Constants.js?cb=202';
+import DrawingTool from './tools/DrawingTool.js?cb=202';
+import ShapeTool from './tools/ShapeTool.js?cb=202';
+import FillTool from './tools/FillTool.js?cb=202';
+import DropperTool from './tools/DropperTool.js?cb=202';
+import WandTool from './tools/WandTool.js?cb=202';
+import MarqueeTool from './tools/MarqueeTool.js?cb=202';
+import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=202';
+import ColorSelectTool from './tools/ColorSelectTool.js?cb=202';
+import LassoSelectTool from './tools/LassoSelectTool.js?cb=202';
+import ZoomTool from './tools/ZoomTool.js?cb=202';
 
 export default class PixelEditor {
     constructor() {
         this.events = new EventBus(); 
         this.state = new AppConfig(this.events); 
-        this.history = new HistoryManager(); 
+        this.history = new HistoryManager((st) => { if (st) this.restoreState(st); }); 
         this.palette = new PaletteManager(); 
         
         this.bgCanvas = document.getElementById('bgCanvas'); 
@@ -56,6 +56,7 @@ export default class PixelEditor {
         
         this.worker = new WorkerManager();
         this.storage = new StorageManager(this);
+        this.timelineClipboard = null;
         
         this.doc = null; 
         this.renderer = null;
@@ -113,7 +114,34 @@ export default class PixelEditor {
             this.events.emit('ui:toggleMirror', this.state.mirrorMode);
         });
         
-        this.events.on('core:setBrushShape', (shape) => { this.state.tool.brushShape = shape; });
+        this.events.on('core:setBrushShape', (data) => {
+            let shape, tool;
+            if (typeof data === 'string') {
+                shape = data;
+                tool = this.state.tool.current;
+            } else if (data && typeof data === 'object') {
+                shape = data.shape;
+                tool = data.tool || this.state.tool.current;
+            }
+            const cat = (tool === CONSTANTS.TOOLS.ERASER) ? CONSTANTS.TOOLS.ERASER :
+                        ([CONSTANTS.TOOLS.LINE, CONSTANTS.TOOLS.RECT, CONSTANTS.TOOLS.ELLIPSE, CONSTANTS.TOOLS.SHAPE].includes(tool)) ? CONSTANTS.TOOLS.SHAPE :
+                        CONSTANTS.TOOLS.PENCIL;
+            if (!this.state.brushShapes) {
+                this.state.brushShapes = {
+                    [CONSTANTS.TOOLS.PENCIL]: CONSTANTS.BRUSH_SHAPE.SQUARE,
+                    [CONSTANTS.TOOLS.ERASER]: CONSTANTS.BRUSH_SHAPE.SQUARE,
+                    [CONSTANTS.TOOLS.SHAPE]: CONSTANTS.BRUSH_SHAPE.SQUARE
+                };
+            }
+            this.state.brushShapes[cat] = shape;
+            const currentCat = (this.state.tool.current === CONSTANTS.TOOLS.ERASER) ? CONSTANTS.TOOLS.ERASER :
+                               ([CONSTANTS.TOOLS.LINE, CONSTANTS.TOOLS.RECT, CONSTANTS.TOOLS.ELLIPSE, CONSTANTS.TOOLS.SHAPE].includes(this.state.tool.current)) ? CONSTANTS.TOOLS.SHAPE :
+                               CONSTANTS.TOOLS.PENCIL;
+            if (this.state.tool && cat === currentCat) {
+                this.state.tool.brushShape = shape;
+            }
+            this.events.emit('ui:brushShapeChanged', { tool: cat, shape });
+        });
         this.events.on('core:setHSVColor', (hx) => { this.palette.setCurrentColor(hx); });
         
         this.events.on('core:togglePalettePanel', () => {
@@ -125,8 +153,10 @@ export default class PixelEditor {
         });
         
         this.events.on('core:addCustomColor', (hex) => {
-            this.palette.addCustomSwatch(hex);
-            this.ui.createSwatch(hex, document.getElementById('customGrid'));
+            if (this.palette.addCustomSwatch(hex)) {
+                this.ui.renderCustomSwatches();
+                if (this.storage) this.storage.scheduleAutoSave(this.doc, this.state, this.palette);
+            }
         });
         
         this.events.on('core:toggleSpriteSheetView', () => this.toggleSpriteSheetView());
@@ -149,6 +179,12 @@ export default class PixelEditor {
             this.doc.copyLayerFrame(layerIdx, frameIdx);
             this.saveState();
         });
+        this.events.on('core:copyTimelineFrame', (layerIdx, frameIdx) => {
+            this.copyTimelineFrame(layerIdx, frameIdx);
+        });
+        this.events.on('core:pasteAfterTimelineFrame', (layerIdx, frameIdx) => {
+            this.pasteAfterTimelineFrame(layerIdx, frameIdx);
+        });
         this.events.on('core:deleteContextFrame', () => { 
             this.selection.anchor(); 
             this.doc.deleteFrame(this.ui.contextMenuFrameIndex); 
@@ -160,6 +196,9 @@ export default class PixelEditor {
             this.saveState();
         });
         this.events.on('core:deleteLayerFrame', (layerIdx, frameIdx) => {
+            if (!this.doc) return;
+            const target = this.doc.frames[frameIdx]?.layers[layerIdx];
+            if (target && target.locked) return;
             this.selection.anchor();
             this.doc.deleteLayerFrame(layerIdx, frameIdx);
             this.saveState();
@@ -184,6 +223,7 @@ export default class PixelEditor {
         });
         
         this.events.on('core:toggleActiveLayerLock', () => { 
+            this.selection.anchor();
             const isLocked = !this.doc.activeLayer.locked; 
             this.doc.frames.forEach(f => { 
                 if(f.layers[this.doc.activeLayerIndex]) {
@@ -213,6 +253,8 @@ export default class PixelEditor {
             this.saveState(); 
         });
         this.events.on('core:mergeLayerDown', () => { 
+            if (this.doc.activeLayer.locked) return;
+            if (this.doc.activeFrame.layers[this.doc.activeLayerIndex + 1]?.locked) return;
             this.selection.anchor(); 
             if(this.doc.mergeLayerDown()) {
                 this.saveState(); 
@@ -224,17 +266,30 @@ export default class PixelEditor {
             this.saveState(); 
         });
         this.events.on('core:deleteLayer', () => { 
+            if (this.doc.activeLayer.locked) return;
             this.selection.anchor(); 
             this.doc.deleteLayer(); 
             this.saveState(); 
         });
         this.events.on('core:selectLayer', (idx) => this.selectLayer(idx));
         
-        this.events.on('core:radialPaste', () => this.selection.radialPaste());
+        this.events.on('core:radialPaste', () => {
+            if (this.doc.activeLayer.locked) return;
+            this.selection.radialPaste();
+        });
         this.events.on('core:radialCopy', () => this.selection.radialCopy());
-        this.events.on('core:radialDuplicate', () => this.selection.radialDuplicate());
-        this.events.on('core:radialFlip', (axis) => this.selection.radialFlip(axis));
-        this.events.on('core:radialCut', () => this.selection.radialCut());
+        this.events.on('core:radialDuplicate', () => {
+            if (this.doc.activeLayer.locked) return;
+            this.selection.radialDuplicate();
+        });
+        this.events.on('core:radialFlip', (axis) => {
+            if (this.doc.activeLayer.locked) return;
+            this.selection.radialFlip(axis);
+        });
+        this.events.on('core:radialCut', () => {
+            if (this.doc.activeLayer.locked) return;
+            this.selection.radialCut();
+        });
         
         this.events.on('core:importImage', (e) => this.importImage(e));
         this.events.on('core:loadProjectFile', (e) => this.loadProjectFile(e));
@@ -262,7 +317,7 @@ export default class PixelEditor {
         });
 
         this.events.on('ui:updateLayerAdjust', async () => {
-            if (!this.layerAdjustOriginalBuffer) return;
+            if (!this.layerAdjustOriginalBuffer || (this.doc && this.doc.activeLayer && this.doc.activeLayer.locked)) return;
             const hOff = parseInt(document.getElementById('la-hsv-h').value);
             const sOff = parseInt(document.getElementById('la-hsv-s').value);
             const vOff = parseInt(document.getElementById('la-hsv-v').value);
@@ -863,6 +918,10 @@ export default class PixelEditor {
 
     importImage(event) {
         if (!this.doc) return; 
+        if (this.doc.activeLayer && this.doc.activeLayer.locked && !this.state.isSpriteSheetView) {
+            this.events.emit('ui:resetFileInput');
+            return;
+        }
         this.selection.anchor(); 
         const file = event.target.files[0]; 
         if (!file) return; 
@@ -1399,6 +1458,44 @@ export default class PixelEditor {
         this.events.emit('layerChanged');
         if (this.playback) this.playback.updateOnionSkin();
         if (this.renderer) this.renderer.render();
+    }
+
+    copyTimelineFrame(layerIdx, frameIdx) {
+        if (!this.doc || !this.doc.frames || frameIdx < 0 || frameIdx >= this.doc.frames.length) return;
+        const sourceFrame = this.doc.frames[frameIdx];
+        if (!sourceFrame || !sourceFrame.layers) return;
+        
+        let sourceLayer = sourceFrame.layers[layerIdx];
+        if (sourceLayer && sourceLayer.isDeleted) {
+            for (let k = frameIdx - 1; k >= 0; k--) {
+                const prev = this.doc.frames[k]?.layers?.[layerIdx];
+                if (prev && !prev.isDeleted) {
+                    if (k + (prev.holdCount || 1) > frameIdx) {
+                        sourceLayer = prev;
+                    }
+                    break;
+                }
+            }
+        }
+        if (!sourceLayer) return;
+        
+        this.timelineClipboard = {
+            layer: sourceLayer.clone(),
+            sourceLayerIndex: layerIdx,
+            sourceFrameIndex: frameIdx
+        };
+    }
+
+    pasteAfterTimelineFrame(layerIdx, frameIdx) {
+        if (!this.timelineClipboard || !this.timelineClipboard.layer || !this.doc || !this.doc.frames) return;
+        if (frameIdx < 0 || frameIdx >= this.doc.frames.length) return;
+        if (this.doc.frames[frameIdx]?.layers[layerIdx]?.locked) return;
+        
+        this.selection.anchor();
+        this.doc.pasteLayerFrameAfter(layerIdx, frameIdx, this.timelineClipboard.layer);
+        const insertIdx = frameIdx + 1;
+        this.switchFrame(insertIdx);
+        this.saveState();
     }
 
     switchFrame(index) {

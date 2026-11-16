@@ -19,8 +19,15 @@ export default class UIWidgetDragger {
         this.startX = e.clientX;
         this.startY = e.clientY;
         
-        this.initX = this.widget.offsetLeft;
-        this.initY = this.widget.offsetTop;
+        const rect = this.widget.getBoundingClientRect();
+        this.initX = rect.left;
+        this.initY = rect.top;
+        
+        this.widget.style.transform = 'none';
+        this.widget.style.left = `${this.initX}px`;
+        this.widget.style.top = `${this.initY}px`;
+        this.widget.style.right = 'auto'; 
+        this.widget.style.bottom = 'auto';
         
         this.handle.setPointerCapture(e.pointerId);
         this.handle.addEventListener('pointermove', this.onPointerMove);
@@ -34,8 +41,6 @@ export default class UIWidgetDragger {
         const dy = e.clientY - this.startY;
         this.widget.style.left = `${this.initX + dx}px`;
         this.widget.style.top = `${this.initY + dy}px`;
-        this.widget.style.right = 'auto'; 
-        this.widget.style.bottom = 'auto';
     }
 
     onPointerUp(e) {

@@ -1,7 +1,7 @@
-import { CONSTANTS, CANVAS_PERF } from '../core/Constants.js?cb=171';
-import UIWidgetDragger from './UIWidgetDragger.js?cb=171';
-import UIDragInteraction from './UIDragInteraction.js?cb=171';
-import PaletteManager from './PaletteManager.js?cb=171';
+import { CONSTANTS, CANVAS_PERF } from '../core/Constants.js?cb=202';
+import UIWidgetDragger from './UIWidgetDragger.js?cb=202';
+import UIDragInteraction from './UIDragInteraction.js?cb=202';
+import PaletteManager from './PaletteManager.js?cb=202';
 
 export default class UIManager {
     constructor(core) {
@@ -40,6 +40,16 @@ export default class UIManager {
         this.events.on('ui:frameChanged', () => this._scheduleUIRefresh());
         this.events.on('ui:updateActiveThumbnail', () => this.updateActiveThumbnailOnly());
         this.events.on('ui:closeAllMenus', () => this.closeAllMenus());
+        this.events.on('ui:brushShapeChanged', (data) => {
+            const cat = this.getActiveToolCategory();
+            this.updateBrushSizePreview((this.core.state.sizes && this.core.state.sizes[cat]) || 1);
+            const sm = document.getElementById('brushShapeMenu');
+            if (sm && data && data.shape) {
+                sm.querySelectorAll('button[data-shape]').forEach(b => {
+                    b.classList.toggle('active', b.getAttribute('data-shape') === data.shape);
+                });
+            }
+        });
         
         this.events.on('core:setHSVColor', (hx) => {
             document.getElementById('currentColorDisplay').style.backgroundColor = hx;
@@ -59,7 +69,12 @@ export default class UIManager {
             this.core.state.input.lastCrosshairHex = hex;
         });
         
-        this.events.on('ui:hideCrosshair', () => { document.getElementById('colorCrosshair').style.display = 'none'; });
+        this.events.on('ui:hideCrosshair', () => { 
+            document.getElementById('colorCrosshair').style.display = 'none'; 
+            if (this.core && this.core.palette && this.core.palette.currentColor) {
+                document.getElementById('currentColorDisplay').style.backgroundColor = this.core.palette.currentColor;
+            }
+        });
         this.events.on('ui:showCrosshair', () => { document.getElementById('colorCrosshair').style.display = 'flex'; });
         
         this.events.on('ui:togglePalettePanel', () => {
@@ -460,6 +475,8 @@ export default class UIManager {
 
         this.makeShapeMenuDraggable();
         this.makeToolsDraggable();
+        this.setupStackScrollIndicators();
+        this.setupBrushSizeAndDynamics();
     }
 
     closeAllMenus() {
@@ -539,6 +556,7 @@ export default class UIManager {
                     w.style.left = '';
                     w.style.right = '';
                     w.style.bottom = '';
+                    w.style.transform = '';
                 }
             });
         });
@@ -795,10 +813,24 @@ export default class UIManager {
                     this.closeAllMenus(); 
                     this.events.emit('requestToolChange', target.getAttribute('data-tool')); 
                     break;
-                case 'setBrushShape': 
-                    this.events.emit('core:setBrushShape', target.getAttribute('data-shape')); 
-                    document.getElementById('brushShapeMenu').style.display = 'none'; 
+                case 'setBrushShape': {
+                    const sm = document.getElementById('brushShapeMenu');
+                    const targetTool = (sm && sm.getAttribute('data-target-tool')) || this.getActiveToolCategory();
+                    const shape = target.getAttribute('data-shape');
+                    this.events.emit('core:setBrushShape', { tool: targetTool, shape });
+                    if (sm) {
+                        sm.querySelectorAll('button[data-shape]').forEach(b => {
+                            b.classList.toggle('active', b.getAttribute('data-shape') === shape);
+                        });
+                        sm.style.display = 'none';
+                    }
+                    this.showBrushSizePreview(this.core.state.sizes[this.getActiveToolCategory(targetTool)] || 1, targetTool);
+                    setTimeout(() => {
+                        const indicator = document.getElementById('brushSizeIndicator');
+                        if (indicator) indicator.style.display = 'none';
+                    }, 500);
                     break;
+                }
                 case 'setHSVColor': 
                     const hx = PaletteManager.rgbStrToHex(document.getElementById('hsvColorProxy').style.backgroundColor); 
                     this.events.emit('core:setHSVColor', hx); 
@@ -850,6 +882,9 @@ export default class UIManager {
                     const nHex = PaletteManager.rgbStrToHex(document.getElementById('customColorProxy').style.backgroundColor); 
                     this.events.emit('core:addCustomColor', nHex); 
                     break;
+                case 'deleteCustomSwatch':
+                    this.deleteCustomSwatch();
+                    break;
                 case 'toggleTimeline': 
                     if (window.isDraggingTimeline) return;
                     const tw = document.getElementById('widget-timeline'); 
@@ -873,7 +908,11 @@ export default class UIManager {
                     break;
                 case 'copyContextFrame': 
                     this.closeAllMenus(); 
-                    this.events.emit('core:copyLayerFrame', this.contextMenuLayerIndex, this.contextMenuFrameIndex); 
+                    this.events.emit('core:copyTimelineFrame', this.contextMenuLayerIndex, this.contextMenuFrameIndex); 
+                    break;
+                case 'pasteAfterContextFrame':
+                    this.closeAllMenus();
+                    this.events.emit('core:pasteAfterTimelineFrame', this.contextMenuLayerIndex, this.contextMenuFrameIndex);
                     break;
                 case 'deleteContextFrame': 
                     this.closeAllMenus(); 
@@ -946,6 +985,7 @@ export default class UIManager {
                 { id: 'hsvMenu', excludes: ['#hsvMenu', '#customColorProxy'] }, 
                 { id: 'layerMenu', excludes: ['#layerMenu', '.layer-square'] }, 
                 { id: 'layerLongPressMenu', excludes: ['#layerLongPressMenu', '.layer-square'] }, 
+                { id: 'swatchLongPressMenu', excludes: ['#swatchLongPressMenu', '.swatch'] }, 
                 { id: 'layerAdjustMenu', excludes: ['#layerAdjustMenu', '[data-action="openLayerAdjustMenu"]'], extraCallback: () => this.events.emit('ui:applyLayerAdjust') },
                 { id: 'palettePanel', excludes: ['#palettePanel', '#btn-palette-toggle', '#hsvMenu'] }, 
                 { id: 'brushPanel', excludes: ['#brushPanel', '#btn-brush-toggle'] },
@@ -954,6 +994,9 @@ export default class UIManager {
                 { id: 'image-size-menu', excludes: ['#image-size-menu', '#btn-image-size'] },
                 { id: 'mirror-menu', excludes: ['#mirror-menu', '#btn-mirror-menu'] }, 
                 { id: 'brushShapeMenu', excludes: ['#brushShapeMenu', '.tool-btn'] },
+                { id: 'brushDynamicsMenu', excludes: ['#brushDynamicsMenu', '#btn-brush-toggle'] },
+                { id: 'brushSizeStepperPopup', excludes: ['#brushSizeStepperPopup', '#btn-brush-size'] },
+                { id: 'brushSoftStepperPopup', excludes: ['#brushSoftStepperPopup', '#btn-brush-soft'] },
                 { id: 'shapeMenu', excludes: ['#shapeMenu', '#btn-shape'] },
                 { id: 'selectMenu', excludes: ['#selectMenu', '#btn-select'] },
                 { id: 'onionSkinMenu', excludes: ['#onionSkinMenu', '#onionToggleBtn'] },
@@ -1105,14 +1148,82 @@ export default class UIManager {
                     if (Math.abs(e.clientX - pstartX) > 5 || Math.abs(e.clientY - pstartY) > 5) return;
                     const widget = handle.closest('.widget');
                     const toolbar = widget.querySelector('.toolbar');
-                    if (toolbar.style.display === 'none') {
-                        toolbar.style.display = '';
+                    const isCollapsed = widget.classList.toggle('collapsed');
+                    toolbar.style.display = isCollapsed ? 'none' : '';
+                    if (isCollapsed) {
+                        const panel = widget.querySelector('.palette-panel');
+                        if (panel) panel.style.display = 'none';
                     } else {
-                        toolbar.style.display = 'none';
+                        const stack = widget.querySelector('.tool-stack, .brush-stack, .layer-stack');
+                        const ind = widget.querySelector('[id$="ScrollIndicator"]');
+                        if (stack && ind) {
+                            requestAnimationFrame(() => {
+                                const canScroll = stack.scrollHeight > stack.clientHeight;
+                                const atBottom = Math.ceil(stack.scrollTop + stack.clientHeight) >= stack.scrollHeight - 2;
+                                ind.style.display = (canScroll && !atBottom) ? 'block' : 'none';
+                            });
+                        }
                     }
                 });
             }
         });
+    }
+
+    getActiveToolCategory(tool = this.core.state.tool?.current) {
+        if (this.core.state && typeof this.core.state.getActiveToolCategory === 'function') {
+            return this.core.state.getActiveToolCategory(tool);
+        }
+        if (tool === CONSTANTS.TOOLS.ERASER) return CONSTANTS.TOOLS.ERASER;
+        if ([CONSTANTS.TOOLS.LINE, CONSTANTS.TOOLS.RECT, CONSTANTS.TOOLS.ELLIPSE, CONSTANTS.TOOLS.SHAPE].includes(tool)) {
+            return CONSTANTS.TOOLS.SHAPE;
+        }
+        return CONSTANTS.TOOLS.PENCIL;
+    }
+
+    getToolBrushShape(tool = this.core.state.tool?.current) {
+        const cat = this.getActiveToolCategory(tool);
+        return (this.core.state.brushShapes && this.core.state.brushShapes[cat]) || this.core.state.tool?.brushShape || CONSTANTS.BRUSH_SHAPE.SQUARE;
+    }
+
+    syncBrushSizeUI() {
+        const cat = this.getActiveToolCategory();
+        const size = (this.core.state.sizes && this.core.state.sizes[cat]) || 1;
+        const sizeVal = document.getElementById('brushSizeVal');
+        if (sizeVal) sizeVal.innerText = size;
+        const btnVal = document.getElementById('brushSizeBtnVal');
+        if (btnVal) btnVal.innerText = size;
+    }
+
+    getBrushSoft() {
+        const cat = this.getActiveToolCategory();
+        if (this.core.state.softness && this.core.state.softness[cat] !== undefined) {
+            return this.core.state.softness[cat];
+        }
+        return this.core.state.tool?.soft || 0;
+    }
+
+    setBrushSoft(newSoft) {
+        const soft = Math.max(0, Math.min(100, Math.round(newSoft)));
+        const cat = this.getActiveToolCategory();
+        if (!this.core.state.softness) this.core.state.softness = {};
+        this.core.state.softness[cat] = soft;
+        if (this.core.state.tool) this.core.state.tool.soft = soft;
+        const softVal = document.getElementById('brushSoftVal');
+        if (softVal) softVal.innerText = soft;
+        const btnVal = document.getElementById('brushSoftBtnVal');
+        if (btnVal) btnVal.innerText = soft;
+        return soft;
+    }
+
+    syncBrushSoftUI() {
+        const cat = this.getActiveToolCategory();
+        const val = (this.core.state.softness && this.core.state.softness[cat] !== undefined)
+            ? this.core.state.softness[cat]
+            : (this.core.state.tool?.soft || 0);
+        const softVal = document.getElementById('brushSoftVal');
+        if (softVal) softVal.innerText = val;
+        const btnVal = document.getElementById('brushSoftBtnVal');
+        if (btnVal) btnVal.innerText = val;
     }
 
     setTool(tool) {
@@ -1127,6 +1238,8 @@ export default class UIManager {
             const btn = document.querySelector(`.tool-btn[data-tool="${tool}"]`); 
             if (btn) btn.classList.add('active'); 
         }
+        this.syncBrushSizeUI();
+        this.syncBrushSoftUI();
     }
 
     toggleSpriteSheetUI(isActive) {
@@ -1161,12 +1274,259 @@ export default class UIManager {
     }
 
     createSwatch(color, container) {
+        if (container && container.id === 'customGrid') {
+            this.createCustomSwatch(color, container);
+            return;
+        }
         const swatch = document.createElement('div'); 
         swatch.className = 'swatch'; 
         swatch.style.backgroundColor = color;
         swatch.setAttribute('data-action', 'selectColorSwatch');
         swatch.setAttribute('data-color', color);
         container.appendChild(swatch);
+    }
+
+    renderCustomSwatches() {
+        const grid = document.getElementById('customGrid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        if (this.core && this.core.palette && this.core.palette.customSwatches) {
+            this.core.palette.customSwatches.forEach((color, idx) => {
+                this.createCustomSwatch(color, grid, idx);
+            });
+        }
+    }
+
+    selectCustomColorSwatch(color, swatch) {
+        this.core.palette.setCurrentColor(color);
+        document.getElementById('currentColorDisplay').style.backgroundColor = color;
+        document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+        if (swatch) swatch.classList.add('selected');
+        this.syncHSVFromHex(color);
+    }
+
+    deleteCustomSwatch() {
+        const color = this.contextMenuSwatchColor;
+        const index = this.contextMenuSwatchIndex;
+        const menu = document.getElementById('swatchLongPressMenu');
+        if (menu) menu.style.display = 'none';
+
+        if (color !== undefined && color !== null && this.core && this.core.palette) {
+            let idx = index;
+            if (idx === undefined || idx < 0 || this.core.palette.customSwatches[idx] !== color) {
+                idx = this.core.palette.customSwatches.indexOf(color);
+            }
+            if (idx !== -1) {
+                this.core.palette.removeCustomSwatch(idx);
+                this.renderCustomSwatches();
+                if (this.core.storage) {
+                    this.core.storage.scheduleAutoSave(this.core.doc, this.core.state, this.core.palette);
+                }
+                this.core.saveState();
+            }
+        }
+        this.contextMenuSwatchColor = null;
+        this.contextMenuSwatchIndex = null;
+    }
+
+    createCustomSwatch(color, container, index) {
+        if (!container) container = document.getElementById('customGrid');
+        if (!container) return null;
+
+        const swatch = document.createElement('div');
+        swatch.className = 'swatch';
+        swatch.style.backgroundColor = color;
+        swatch.setAttribute('data-color', color);
+        if (index === undefined) {
+            index = this.core.palette.customSwatches.indexOf(color);
+        }
+        swatch.dataset.index = index;
+
+        if (this.core.palette.currentColor && this.core.palette.currentColor.toUpperCase() === color.toUpperCase()) {
+            swatch.classList.add('selected');
+        }
+
+        let swatchTimer = null, longPressed = false, isDraggingSwatch = false, hasScrolled = false;
+        let startX = 0, startY = 0, dragGhost = null;
+
+        swatch.addEventListener('touchmove', (e) => {
+            if (longPressed) e.preventDefault();
+        }, { passive: false });
+
+        const onMove = (em) => {
+            const dx = em.clientX - startX;
+            const dy = em.clientY - startY;
+
+            if (!longPressed) {
+                if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+                    clearTimeout(swatchTimer);
+                    hasScrolled = true;
+                }
+                return;
+            }
+
+            if (longPressed) {
+                if (!isDraggingSwatch && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+                    isDraggingSwatch = true;
+                    this.closeAllMenus();
+
+                    dragGhost = swatch.cloneNode(true);
+                    dragGhost.style.position = 'fixed';
+                    dragGhost.style.opacity = '0.85';
+                    dragGhost.style.pointerEvents = 'none';
+                    dragGhost.style.zIndex = '1000';
+                    dragGhost.style.transform = 'scale(1.15)';
+                    dragGhost.style.boxShadow = '0 6px 16px rgba(0,0,0,0.6)';
+                    dragGhost.style.border = '2px solid #ffffff';
+                    dragGhost.style.borderRadius = '4px';
+                    dragGhost.style.transition = 'none';
+                    dragGhost.classList.remove('drop-target');
+                    document.body.appendChild(dragGhost);
+                    swatch.style.opacity = '0.3';
+                }
+
+                if (isDraggingSwatch && dragGhost) {
+                    dragGhost.style.left = (em.clientX - 20) + 'px';
+                    dragGhost.style.top = (em.clientY - 20) + 'px';
+
+                    const customGrid = document.getElementById('customGrid');
+                    if (customGrid) {
+                        const swatches = Array.from(customGrid.querySelectorAll('.swatch'));
+                        let closestIdx = -1;
+                        let minDist = Infinity;
+                        swatches.forEach((s, idx) => {
+                            s.classList.remove('drop-target');
+                            const r = s.getBoundingClientRect();
+                            const cx = r.left + r.width / 2;
+                            const cy = r.top + r.height / 2;
+                            const dist = (em.clientX - cx) ** 2 + (em.clientY - cy) ** 2;
+                            if (dist < minDist) {
+                                minDist = dist;
+                                closestIdx = idx;
+                            }
+                        });
+                        if (closestIdx !== -1 && swatches[closestIdx]) {
+                            swatches[closestIdx].classList.add('drop-target');
+                        }
+                    }
+                }
+            }
+        };
+
+        const onUp = (eu) => {
+            clearTimeout(swatchTimer);
+            swatch.style.transform = '';
+            swatch.style.opacity = '1';
+
+            try { swatch.releasePointerCapture(eu.pointerId); } catch(err) {}
+
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            window.removeEventListener('pointercancel', onUp);
+
+            const customGrid = document.getElementById('customGrid');
+            if (customGrid) {
+                customGrid.querySelectorAll('.swatch').forEach(s => s.classList.remove('drop-target'));
+            }
+
+            if (dragGhost) {
+                try { document.body.removeChild(dragGhost); } catch(e) {}
+                dragGhost = null;
+            }
+
+            const currentIndex = parseInt(swatch.dataset.index, 10);
+
+            if (isDraggingSwatch && eu.type !== 'pointercancel') {
+                if (customGrid && this.core.palette.customSwatches.length > 1) {
+                    const swatches = Array.from(customGrid.querySelectorAll('.swatch'));
+                    let dropIndex = currentIndex;
+                    let minDist = Infinity;
+                    swatches.forEach((s, idx) => {
+                        const r = s.getBoundingClientRect();
+                        const cx = r.left + r.width / 2;
+                        const cy = r.top + r.height / 2;
+                        const dist = (eu.clientX - cx) ** 2 + (eu.clientY - cy) ** 2;
+                        if (dist < minDist) {
+                            minDist = dist;
+                            dropIndex = idx;
+                        }
+                    });
+
+                    if (dropIndex !== currentIndex && dropIndex >= 0 && dropIndex < this.core.palette.customSwatches.length) {
+                        this.core.palette.reorderCustomSwatch(currentIndex, dropIndex);
+                        this.renderCustomSwatches();
+                        if (this.core.storage) {
+                            this.core.storage.scheduleAutoSave(this.core.doc, this.core.state, this.core.palette);
+                        }
+                        this.core.saveState();
+                    }
+                }
+            } else if (longPressed && !hasScrolled) {
+                const lpMenu = document.getElementById('swatchLongPressMenu');
+                if (lpMenu) {
+                    const wasOpen = lpMenu.style.display === 'flex' && this.contextMenuSwatchColor === color;
+                    if (wasOpen) {
+                        lpMenu.style.display = 'none';
+                        this.contextMenuSwatchColor = null;
+                        this.contextMenuSwatchIndex = null;
+                    } else {
+                        this.closeAllMenus();
+                        this.contextMenuSwatchColor = color;
+                        this.contextMenuSwatchIndex = currentIndex;
+                        lpMenu.style.display = 'flex';
+
+                        const rect = swatch.getBoundingClientRect();
+                        const menuRect = lpMenu.getBoundingClientRect();
+
+                        let leftPos = rect.left + (rect.width / 2) - (menuRect.width / 2);
+                        if (leftPos + menuRect.width > window.innerWidth - 10) {
+                            leftPos = window.innerWidth - menuRect.width - 10;
+                        }
+                        if (leftPos < 10) leftPos = 10;
+
+                        let topPos = rect.top - menuRect.height - 8;
+                        if (topPos < 10) {
+                            topPos = rect.bottom + 8;
+                        }
+                        if (topPos + menuRect.height > window.innerHeight - 10) {
+                            topPos = window.innerHeight - menuRect.height - 10;
+                        }
+
+                        lpMenu.style.left = leftPos + 'px';
+                        lpMenu.style.top = topPos + 'px';
+                    }
+                }
+            } else if (!longPressed && !hasScrolled) {
+                this.selectCustomColorSwatch(color, swatch);
+            }
+        };
+
+        swatch.addEventListener('pointerdown', (e) => {
+            longPressed = false;
+            isDraggingSwatch = false;
+            hasScrolled = false;
+            startX = e.clientX;
+            startY = e.clientY;
+
+            swatchTimer = setTimeout(() => {
+                longPressed = true;
+                if (navigator.vibrate) navigator.vibrate(40);
+                swatch.style.transform = 'scale(1.15)';
+                try { swatch.setPointerCapture(e.pointerId); } catch(err) {}
+                this.closeAllMenus();
+            }, window.longPressTimer || 400);
+
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onUp);
+            window.addEventListener('pointercancel', onUp);
+        });
+
+        swatch.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        container.appendChild(swatch);
+        return swatch;
     }
 
     syncHSVFromHex(hex) {
@@ -1187,6 +1547,7 @@ export default class UIManager {
     initPalettes() {
         this.core.palette.swatchesColors.forEach(c => this.createSwatch(c, document.getElementById('swatchesGrid')));
         this.core.palette.greyscaleColors.forEach(c => this.createSwatch(c, document.getElementById('greyscaleGrid')));
+        this.renderCustomSwatches();
         this.core.palette.setCurrentColor('#000000'); 
         
         document.getElementById('currentColorDisplay').style.backgroundColor = '#000000'; 
@@ -1444,8 +1805,12 @@ export default class UIManager {
                     document.getElementById('lm-vis').innerText = l.visible ? '👁️' : '🙈'; 
                     document.getElementById('lm-lock').innerText = l.locked ? '🔐' : '🔓';
                     document.getElementById('lm-opacity').innerText = Math.round(l.opacity * 100); 
-                    const canMergeDown = currentIndex < this.core.doc.activeFrame.layers.length - 1;
+                    const canMergeDown = !l.locked && currentIndex < this.core.doc.activeFrame.layers.length - 1 && !this.core.doc.activeFrame.layers[currentIndex + 1]?.locked;
                     document.getElementById('lm-merge').style.display = canMergeDown ? 'block' : 'none';
+                    const adjustBtn = document.querySelector('[data-action="openLayerAdjustMenu"]');
+                    if (adjustBtn) adjustBtn.style.display = l.locked ? 'none' : 'block';
+                    const delBtn = document.querySelector('#layerMenu [data-action="deleteLayer"]');
+                    if (delBtn) delBtn.style.display = l.locked ? 'none' : 'block';
                 }
             }
         };
@@ -1516,8 +1881,12 @@ export default class UIManager {
                 document.getElementById('lm-vis').innerText = activeLayer.visible ? '👁️' : '🙈'; 
                 document.getElementById('lm-lock').innerText = activeLayer.locked ? '🔐' : '🔓';
                 document.getElementById('lm-opacity').innerText = Math.round(activeLayer.opacity * 100);
-                const canMergeDown = activeIdx < this.core.doc.activeFrame.layers.length - 1;
+                const canMergeDown = !activeLayer.locked && activeIdx < this.core.doc.activeFrame.layers.length - 1 && !this.core.doc.activeFrame.layers[activeIdx + 1]?.locked;
                 document.getElementById('lm-merge').style.display = canMergeDown ? 'block' : 'none';
+                const adjustBtn = document.querySelector('[data-action="openLayerAdjustMenu"]');
+                if (adjustBtn) adjustBtn.style.display = activeLayer.locked ? 'none' : 'block';
+                const delBtn = document.querySelector('#layerMenu [data-action="deleteLayer"]');
+                if (delBtn) delBtn.style.display = activeLayer.locked ? 'none' : 'block';
             }
         }
     }
@@ -1614,6 +1983,104 @@ export default class UIManager {
         
         let frameDragTimer, longPressed = false, isDraggingFrame = false, hasScrolled = false, startX, startY, dragGhost = null, scrubStartScroll = 0;
         let scrubSamples = [], scrubPos = 0;
+        let autoScrollRaf = null, autoScrollSpeed = 0, lastAutoScrollTime = 0;
+        let targetLayerIndex = -1;
+        let targetContainer = null;
+
+        const stopAutoScroll = () => {
+            if (autoScrollRaf) {
+                cancelAnimationFrame(autoScrollRaf);
+                autoScrollRaf = null;
+            }
+            autoScrollSpeed = 0;
+        };
+
+        const autoScrollStep = (now) => {
+            if (!isDraggingFrame || (this.core.playback && this.core.playback.isPlaying)) {
+                stopAutoScroll();
+                return;
+            }
+            const strip = document.getElementById('timelineStrip');
+            if (!strip || autoScrollSpeed === 0) {
+                stopAutoScroll();
+                return;
+            }
+
+            const dt = Math.min(0.05, (now - lastAutoScrollTime) / 1000);
+            lastAutoScrollTime = now;
+
+            let scrolled = false;
+            if (autoScrollSpeed > 0) {
+                const maxScroll = Math.max(0, strip.scrollWidth - strip.clientWidth);
+                if (strip.scrollLeft < maxScroll) {
+                    strip.scrollLeft = Math.min(maxScroll, strip.scrollLeft + autoScrollSpeed * dt);
+                    this.syncFrameNumberScroll();
+                    scrolled = true;
+                }
+            } else if (autoScrollSpeed < 0) {
+                if (strip.scrollLeft > 0) {
+                    strip.scrollLeft = Math.max(0, strip.scrollLeft + autoScrollSpeed * dt);
+                    this.syncFrameNumberScroll();
+                    scrolled = true;
+                }
+            }
+
+            if (!scrolled) {
+                stopAutoScroll();
+                return;
+            }
+
+            autoScrollRaf = requestAnimationFrame(autoScrollStep);
+        };
+
+        const updateAutoScroll = (clientX, clientY) => {
+            if (!isDraggingFrame || (this.core.playback && this.core.playback.isPlaying)) {
+                stopAutoScroll();
+                return;
+            }
+            const strip = document.getElementById('timelineStrip');
+            if (!strip) return;
+            const stripRect = strip.getBoundingClientRect();
+
+            if (clientY < stripRect.top - 80 || clientY > stripRect.bottom + 80) {
+                stopAutoScroll();
+                return;
+            }
+
+            const edgeZone = Math.min(60, stripRect.width * 0.25);
+            const baseSpeed = 400; // px/sec
+
+            if (clientX >= stripRect.right - edgeZone) {
+                const overflow = clientX - (stripRect.right - edgeZone);
+                const factor = Math.min(2.5, Math.max(0.3, overflow / edgeZone));
+                autoScrollSpeed = baseSpeed * factor;
+            } else if (clientX <= stripRect.left + edgeZone) {
+                const overflow = (stripRect.left + edgeZone) - clientX;
+                const factor = Math.min(2.5, Math.max(0.3, overflow / edgeZone));
+                autoScrollSpeed = -baseSpeed * factor;
+            } else {
+                stopAutoScroll();
+                return;
+            }
+
+            if (autoScrollSpeed > 0) {
+                const maxScroll = Math.max(0, strip.scrollWidth - strip.clientWidth);
+                if (strip.scrollLeft >= maxScroll) {
+                    stopAutoScroll();
+                    return;
+                }
+            } else if (autoScrollSpeed < 0) {
+                if (strip.scrollLeft <= 0) {
+                    stopAutoScroll();
+                    return;
+                }
+            }
+
+            if (!autoScrollRaf) {
+                lastAutoScrollTime = performance.now();
+                autoScrollRaf = requestAnimationFrame(autoScrollStep);
+            }
+        };
         
         square.addEventListener('touchmove', (e) => { 
             if (longPressed) e.preventDefault(); 
@@ -1643,16 +2110,34 @@ export default class UIManager {
             if (longPressed) {
                 if (!isDraggingFrame && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
                     isDraggingFrame = true; 
-                    dragGhost = square.cloneNode(true);
+                    if (targetContainer) {
+                        dragGhost = targetContainer.cloneNode(true);
+                        const origCanvas = targetContainer.querySelector('canvas');
+                        const ghostCanvas = dragGhost.querySelector('canvas');
+                        if (origCanvas && ghostCanvas) {
+                            ghostCanvas.width = origCanvas.width;
+                            ghostCanvas.height = origCanvas.height;
+                            const gctx = ghostCanvas.getContext('2d');
+                            if (gctx) gctx.drawImage(origCanvas, 0, 0);
+                        }
+                    } else {
+                        dragGhost = square.cloneNode(true);
+                    }
                     dragGhost.style.position = 'fixed'; 
                     dragGhost.style.opacity = '0.85'; 
                     dragGhost.style.pointerEvents = 'none'; 
                     dragGhost.style.zIndex = '1000'; 
+                    dragGhost.style.transform = 'none';
+                    dragGhost.style.boxShadow = '0 6px 16px rgba(0,0,0,0.5)';
+                    dragGhost.style.border = '2px solid var(--accent, #00d2ff)';
+                    dragGhost.style.borderRadius = '6px';
                     document.body.appendChild(dragGhost);
                 }
                 if (isDraggingFrame && dragGhost) { 
-                    dragGhost.style.left = (em.clientX - 27) + 'px'; 
+                    const ghostW = targetContainer ? targetContainer.offsetWidth : 53;
+                    dragGhost.style.left = (em.clientX - ghostW / 2) + 'px'; 
                     dragGhost.style.top = (em.clientY - 27) + 'px'; 
+                    updateAutoScroll(em.clientX, em.clientY);
                 }
             }
         };
@@ -1660,6 +2145,11 @@ export default class UIManager {
         const onUp = (eu) => {
             const currentIndex = parseInt(square.dataset.frameIndex, 10);
             clearTimeout(frameDragTimer); 
+            stopAutoScroll();
+            if (targetContainer) {
+                targetContainer.style.transform = '';
+                targetContainer.style.zIndex = '';
+            }
             square.style.transform = '';
             
             try { square.releasePointerCapture(eu.pointerId); } catch(err) {}
@@ -1675,31 +2165,56 @@ export default class UIManager {
                 const dropX = eu.clientX - stripRect.left + strip.scrollLeft;
                 const dropIndex = this.getFrameIndexAtX(dropX);
                 
-                const movedFrame = this.core.doc.frames.splice(currentIndex, 1)[0]; 
-                this.core.doc.frames.splice(dropIndex, 0, movedFrame);
+                if (currentIndex !== dropIndex && targetLayerIndex !== undefined && targetLayerIndex >= 0) {
+                    const layerFrames = this.core.doc.frames.map(f => f.layers[targetLayerIndex]);
+                    const movedLayer = layerFrames.splice(currentIndex, 1)[0]; 
+                    layerFrames.splice(dropIndex, 0, movedLayer);
+                    this.core.doc.frames.forEach((f, idx) => {
+                        f.layers[targetLayerIndex] = layerFrames[idx];
+                    });
+                }
                 
                 if (dragGhost) { 
-                    document.body.removeChild(dragGhost); 
+                    try { document.body.removeChild(dragGhost); } catch(e) {}
                     dragGhost = null; 
                 }
                 
+                if (targetLayerIndex >= 0) {
+                    this.core.doc.activeLayerIndex = targetLayerIndex;
+                }
                 this.events.emit('ui:frameChanged'); 
                 this.events.emit('core:switchFrame', dropIndex); 
                 this.core.saveState();
             } else if (longPressed) {
                 this.closeAllMenus(); 
                 this.contextMenuFrameIndex = currentIndex;
-                this.contextMenuLayerIndex = this.core.doc.activeLayerIndex;
+                this.contextMenuLayerIndex = targetLayerIndex >= 0 ? targetLayerIndex : this.core.doc.activeLayerIndex;
+                const targetLayer = this.core.doc.frames[currentIndex]?.layers[this.contextMenuLayerIndex];
+                const isLayerLocked = targetLayer && targetLayer.locked;
                 
                 const menu = document.getElementById('frameMenu'); 
+                const pasteBtn = document.getElementById('btn-paste-after-frame');
+                if (pasteBtn) {
+                    pasteBtn.style.display = (this.core && this.core.timelineClipboard && !isLayerLocked) ? 'block' : 'none';
+                }
+                const delFrameBtn = document.querySelector('[data-action="deleteContextFrame"]');
+                if (delFrameBtn) {
+                    delFrameBtn.style.display = isLayerLocked ? 'none' : 'block';
+                }
                 menu.style.display = 'flex';
                 
                 let x = eu.clientX; 
                 if (x + 120 > window.innerWidth) x = window.innerWidth - 120;
                 menu.style.left = x + 'px'; 
-                menu.style.top = (eu.clientY - 70) + 'px';
+                let y = eu.clientY - 70;
+                if (y + 130 > window.innerHeight) y = window.innerHeight - 130;
+                if (y < 10) y = 10;
+                menu.style.top = y + 'px';
             } else if (!hasScrolled) {
                 if (!this.core.playback.isPlaying && !this.core.state.isSpriteSheetView) { 
+                    if (targetLayerIndex >= 0) {
+                        this.events.emit('core:selectLayer', targetLayerIndex);
+                    }
                     this.events.emit('core:switchFrame', currentIndex); 
                 }
             } else {
@@ -1734,6 +2249,7 @@ export default class UIManager {
             e.preventDefault(); 
             
             this.cancelScrubMomentum();
+            stopAutoScroll();
             longPressed = false; 
             isDraggingFrame = false; 
             hasScrolled = false; 
@@ -1743,12 +2259,47 @@ export default class UIManager {
             scrubStartScroll = this.getFrameX(this.core.doc.currentFrameIndex);
             scrubPos = scrubStartScroll;
             
+            // Identify which layer was touched
+            let touchedContainer = e.target.closest('.layer-thumb-container');
+            if (!touchedContainer) {
+                const allContainers = Array.from(square.querySelectorAll('.layer-thumb-container'));
+                if (allContainers.length > 0) {
+                    let bestDist = Infinity;
+                    for (const c of allContainers) {
+                        const r = c.getBoundingClientRect();
+                        const cy = (r.top + r.bottom) / 2;
+                        const dist = Math.abs(e.clientY - cy);
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            touchedContainer = c;
+                        }
+                    }
+                }
+            }
+            targetContainer = touchedContainer;
+            targetLayerIndex = targetContainer && targetContainer.dataset.layerIndex !== undefined
+                ? parseInt(targetContainer.dataset.layerIndex, 10)
+                : (this.core.doc ? this.core.doc.activeLayerIndex : 0);
+            
+            const currentFrameIdx = parseInt(square.dataset.frameIndex, 10);
+            const currentDocFrame = this.core.doc && this.core.doc.frames ? this.core.doc.frames[currentFrameIdx] : null;
+            const currentLayerObj = currentDocFrame && currentDocFrame.layers ? currentDocFrame.layers[targetLayerIndex] : null;
+            const isCellDeleted = !!(currentLayerObj && currentLayerObj.isDeleted);
+            
             try { square.setPointerCapture(e.pointerId); } catch(err) {}
             
-            frameDragTimer = setTimeout(() => { 
-                longPressed = true; if (navigator.vibrate) navigator.vibrate(40); 
-                square.style.transform = 'scale(1.15)'; 
-            }, window.longPressTimer || 400);
+            if (!isCellDeleted) {
+                frameDragTimer = setTimeout(() => { 
+                    longPressed = true;
+                    if (navigator.vibrate) navigator.vibrate(40); 
+                    if (targetContainer) {
+                        targetContainer.style.transform = 'scale(1.15)';
+                        targetContainer.style.zIndex = '50';
+                    } else {
+                        square.style.transform = 'scale(1.15)';
+                    }
+                }, window.longPressTimer || 400);
+            }
             
             square.addEventListener('pointermove', onMove); 
             square.addEventListener('pointerup', onUp); 
@@ -1906,6 +2457,8 @@ export default class UIManager {
         this._lastActiveFrameIndex = -1;
         const strip = document.getElementById('timelineStrip');
         this.updateFrameNumbers();
+        
+        const layerHasAddBtn = new Set();
         
         const isIndexCovered = (layerIdx, targetIdx) => {
             for (let k = Math.min(targetIdx, this.core.doc.frames.length - 1); k >= 0; k--) {
@@ -2099,17 +2652,19 @@ export default class UIManager {
                     
                     // Is this the first empty cell after a hold?
                     const currentlyCovered = isIndexCovered(i, idx);
-                    if (!currentlyCovered) {
+                    if (!currentlyCovered && !layerHasAddBtn.has(i)) {
                         const prevCovered = idx > 0 ? isIndexCovered(i, idx - 1) : false;
-                        if (prevCovered || idx === 0) {
-                        const addBtn = document.createElement('button');
-                        addBtn.className = 'add-frame-timeline-btn stop-propagation';
-                        addBtn.title = 'Add Frame';
-                        addBtn.innerText = '➕';
-                        addBtn.style.pointerEvents = 'auto';
-                        addBtn.dataset.layerAddBtn = i;
-                        this.bindAddFrameButton(addBtn, i);
-                        container.appendChild(addBtn);
+                        const isLocked = this.core.doc.frames[idx]?.layers[i]?.locked;
+                        if ((prevCovered || idx === 0) && !isLocked) {
+                            const addBtn = document.createElement('button');
+                            addBtn.className = 'add-frame-timeline-btn stop-propagation';
+                            addBtn.title = 'Add Frame';
+                            addBtn.innerText = '➕';
+                            addBtn.style.pointerEvents = 'auto';
+                            addBtn.dataset.layerAddBtn = i;
+                            this.bindAddFrameButton(addBtn, i);
+                            container.appendChild(addBtn);
+                            layerHasAddBtn.add(i);
                         }
                     }
                     continue; // Skip the rest of the drawing for deleted layers
@@ -2129,10 +2684,11 @@ export default class UIManager {
 
                     holdHandle.addEventListener('pointerdown', (e) => {
                         if (this.core.playback.isPlaying || this.core.state.isSpriteSheetView) return;
+                        const currentIndex = parseInt(square.dataset.frameIndex, 10);
+                        if (this.core.doc.frames[currentIndex]?.layers[i]?.locked) return;
                         e.stopPropagation();
                         e.preventDefault();
                         holdStartX = e.clientX;
-                        const currentIndex = parseInt(square.dataset.frameIndex, 10);
                         startHoldCount = this.core.doc.frames[currentIndex].layers[i].holdCount || 1;
                         isDraggingHold = true;
                         
@@ -2207,7 +2763,7 @@ export default class UIManager {
                 }
                 
                 if (holdHandle) {
-                    holdHandle.style.display = (i === this.core.doc.activeLayerIndex && idx === this.core.doc.currentFrameIndex) ? 'block' : 'none';
+                    holdHandle.style.display = (i === this.core.doc.activeLayerIndex && idx === this.core.doc.currentFrameIndex && !layer.locked) ? 'block' : 'none';
                 }
                 
                 // Thumbnails are drawn at a small fixed size (not the full document resolution) and
@@ -2304,14 +2860,15 @@ export default class UIManager {
             const nextCovered = isIndexCovered(i, docLength);
             
             // Show plus button at the end only if the last frame was part of a hold and the hold doesn't extend beyond it
-            if (!nextCovered && (lastCovered || docLength === 0)) {
+            if (!layerHasAddBtn.has(i) && !nextCovered && (lastCovered || docLength === 0)) {
                 const addBtn = document.createElement('button');
                 addBtn.className = 'add-frame-timeline-btn stop-propagation';
                 addBtn.title = 'Add Frame';
                 addBtn.innerText = '➕';
-                        addBtn.dataset.layerAddBtn = i;
+                addBtn.dataset.layerAddBtn = i;
                 this.bindAddFrameButton(addBtn, i);
                 btnContainer.appendChild(addBtn);
+                layerHasAddBtn.add(i);
             }
         }
     }
@@ -2362,26 +2919,48 @@ export default class UIManager {
 
     updateBrushSizePreview(size) {
         const square = document.getElementById('brushSizeSquare');
+        if (!square) return;
         const metrics = this.core.viewport.getMetrics();
         const px = size * metrics.scaleX * this.core.viewport.scale;
         
         square.style.width = px + 'px'; 
         square.style.height = px + 'px';
         
-        if (this.core.state.tool.brushShape === CONSTANTS.BRUSH_SHAPE.ROUND && (this.core.state.tool.current === CONSTANTS.TOOLS.PENCIL || this.core.state.tool.current === CONSTANTS.TOOLS.ERASER)) {
+        const soft = this.getBrushSoft ? this.getBrushSoft() : 0;
+        const currentShape = this.getToolBrushShape();
+        if (currentShape === CONSTANTS.BRUSH_SHAPE.ROUND) {
             square.style.borderRadius = '50%';
         } else {
             square.style.borderRadius = '0';
+        }
+
+        if (soft > 0) {
+            const blurAmount = Math.max(0.5, (px / 2) * (soft / 100) * 1.25);
+            square.style.filter = `blur(${blurAmount.toFixed(2)}px)`;
+            square.style.border = 'none';
+            square.style.outline = 'none';
+        } else {
+            square.style.filter = 'none';
+            const currentTool = this.core.state.tool?.current;
+            if (currentTool === CONSTANTS.TOOLS.ERASER) {
+                square.style.border = '1px solid #808080';
+                square.style.outline = '1px solid #ffffff';
+            } else {
+                square.style.border = '1px solid #ffffff';
+                square.style.outline = '1px solid #000000';
+            }
         }
     }
 
     showBrushSizePreview(size, toolName) {
         const indicator = document.getElementById('brushSizeIndicator');
         const square = document.getElementById('brushSizeSquare'); 
+        if (!indicator || !square) return;
         
         indicator.style.display = 'flex';
         
-        if (toolName === CONSTANTS.TOOLS.ERASER) { 
+        const currentTool = toolName || this.core.state.tool?.current;
+        if (currentTool === CONSTANTS.TOOLS.ERASER) { 
             square.style.backgroundColor = 'rgba(128, 128, 128, 0.5)'; 
             square.style.border = '1px solid #808080'; 
             square.style.outline = '1px solid #ffffff'; 
@@ -2425,6 +3004,12 @@ export default class UIManager {
                     }
                     
                     this.core.state.sizes[CONSTANTS.TOOLS.SHAPE] = currentStickySize; 
+                    if (this.getActiveToolCategory() === CONSTANTS.TOOLS.SHAPE) {
+                        const sizeVal = document.getElementById('brushSizeVal');
+                        if (sizeVal) sizeVal.innerText = currentStickySize;
+                        const btnVal = document.getElementById('brushSizeBtnVal');
+                        if (btnVal) btnVal.innerText = currentStickySize;
+                    }
                     this.updateBrushSizePreview(currentStickySize); 
                     em.preventDefault();
                 }
@@ -2457,7 +3042,7 @@ export default class UIManager {
                     btn.style.transform = 'scale(1.15)'; 
                     try { btn.setPointerCapture(e.pointerId); } catch(err) {}
                     
-                    startSize = this.core.state.sizes[CONSTANTS.TOOLS.SHAPE]; 
+                    startSize = this.core.state.sizes[CONSTANTS.TOOLS.SHAPE] || 1; 
                     currentStickySize = startSize; 
                     this.showBrushSizePreview(startSize, CONSTANTS.TOOLS.SHAPE);
                 }, window.longPressTimer || 400);
@@ -2474,8 +3059,8 @@ export default class UIManager {
         const btns = Array.from(stack.querySelectorAll('.tool-btn'));
         
         btns.forEach(btn => {
-            let toolDragTimer, longPressed = false, isDraggingTool = false, isDraggingSize = false, hasScrolled = false;
-            let startX, startY, dragGhost = null, startSize = 1, currentStickySize = 1;
+            let toolDragTimer, longPressed = false, isDraggingSize = false, hasScrolled = false;
+            let startX, startY, startSize = 1, currentStickySize = 1;
             
             btn.addEventListener('touchmove', (e) => { 
                 if (longPressed) e.preventDefault(); 
@@ -2495,37 +3080,12 @@ export default class UIManager {
                     return; 
                 }
                 
-                if (!isDraggingTool && !isDraggingSize) {
-                    if (isSizeable) {
-                        if (Math.abs(dx) > 10) { 
-                            isDraggingTool = true; 
-                            document.getElementById('brushSizeIndicator').style.display = 'none'; 
-                        } else if (Math.abs(dy) > 10) { 
-                            isDraggingSize = true; 
-                            startY = em.clientY; 
-                            startSize = currentToolName === CONSTANTS.TOOLS.PENCIL ? this.core.state.sizes[CONSTANTS.TOOLS.PENCIL] : this.core.state.sizes[CONSTANTS.TOOLS.ERASER]; 
-                            currentStickySize = startSize; 
-                        }
-                    } else {
-                        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) { 
-                            isDraggingTool = true; 
-                            if (currentToolName === CONSTANTS.TOOLS.SHAPE || currentToolName === CONSTANTS.TOOLS.WAND || currentToolName === CONSTANTS.TOOLS.MARQUEE || currentToolName === CONSTANTS.TOOLS.POLYGON || currentToolName === CONSTANTS.TOOLS.COLOR_SELECT || currentToolName === CONSTANTS.TOOLS.LASSO) {
-                                this.closeAllMenus(); 
-                            }
-                        }
-                    }
-                    
-                    if (isDraggingTool) {
-                        dragGhost = btn.cloneNode(true); 
-                        dragGhost.style.position = 'fixed'; 
-                        dragGhost.style.opacity = '0.85'; 
-                        dragGhost.style.pointerEvents = 'none'; 
-                        dragGhost.style.zIndex = '1000';
-                        dragGhost.style.width = '38px'; 
-                        dragGhost.style.height = '38px'; 
-                        dragGhost.classList.add('active'); 
-                        document.body.appendChild(dragGhost); 
-                        btn.style.opacity = '0.3';
+                if (isSizeable && !isDraggingSize) {
+                    if (Math.abs(dy) > 10) { 
+                        isDraggingSize = true; 
+                        startY = em.clientY; 
+                        startSize = currentToolName === CONSTANTS.TOOLS.PENCIL ? this.core.state.sizes[CONSTANTS.TOOLS.PENCIL] : this.core.state.sizes[CONSTANTS.TOOLS.ERASER]; 
+                        currentStickySize = startSize; 
                     }
                 }
                 
@@ -2539,17 +3099,26 @@ export default class UIManager {
                         currentStickySize = Math.max(1, Math.min(maxSize, Math.round(continuousSize)));
                     }
                     
-                    if(currentToolName === CONSTANTS.TOOLS.PENCIL) this.core.state.sizes[CONSTANTS.TOOLS.PENCIL] = currentStickySize; 
-                    if(currentToolName === CONSTANTS.TOOLS.ERASER) this.core.state.sizes[CONSTANTS.TOOLS.ERASER] = currentStickySize;
+                    if (currentToolName === CONSTANTS.TOOLS.PENCIL) {
+                        this.core.state.sizes[CONSTANTS.TOOLS.PENCIL] = currentStickySize;
+                        if (this.getActiveToolCategory() === CONSTANTS.TOOLS.PENCIL) {
+                            const sizeVal = document.getElementById('brushSizeVal');
+                            if (sizeVal) sizeVal.innerText = currentStickySize;
+                            const btnVal = document.getElementById('brushSizeBtnVal');
+                            if (btnVal) btnVal.innerText = currentStickySize;
+                        }
+                    } else if (currentToolName === CONSTANTS.TOOLS.ERASER) {
+                        this.core.state.sizes[CONSTANTS.TOOLS.ERASER] = currentStickySize;
+                        if (this.getActiveToolCategory() === CONSTANTS.TOOLS.ERASER) {
+                            const sizeVal = document.getElementById('brushSizeVal');
+                            if (sizeVal) sizeVal.innerText = currentStickySize;
+                            const btnVal = document.getElementById('brushSizeBtnVal');
+                            if (btnVal) btnVal.innerText = currentStickySize;
+                        }
+                    }
                     
                     this.updateBrushSizePreview(currentStickySize); 
                     em.preventDefault();
-                }
-                
-                if (isDraggingTool && dragGhost) { 
-                    dragGhost.style.left = (em.clientX - 19) + 'px'; 
-                    dragGhost.style.top = (em.clientY - 19) + 'px'; 
-                    em.preventDefault(); 
                 }
             };
             
@@ -2568,31 +3137,6 @@ export default class UIManager {
                 if (isDraggingSize) {
                     isDraggingSize = false; 
                     document.getElementById('brushSizeIndicator').style.display = 'none';
-                    
-                } else if (isDraggingTool) {
-                    isDraggingTool = false; 
-                    if (dragGhost) { 
-                        document.body.removeChild(dragGhost); 
-                        dragGhost = null; 
-                    }
-                    
-                    const stackRect = stack.getBoundingClientRect();
-                    const relY = eu.clientY - stackRect.top + stack.scrollTop;
-                    let dropIndex = Math.floor((relY + 23) / 46); 
-                    
-                    const currentBtns = Array.from(stack.querySelectorAll('.tool-btn')); 
-                    dropIndex = Math.max(0, Math.min(currentBtns.length - 1, dropIndex));
-                    const currentIndex = currentBtns.indexOf(btn);
-                    
-                    if (currentIndex !== dropIndex) { 
-                        if (dropIndex >= currentBtns.length - 1) {
-                            stack.appendChild(btn); 
-                        } else if (dropIndex < currentIndex) {
-                            stack.insertBefore(btn, currentBtns[dropIndex]); 
-                        } else {
-                            stack.insertBefore(btn, currentBtns[dropIndex + 1]); 
-                        }
-                    }
                 } else if (!longPressed && !hasScrolled) {
                     if ([CONSTANTS.TOOLS.SHAPE, CONSTANTS.TOOLS.LINE, CONSTANTS.TOOLS.RECT, CONSTANTS.TOOLS.ELLIPSE].includes(currentToolName)) {
                         this.events.emit('requestToolChange', this.core.state.tool.shape, true); 
@@ -2602,7 +3146,13 @@ export default class UIManager {
                 } else if (longPressed) {
                     if (currentToolName === CONSTANTS.TOOLS.PENCIL || currentToolName === CONSTANTS.TOOLS.ERASER) {
                         document.getElementById('brushSizeIndicator').style.display = 'none';
+                        this.events.emit('requestToolChange', currentToolName);
                         const sm = document.getElementById('brushShapeMenu');
+                        sm.setAttribute('data-target-tool', currentToolName);
+                        const activeShape = this.getToolBrushShape(currentToolName);
+                        sm.querySelectorAll('button[data-shape]').forEach(b => {
+                            b.classList.toggle('active', b.getAttribute('data-shape') === activeShape);
+                        });
                         const rect = btn.getBoundingClientRect();
                         sm.style.display = 'flex'; 
                         const smRect = sm.getBoundingClientRect();
@@ -2620,7 +3170,6 @@ export default class UIManager {
                 if (this.core.playback.isPlaying || this.core.state.isSpriteSheetView) return;
                 
                 longPressed = false; 
-                isDraggingTool = false; 
                 isDraggingSize = false; 
                 hasScrolled = false; 
                 startX = e.clientX; 
@@ -2668,6 +3217,382 @@ export default class UIManager {
                 btn.addEventListener('pointercancel', onUp);
             });
         });
+    }
+
+    setupStackScrollIndicators() {
+        [
+            ['toolStack', 'toolScrollIndicator'],
+            ['brushStack', 'brushScrollIndicator'],
+            ['layerStack', 'layerScrollIndicator']
+        ].forEach(([stackId, indId]) => {
+            const stack = document.getElementById(stackId);
+            const ind = document.getElementById(indId);
+            if (!stack || !ind) return;
+
+            const check = () => {
+                const canScroll = stack.scrollHeight > stack.clientHeight;
+                const atBottom = Math.ceil(stack.scrollTop + stack.clientHeight) >= stack.scrollHeight - 2;
+                ind.style.display = (canScroll && !atBottom) ? 'block' : 'none';
+            };
+
+            stack.addEventListener('scroll', check, { passive: true });
+            ind.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const atBottom = Math.ceil(stack.scrollTop + stack.clientHeight) >= stack.scrollHeight - 2;
+                stack.scrollTo({ top: atBottom ? 0 : stack.scrollHeight, behavior: 'smooth' });
+            });
+
+            setTimeout(check, 100);
+            window.addEventListener('resize', check, { passive: true });
+        });
+    }
+
+    setBrushSize(newSize) {
+        const maxSize = Math.max(this.core.bgCanvas?.width || 128, this.core.bgCanvas?.height || 128);
+        const size = Math.max(1, Math.min(maxSize, Math.round(newSize)));
+        const cat = this.getActiveToolCategory();
+        if (!this.core.state.sizes) this.core.state.sizes = {};
+        this.core.state.sizes[cat] = size;
+        const sizeVal = document.getElementById('brushSizeVal');
+        if (sizeVal) sizeVal.innerText = size;
+        const btnVal = document.getElementById('brushSizeBtnVal');
+        if (btnVal) btnVal.innerText = size;
+        return size;
+    }
+
+    setupBrushSizeAndDynamics() {
+        const btnBrushToggle = document.getElementById('btn-brush-toggle');
+        const dynamicsMenu = document.getElementById('brushDynamicsMenu');
+        const btnSize = document.getElementById('btn-brush-size');
+        const btnSoft = document.getElementById('btn-brush-soft');
+        const sizeValEl = document.getElementById('brushSizeVal');
+        const stepperPopup = document.getElementById('brushSizeStepperPopup');
+        const btnMinus = document.getElementById('btn-brush-size-minus');
+        const btnPlus = document.getElementById('btn-brush-size-plus');
+        const softValEl = document.getElementById('brushSoftVal');
+        const stepperPopupSoft = document.getElementById('brushSoftStepperPopup');
+        const btnSoftMinus = document.getElementById('btn-brush-soft-minus');
+        const btnSoftPlus = document.getElementById('btn-brush-soft-plus');
+
+        // 1. Initialize Size & Softness displays
+        this.syncBrushSizeUI();
+        this.syncBrushSoftUI();
+
+        // 2. Long-press on brush palette button -> shows vertical popup menu for Smooth & Speed
+        //    Tapping brush palette button -> toggles brush palette library (#brushPanel)
+        if (btnBrushToggle && dynamicsMenu) {
+            let brushToggleTimer = null;
+            let isLongPress = false;
+            let startX = 0, startY = 0;
+
+            btnBrushToggle.addEventListener('pointerdown', (e) => {
+                isLongPress = false;
+                startX = e.clientX;
+                startY = e.clientY;
+                brushToggleTimer = setTimeout(() => {
+                    isLongPress = true;
+                    if (navigator.vibrate) navigator.vibrate(40);
+                    this.closeAllMenus();
+                    dynamicsMenu.style.display = 'flex';
+                    dynamicsMenu.style.flexDirection = 'column';
+
+                    const rect = btnBrushToggle.getBoundingClientRect();
+                    const menuRect = dynamicsMenu.getBoundingClientRect();
+                    let leftPos = rect.right + 10;
+                    if (leftPos + menuRect.width > window.innerWidth - 10) {
+                        leftPos = rect.left - menuRect.width - 10;
+                    }
+                    dynamicsMenu.style.left = Math.max(10, leftPos) + 'px';
+                    let topPos = rect.top;
+                    if (topPos + menuRect.height > window.innerHeight - 10) {
+                        topPos = window.innerHeight - menuRect.height - 10;
+                    }
+                    dynamicsMenu.style.top = Math.max(10, topPos) + 'px';
+                }, window.longPressTimer || 400);
+            });
+
+            btnBrushToggle.addEventListener('pointermove', (e) => {
+                if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) {
+                    clearTimeout(brushToggleTimer);
+                }
+            });
+
+            btnBrushToggle.addEventListener('pointerup', () => {
+                clearTimeout(brushToggleTimer);
+            });
+
+            btnBrushToggle.addEventListener('pointercancel', () => {
+                clearTimeout(brushToggleTimer);
+            });
+
+            btnBrushToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isLongPress) {
+                    e.preventDefault();
+                    isLongPress = false;
+                    return;
+                }
+                this.events.emit('core:toggleBrushPanel');
+            }, true);
+        }
+
+        // 3. Submenu toggle buttons for Size and Soft:
+        //    Dragging scrolls the brush menu window naturally; a short tap with no drag brings up the slider submenu.
+        const bindBrushSubmenuBtn = (btn, menu) => {
+            if (!btn || !menu) return;
+            let isTap = false, startX = 0, startY = 0;
+
+            btn.addEventListener('pointerdown', (e) => {
+                if (e.button !== undefined && e.button !== 0) return;
+                isTap = true;
+                startX = e.clientX;
+                startY = e.clientY;
+            });
+
+            btn.addEventListener('pointermove', (e) => {
+                if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) {
+                    isTap = false;
+                }
+            });
+
+            btn.addEventListener('pointerup', (e) => {
+                if (isTap) {
+                    isTap = false;
+                    const isOpen = (menu.style.display === 'flex' || menu.style.display === 'block');
+                    this.closeAllMenus();
+                    if (!isOpen) {
+                        menu.style.display = 'flex';
+                        menu.style.flexDirection = 'row';
+                        const rect = btn.getBoundingClientRect();
+                        const menuRect = menu.getBoundingClientRect();
+                        let leftPos = rect.right + 10;
+                        if (leftPos + menuRect.width > window.innerWidth - 10) {
+                            leftPos = rect.left - menuRect.width - 10;
+                        }
+                        menu.style.left = Math.max(10, leftPos) + 'px';
+                        let topPos = rect.top + (rect.height / 2) - (menuRect.height / 2);
+                        if (topPos + menuRect.height > window.innerHeight - 10) {
+                            topPos = window.innerHeight - menuRect.height - 10;
+                        }
+                        menu.style.top = Math.max(10, topPos) + 'px';
+                    }
+                }
+            });
+
+            btn.addEventListener('pointercancel', () => {
+                isTap = false;
+            });
+
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        };
+
+        bindBrushSubmenuBtn(btnSize, stepperPopup);
+        bindBrushSubmenuBtn(btnSoft, stepperPopupSoft);
+
+        // 4. Submenu sliders for Size & Soft:
+        //    Quick tap drag immediately slides values (no long-press required).
+        if (sizeValEl) {
+            new UIDragInteraction(sizeValEl, {
+                stopPropagation: true,
+                preventDefaultOnMove: true,
+                onDown: (e, inst) => {
+                    const cat = this.getActiveToolCategory();
+                    inst.customData.startSize = (this.core.state.sizes && this.core.state.sizes[cat]) || 1;
+                    this.showBrushSizePreview(inst.customData.startSize, this.core.state.tool?.current);
+                    this.updateBrushSizePreview(inst.customData.startSize);
+                },
+                onDragMove: (e, dx, dy, inst) => {
+                    const maxSize = Math.max(this.core.bgCanvas?.width || 128, this.core.bgCanvas?.height || 128);
+                    const pixelsPerStep = Math.max(2, Math.min(6, (window.innerHeight * 0.35) / Math.max(1, maxSize - 1)));
+                    let continuousSize = inst.customData.startSize - (dy / pixelsPerStep);
+                    let newVal = Math.max(1, Math.min(maxSize, Math.round(continuousSize)));
+                    const cat = this.getActiveToolCategory();
+                    if (newVal !== (this.core.state.sizes[cat] || 1)) {
+                        this.setBrushSize(newVal);
+                        this.showBrushSizePreview(newVal, this.core.state.tool?.current);
+                        this.updateBrushSizePreview(newVal);
+                    }
+                },
+                onDragEnd: () => {
+                    const indicator = document.getElementById('brushSizeIndicator');
+                    if (indicator) indicator.style.display = 'none';
+                    const square = document.getElementById('brushSizeSquare');
+                    if (square) square.style.filter = 'none';
+                }
+            });
+        }
+
+        if (softValEl) {
+            new UIDragInteraction(softValEl, {
+                stopPropagation: true,
+                preventDefaultOnMove: true,
+                onDown: (e, inst) => {
+                    inst.customData.startSoft = this.getBrushSoft();
+                    const size = (this.core.state.sizes && this.core.state.sizes[this.getActiveToolCategory()]) || 1;
+                    this.showBrushSizePreview(size, this.core.state.tool?.current);
+                    this.updateBrushSizePreview(size);
+                },
+                onDragMove: (e, dx, dy, inst) => {
+                    const pixelsPerStep = Math.max(1.5, (window.innerHeight * 0.35) / 100);
+                    let continuousSoft = inst.customData.startSoft - (dy / pixelsPerStep);
+                    let newVal = Math.max(0, Math.min(100, Math.round(continuousSoft)));
+                    if (newVal !== this.getBrushSoft()) {
+                        this.setBrushSoft(newVal);
+                        const size = (this.core.state.sizes && this.core.state.sizes[this.getActiveToolCategory()]) || 1;
+                        this.showBrushSizePreview(size, this.core.state.tool?.current);
+                        this.updateBrushSizePreview(size);
+                    }
+                },
+                onDragEnd: () => {
+                    const indicator = document.getElementById('brushSizeIndicator');
+                    if (indicator) indicator.style.display = 'none';
+                    const square = document.getElementById('brushSizeSquare');
+                    if (square) square.style.filter = 'none';
+                }
+            });
+        }
+
+        // 5. Stepper minus and plus buttons for Size and Soft:
+        //    Tapping increments/decrements by 1.
+        //    Holding increments/decrements repeatedly until released.
+        const bindStepperBtn = (btn, delta, { getCurrent, setVal, onStep, minVal, getMaxVal }) => {
+            if (!btn) return;
+            let holdTimer = null;
+            let repeatInterval = null;
+            let hidePreviewTimer = null;
+
+            const step = () => {
+                const current = getCurrent();
+                const max = getMaxVal();
+                const next = Math.max(minVal, Math.min(max, current + delta));
+                if (next !== current) {
+                    setVal(next);
+                    if (onStep) onStep(next);
+                    if (navigator.vibrate) navigator.vibrate(15);
+                }
+            };
+
+            const stopRepeat = () => {
+                clearTimeout(holdTimer);
+                clearInterval(repeatInterval);
+                holdTimer = null;
+                repeatInterval = null;
+                clearTimeout(hidePreviewTimer);
+                hidePreviewTimer = setTimeout(() => {
+                    const indicator = document.getElementById('brushSizeIndicator');
+                    if (indicator) indicator.style.display = 'none';
+                    const square = document.getElementById('brushSizeSquare');
+                    if (square) square.style.filter = 'none';
+                }, 400);
+            };
+
+            btn.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                try { btn.setPointerCapture(e.pointerId); } catch(err) {}
+
+                clearTimeout(hidePreviewTimer);
+                step();
+
+                holdTimer = setTimeout(() => {
+                    repeatInterval = setInterval(() => {
+                        step();
+                    }, 75);
+                }, 300);
+            });
+
+            btn.addEventListener('pointerup', (e) => {
+                e.stopPropagation();
+                stopRepeat();
+                try { btn.releasePointerCapture(e.pointerId); } catch(err) {}
+            });
+
+            btn.addEventListener('pointercancel', (e) => {
+                stopRepeat();
+                try { btn.releasePointerCapture(e.pointerId); } catch(err) {}
+            });
+
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        };
+
+        bindStepperBtn(btnMinus, -1, {
+            getCurrent: () => (this.core.state.sizes && this.core.state.sizes[this.getActiveToolCategory()]) || 1,
+            setVal: (v) => this.setBrushSize(v),
+            onStep: (v) => {
+                this.showBrushSizePreview(v, this.core.state.tool?.current);
+                this.updateBrushSizePreview(v);
+            },
+            minVal: 1,
+            getMaxVal: () => Math.max(this.core.bgCanvas?.width || 128, this.core.bgCanvas?.height || 128)
+        });
+
+        bindStepperBtn(btnPlus, 1, {
+            getCurrent: () => (this.core.state.sizes && this.core.state.sizes[this.getActiveToolCategory()]) || 1,
+            setVal: (v) => this.setBrushSize(v),
+            onStep: (v) => {
+                this.showBrushSizePreview(v, this.core.state.tool?.current);
+                this.updateBrushSizePreview(v);
+            },
+            minVal: 1,
+            getMaxVal: () => Math.max(this.core.bgCanvas?.width || 128, this.core.bgCanvas?.height || 128)
+        });
+
+        bindStepperBtn(btnSoftMinus, -1, {
+            getCurrent: () => this.getBrushSoft(),
+            setVal: (v) => this.setBrushSoft(v),
+            onStep: (v) => {
+                const size = (this.core.state.sizes && this.core.state.sizes[this.getActiveToolCategory()]) || 1;
+                this.showBrushSizePreview(size, this.core.state.tool?.current);
+                this.updateBrushSizePreview(size);
+            },
+            minVal: 0,
+            getMaxVal: () => 100
+        });
+
+        bindStepperBtn(btnSoftPlus, 1, {
+            getCurrent: () => this.getBrushSoft(),
+            setVal: (v) => this.setBrushSoft(v),
+            onStep: (v) => {
+                const size = (this.core.state.sizes && this.core.state.sizes[this.getActiveToolCategory()]) || 1;
+                this.showBrushSizePreview(size, this.core.state.tool?.current);
+                this.updateBrushSizePreview(size);
+            },
+            minVal: 0,
+            getMaxVal: () => 100
+        });
+
+        // 5. Direct binding for Brush Shape buttons (Square / Round)
+        const brushShapeMenu = document.getElementById('brushShapeMenu');
+        if (brushShapeMenu) {
+            brushShapeMenu.querySelectorAll('button[data-shape]').forEach(btn => {
+                const handleShapeSelect = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const targetTool = brushShapeMenu.getAttribute('data-target-tool') || this.getActiveToolCategory();
+                    const shape = btn.getAttribute('data-shape');
+                    this.events.emit('core:setBrushShape', { tool: targetTool, shape });
+                    brushShapeMenu.querySelectorAll('button[data-shape]').forEach(b => {
+                        b.classList.toggle('active', b.getAttribute('data-shape') === shape);
+                    });
+                    brushShapeMenu.style.display = 'none';
+                    const activeCat = this.getActiveToolCategory();
+                    const targetCat = this.getActiveToolCategory(targetTool);
+                    if (activeCat === targetCat) {
+                        this.showBrushSizePreview(this.core.state.sizes[activeCat] || 1, targetTool);
+                        setTimeout(() => {
+                            const indicator = document.getElementById('brushSizeIndicator');
+                            if (indicator) indicator.style.display = 'none';
+                        }, 500);
+                    }
+                };
+                btn.addEventListener('pointerdown', handleShapeSelect);
+                btn.addEventListener('click', handleShapeSelect);
+            });
+        }
     }
 }
 

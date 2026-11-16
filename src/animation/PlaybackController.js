@@ -1,4 +1,4 @@
-import { canvas2DOptions } from '../core/Constants.js?cb=171';
+import { canvas2DOptions } from '../core/Constants.js?cb=202';
 
 export default class PlaybackController {
     constructor(core) { 

@@ -120,14 +120,34 @@ export default class WorkerManager {
                 return { buffer };
             }
 
-            function doFloodFill({ buffer, w, h, startX, startY, fillR, fillG, fillB, fillA, alpha, isSelectionActive, selectionMask, startColor }) {
+            function doFloodFill({ buffer, w, h, startX, startY, fillR, fillG, fillB, fillA, alpha, isSelectionActive, selectionMask, startColor, tolerance = 0 }) {
                 const data = new Uint8ClampedArray(buffer);
                 const data32 = new Uint32Array(buffer);
                 const invAlpha = 1 - alpha;
                 const start32 = pack32(startColor.r, startColor.g, startColor.b, startColor.a);
+                const visited = tolerance > 0 ? new Uint8Array(w * h) : null;
+
+                const startR_pre = (startColor.r * startColor.a) / 255;
+                const startG_pre = (startColor.g * startColor.a) / 255;
+                const startB_pre = (startColor.b * startColor.a) / 255;
+                const startA_pre = startColor.a;
 
                 const matchStartColor = (idx) => {
                     if (isSelectionActive && !selectionMask[idx]) return false;
+                    if (visited) {
+                        if (visited[idx]) return false;
+                        if (data32[idx] === start32) return true;
+                        const pos = idx * 4;
+                        const a = data[pos + 3];
+                        const r_pre = (data[pos] * a) / 255;
+                        const g_pre = (data[pos + 1] * a) / 255;
+                        const b_pre = (data[pos + 2] * a) / 255;
+                        const dr = Math.abs(r_pre - startR_pre);
+                        const dg = Math.abs(g_pre - startG_pre);
+                        const db = Math.abs(b_pre - startB_pre);
+                        const da = Math.abs(a - startA_pre);
+                        return Math.max(dr, dg, db, da) <= tolerance;
+                    }
                     return data32[idx] === start32;
                 };
 
@@ -155,6 +175,8 @@ export default class WorkerManager {
                     const x = stack.pop();
                     let idx = y * w + x;
 
+                    if (visited && visited[idx]) continue;
+
                     while (y >= 0 && matchStartColor(idx)) {
                         y--; idx -= w;
                     }
@@ -163,6 +185,7 @@ export default class WorkerManager {
                     let reachLeft = false, reachRight = false;
 
                     while (y < h && matchStartColor(idx)) {
+                        if (visited) visited[idx] = 1;
                         colorPixel(idx);
 
                         if (x > 0) {

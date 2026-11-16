@@ -9,7 +9,25 @@ export default class PaletteManager {
         this.currentColor = hex; 
     }
     addCustomSwatch(hex) { 
-        if (!this.customSwatches.includes(hex)) this.customSwatches.push(hex); 
+        if (!this.customSwatches.includes(hex)) {
+            this.customSwatches.push(hex);
+            return true;
+        }
+        return false;
+    }
+    removeCustomSwatch(index) {
+        if (index >= 0 && index < this.customSwatches.length) {
+            return this.customSwatches.splice(index, 1)[0];
+        }
+        return null;
+    }
+    reorderCustomSwatch(fromIndex, toIndex) {
+        if (fromIndex >= 0 && fromIndex < this.customSwatches.length && toIndex >= 0 && toIndex < this.customSwatches.length) {
+            const item = this.customSwatches.splice(fromIndex, 1)[0];
+            this.customSwatches.splice(toIndex, 0, item);
+            return true;
+        }
+        return false;
     }
     setCustomSwatches(swatches) { 
         this.customSwatches = [...swatches]; 

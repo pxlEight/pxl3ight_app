@@ -1,9 +1,10 @@
-import { CONSTANTS } from '../core/Constants.js?cb=171';
+import { CONSTANTS } from '../core/Constants.js?cb=202';
 
 export default class BrushManager {
     constructor(core) {
         this.core = core;
         this.customBrushes = [];
+        this._indicatorTimer = null;
         this.defaultBrushes = [
             // Round - 100%
             { shape: 'round', size: 2, opacity: 1.0 },
@@ -86,15 +87,34 @@ export default class BrushManager {
         container.appendChild(swatch);
     }
 
+    getActiveToolCategory(tool = this.core.state?.tool?.current) {
+        if (this.core.ui?.getActiveToolCategory) {
+            return this.core.ui.getActiveToolCategory(tool);
+        }
+        if (this.core.state?.getActiveToolCategory) {
+            return this.core.state.getActiveToolCategory(tool);
+        }
+        if (tool === CONSTANTS.TOOLS.ERASER) return CONSTANTS.TOOLS.ERASER;
+        if ([CONSTANTS.TOOLS.LINE, CONSTANTS.TOOLS.RECT, CONSTANTS.TOOLS.ELLIPSE, CONSTANTS.TOOLS.SHAPE].includes(tool)) {
+            return CONSTANTS.TOOLS.SHAPE;
+        }
+        return CONSTANTS.TOOLS.PENCIL;
+    }
+
     addCurrentBrush() {
-        const toolId = this.core.state.tool.current;
-        let size = this.core.state.sizes[toolId];
-        if (size === undefined) size = this.core.state.sizes[CONSTANTS.TOOLS.PENCIL] || 1;
+        const cat = this.getActiveToolCategory();
+        let size = (this.core.state.sizes && this.core.state.sizes[cat] !== undefined)
+            ? this.core.state.sizes[cat]
+            : (this.core.state.sizes && this.core.state.sizes[CONSTANTS.TOOLS.PENCIL]) || 1;
         
+        const shape = (this.core.state.brushShapes && this.core.state.brushShapes[cat])
+            || this.core.state.tool?.brushShape
+            || CONSTANTS.BRUSH_SHAPE.SQUARE;
+
         const brush = {
-            shape: this.core.state.tool.brushShape,
+            shape: shape,
             size: size,
-            opacity: this.core.state.tool.opacity
+            opacity: this.core.state.tool?.opacity !== undefined ? this.core.state.tool.opacity : 1.0
         };
         
         // Prevent duplicate custom brushes
@@ -106,21 +126,45 @@ export default class BrushManager {
     }
 
     selectBrush(brush) {
-        this.core.events.emit('core:setBrushShape', brush.shape);
-        
-        const toolId = this.core.state.tool.current;
-        if (this.core.state.sizes[toolId] !== undefined) {
-            this.core.state.sizes[toolId] = brush.size;
-        } else {
-            this.core.state.sizes[CONSTANTS.TOOLS.PENCIL] = brush.size;
-            this.core.events.emit('requestToolChange', CONSTANTS.TOOLS.PENCIL);
+        const cat = this.getActiveToolCategory();
+
+        if (!this.core.state.sizes) this.core.state.sizes = {};
+        this.core.state.sizes[cat] = brush.size;
+
+        this.core.events.emit('core:setBrushShape', { tool: cat, shape: brush.shape });
+        if (this.core.state.tool) {
+            this.core.state.tool.opacity = brush.opacity;
         }
-        this.core.state.tool.opacity = brush.opacity;
 
         // Update UI
         const opacityVal = document.getElementById('opacityVal');
         if (opacityVal) {
             opacityVal.innerText = Math.round(brush.opacity * 100);
+        }
+        const sizeVal = document.getElementById('brushSizeVal');
+        if (sizeVal) {
+            sizeVal.innerText = brush.size;
+        }
+        const btnVal = document.getElementById('brushSizeBtnVal');
+        if (btnVal) {
+            btnVal.innerText = brush.size;
+        }
+
+        if (this.core.ui) {
+            if (this.core.ui.syncBrushSizeUI) {
+                this.core.ui.syncBrushSizeUI();
+            }
+            if (this.core.ui.showBrushSizePreview) {
+                this.core.ui.showBrushSizePreview(brush.size, this.core.state.tool?.current);
+                if (this._indicatorTimer) {
+                    clearTimeout(this._indicatorTimer);
+                }
+                this._indicatorTimer = setTimeout(() => {
+                    const indicator = document.getElementById('brushSizeIndicator');
+                    if (indicator) indicator.style.display = 'none';
+                    this._indicatorTimer = null;
+                }, 500);
+            }
         }
     }
 }
