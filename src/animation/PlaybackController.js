@@ -1,4 +1,4 @@
-import { canvas2DOptions } from '../core/Constants.js?cb=202';
+import { canvas2DOptions } from '../core/Constants.js?cb=203';
 
 export default class PlaybackController {
     constructor(core) { 
@@ -22,6 +22,12 @@ export default class PlaybackController {
         
         if (this.isPlaying) {
             this.core.onionCanvas.style.display = 'none'; 
+            if (this.core.selection && typeof this.core.selection.anchor === 'function') {
+                this.core.selection.anchor();
+            }
+            if (this.core.renderer && typeof this.core.renderer.clearFrameCache === 'function') {
+                this.core.renderer.clearFrameCache();
+            }
             this.playDirection = 1;
             this.currentHoldTick = 0;
             
@@ -233,7 +239,7 @@ export default class PlaybackController {
             for (let i = frame.layers.length - 1; i >= 0; i--) {
                 const l = getLayerToDraw(i);
                 if (l && l.visible && !l.isDeleted && l.hasContent) { 
-                    const src = l._canvas || (l.isDehydrated && this.core.renderer ? this.core.renderer.getDehydratedLayerCanvas(l) : l.canvas);
+                    const src = l._canvas || (l.isDehydrated && this.core.renderer ? this.core.renderer.getDehydratedLayerCanvas(l, i) : l.canvas);
                     if (src) {
                         this.core.onionCtx.globalAlpha = l.opacity * baseAlpha; 
                         this.core.onionCtx.drawImage(src, 0, 0); 
@@ -250,7 +256,7 @@ export default class PlaybackController {
             for (let i = frame.layers.length - 1; i >= 0; i--) {
                 const l = getLayerToDraw(i);
                 if (l && l.visible && !l.isDeleted && l.hasContent) { 
-                    const src = l._canvas || (l.isDehydrated && this.core.renderer ? this.core.renderer.getDehydratedLayerCanvas(l) : l.canvas);
+                    const src = l._canvas || (l.isDehydrated && this.core.renderer ? this.core.renderer.getDehydratedLayerCanvas(l, i) : l.canvas);
                     if (src) {
                         tCtx.globalAlpha = l.opacity; 
                         tCtx.drawImage(src, 0, 0); 

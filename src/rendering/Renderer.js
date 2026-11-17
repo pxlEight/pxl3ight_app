@@ -1,4 +1,4 @@
-import { canvas2DOptions } from '../core/Constants.js?cb=202';
+import { canvas2DOptions } from '../core/Constants.js?cb=203';
 export default class Renderer {
     constructor(doc, targetCanvas, core = null) { 
         this.doc = doc; 
@@ -9,8 +9,7 @@ export default class Renderer {
         this.renderPending = false; 
         this._pendingRect = null;
         this._pendingFull = false;
-        this._scratchLayerId = null;
-        this._scratchLayerVer = -1;
+        this._scratchSlots = new Map();
         this._frameCache = new Map();
     }
     render(rect) { 
@@ -45,37 +44,42 @@ export default class Renderer {
         this._pendingRect = null;
         this._doRender(rect);
     }
-    _ensureScratch(w, h) {
-        if (!this._scratchCanvas) {
-            this._scratchCanvas = document.createElement('canvas');
-            this._scratchCtx = this._scratchCanvas.getContext('2d', canvas2DOptions());
-            this._scratchCtx.imageSmoothingEnabled = false;
-            this._scratchLayerId = null;
-            this._scratchLayerVer = -1;
+    _ensureScratch(slot, w, h) {
+        if (!this._scratchSlots) {
+            this._scratchSlots = new Map();
         }
-        if (this._scratchCanvas.width !== w || this._scratchCanvas.height !== h) {
-            this._scratchCanvas.width = w;
-            this._scratchCanvas.height = h;
-            this._scratchCtx.imageSmoothingEnabled = false;
-            this._scratchLayerId = null;
-            this._scratchLayerVer = -1;
+        let entry = this._scratchSlots.get(slot);
+        if (!entry) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', canvas2DOptions());
+            ctx.imageSmoothingEnabled = false;
+            entry = { canvas, ctx, layerId: null, layerVer: -1 };
+            this._scratchSlots.set(slot, entry);
         }
+        if (entry.canvas.width !== w || entry.canvas.height !== h) {
+            entry.canvas.width = w;
+            entry.canvas.height = h;
+            entry.ctx.imageSmoothingEnabled = false;
+            entry.layerId = null;
+            entry.layerVer = -1;
+        }
+        return entry;
     }
     _getScratch(w, h) {
-        this._ensureScratch(w, h);
-        this._scratchLayerId = null;
-        this._scratchLayerVer = -1;
-        return { canvas: this._scratchCanvas, ctx: this._scratchCtx };
+        const entry = this._ensureScratch(0, w, h);
+        entry.layerId = null;
+        entry.layerVer = -1;
+        return { canvas: entry.canvas, ctx: entry.ctx };
     }
-    getDehydratedLayerCanvas(layer) {
+    getDehydratedLayerCanvas(layer, slot = 0) {
         if (!layer || !layer._buffer || !this.doc) return null;
-        this._ensureScratch(this.doc.width, this.doc.height);
-        if (this._scratchLayerId !== layer._id || this._scratchLayerVer !== layer._ver) {
-            this._scratchCtx.putImageData(layer._buffer, 0, 0);
-            this._scratchLayerId = layer._id;
-            this._scratchLayerVer = layer._ver;
+        const entry = this._ensureScratch(slot, this.doc.width, this.doc.height);
+        if (entry.layerId !== layer._id || entry.layerVer !== layer._ver) {
+            entry.ctx.putImageData(layer._buffer, 0, 0);
+            entry.layerId = layer._id;
+            entry.layerVer = layer._ver;
         }
-        return this._scratchCanvas;
+        return entry.canvas;
     }
     _getLayerToDraw(frameIndex, i) {
         const frame = this.doc.frames[frameIndex];
@@ -100,6 +104,9 @@ export default class Renderer {
                         }
                         break;
                     }
+                }
+                if (!found && layerToDraw._cachedOriginIndex !== undefined) {
+                    delete layerToDraw._cachedOriginIndex;
                 }
             }
             if (found) {
@@ -129,7 +136,7 @@ export default class Renderer {
             const layerToDraw = this._getLayerToDraw(frameIndex, i);
             if (layerToDraw && layerToDraw.visible && !layerToDraw.isDeleted && layerToDraw.hasContent) {
                 ctx.globalAlpha = layerToDraw.opacity;
-                const src = layerToDraw._canvas || (layerToDraw.isDehydrated ? this.getDehydratedLayerCanvas(layerToDraw) : null);
+                const src = layerToDraw._canvas || (layerToDraw.isDehydrated ? this.getDehydratedLayerCanvas(layerToDraw, i) : null);
                 if (src) {
                     if (rect) ctx.drawImage(src, rect.x, rect.y, rect.w, rect.h, rect.x, rect.y, rect.w, rect.h);
                     else ctx.drawImage(src, 0, 0);
@@ -222,13 +229,15 @@ export default class Renderer {
     }
     destroy() {
         this.clearFrameCache();
-        if (this._scratchCanvas) {
-            this._scratchCanvas.width = 0;
-            this._scratchCanvas.height = 0;
-            this._scratchCanvas = null;
-            this._scratchCtx = null;
-            this._scratchLayerId = null;
-            this._scratchLayerVer = -1;
+        if (this._scratchSlots) {
+            for (const entry of this._scratchSlots.values()) {
+                if (entry && entry.canvas) {
+                    entry.canvas.width = 0;
+                    entry.canvas.height = 0;
+                }
+            }
+            this._scratchSlots.clear();
+            this._scratchSlots = null;
         }
     }
 }

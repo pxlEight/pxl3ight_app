@@ -1,5 +1,5 @@
-import BaseTool from './BaseTool.js?cb=202';
-import { CONSTANTS } from '../core/Constants.js?cb=202';
+import BaseTool from './BaseTool.js?cb=203';
+import { CONSTANTS } from '../core/Constants.js?cb=203';
 
 export default class ColorSelectTool extends BaseTool {
     constructor(context) {

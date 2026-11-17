@@ -1,32 +1,32 @@
-import EventBus from './core/EventBus.js?cb=202';
-import AppConfig from './core/AppConfig.js?cb=202';
-import HistoryManager from './core/HistoryManager.js?cb=202';
-import StorageManager from './core/StorageManager.js?cb=202';
-import WorkerManager from './core/WorkerManager.js?cb=202';
-import ViewportManager from './rendering/ViewportManager.js?cb=202';
-import SelectionManager from './selection/SelectionManager.js?cb=202';
-import PlaybackController from './animation/PlaybackController.js?cb=202';
-import ToolManager from './tools/ToolManager.js?cb=202';
-import PaletteManager from './ui/PaletteManager.js?cb=202';
-import BrushManager from './ui/BrushManager.js?cb=202';
-import UIManager from './ui/UIManager.js?cb=202';
-import InputManager from './ui/InputManager.js?cb=202';
-import PixelDocument from './models/PixelDocument.js?cb=202';
-import PixelFrame from './models/PixelFrame.js?cb=202';
-import PixelLayer, { bumpVerCounter } from './models/PixelLayer.js?cb=202';
-import Renderer from './rendering/Renderer.js?cb=202';
-import GpuLayerAdjust from './rendering/GpuLayerAdjust.js?cb=202';
-import { CONSTANTS, canvas2DOptions } from './core/Constants.js?cb=202';
-import DrawingTool from './tools/DrawingTool.js?cb=202';
-import ShapeTool from './tools/ShapeTool.js?cb=202';
-import FillTool from './tools/FillTool.js?cb=202';
-import DropperTool from './tools/DropperTool.js?cb=202';
-import WandTool from './tools/WandTool.js?cb=202';
-import MarqueeTool from './tools/MarqueeTool.js?cb=202';
-import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=202';
-import ColorSelectTool from './tools/ColorSelectTool.js?cb=202';
-import LassoSelectTool from './tools/LassoSelectTool.js?cb=202';
-import ZoomTool from './tools/ZoomTool.js?cb=202';
+import EventBus from './core/EventBus.js?cb=203';
+import AppConfig from './core/AppConfig.js?cb=203';
+import HistoryManager from './core/HistoryManager.js?cb=203';
+import StorageManager from './core/StorageManager.js?cb=203';
+import WorkerManager from './core/WorkerManager.js?cb=203';
+import ViewportManager from './rendering/ViewportManager.js?cb=203';
+import SelectionManager from './selection/SelectionManager.js?cb=203';
+import PlaybackController from './animation/PlaybackController.js?cb=203';
+import ToolManager from './tools/ToolManager.js?cb=203';
+import PaletteManager from './ui/PaletteManager.js?cb=203';
+import BrushManager from './ui/BrushManager.js?cb=203';
+import UIManager from './ui/UIManager.js?cb=203';
+import InputManager from './ui/InputManager.js?cb=203';
+import PixelDocument from './models/PixelDocument.js?cb=203';
+import PixelFrame from './models/PixelFrame.js?cb=203';
+import PixelLayer, { bumpVerCounter } from './models/PixelLayer.js?cb=203';
+import Renderer from './rendering/Renderer.js?cb=203';
+import GpuLayerAdjust from './rendering/GpuLayerAdjust.js?cb=203';
+import { CONSTANTS, canvas2DOptions } from './core/Constants.js?cb=203';
+import DrawingTool from './tools/DrawingTool.js?cb=203';
+import ShapeTool from './tools/ShapeTool.js?cb=203';
+import FillTool from './tools/FillTool.js?cb=203';
+import DropperTool from './tools/DropperTool.js?cb=203';
+import WandTool from './tools/WandTool.js?cb=203';
+import MarqueeTool from './tools/MarqueeTool.js?cb=203';
+import PolygonSelectTool from './tools/PolygonSelectTool.js?cb=203';
+import ColorSelectTool from './tools/ColorSelectTool.js?cb=203';
+import LassoSelectTool from './tools/LassoSelectTool.js?cb=203';
+import ZoomTool from './tools/ZoomTool.js?cb=203';
 
 export default class PixelEditor {
     constructor() {
@@ -1155,7 +1155,7 @@ export default class PixelEditor {
                             if (layerToDraw._canvas) {
                                 eCtx.drawImage(layerToDraw._canvas, 0, 0, exportCanvas.width, exportCanvas.height); 
                             } else if (layerToDraw.isDehydrated) {
-                                const src = this.renderer.getDehydratedLayerCanvas(layerToDraw);
+                                const src = this.renderer.getDehydratedLayerCanvas(layerToDraw, li);
                                 if (src) eCtx.drawImage(src, 0, 0, exportCanvas.width, exportCanvas.height);
                             }
                         }
@@ -1224,7 +1224,7 @@ export default class PixelEditor {
                             if (layerToDraw._canvas) {
                                 eCtx.drawImage(layerToDraw._canvas, 0, 0); 
                             } else if (layerToDraw.isDehydrated) {
-                                const src = this.renderer.getDehydratedLayerCanvas(layerToDraw);
+                                const src = this.renderer.getDehydratedLayerCanvas(layerToDraw, li);
                                 if (src) eCtx.drawImage(src, 0, 0);
                             }
                         }
@@ -1585,7 +1585,7 @@ export default class PixelEditor {
                         if (layerToDraw._canvas) {
                             this.spriteSheetCtx.drawImage(layerToDraw._canvas, col * cellW, row * cellH, cellW, cellH); 
                         } else if (layerToDraw.isDehydrated) {
-                            const src = this.renderer.getDehydratedLayerCanvas(layerToDraw);
+                            const src = this.renderer.getDehydratedLayerCanvas(layerToDraw, i);
                             if (src) this.spriteSheetCtx.drawImage(src, col * cellW, row * cellH, cellW, cellH);
                         }
                     } 
